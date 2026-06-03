@@ -1,0 +1,335 @@
+@import "tailwindcss";
+
+:root {
+  /* Calming Light Theme - Warm, paper-like background */
+  --background: #faf8f5;
+  --foreground: #2d2d2d;
+  --foreground-muted: #5a5a5a;
+  --foreground-subtle: #8a8a8a;
+  
+  /* Accent colors - Warm, inviting */
+  --accent-primary: #c17767;
+  --accent-primary-hover: #a86555;
+  --accent-secondary: #8b7355;
+  
+  /* Borders - Soft, barely visible */
+  --border-color: #e8e3dc;
+  --border-color-subtle: #f0ebe4;
+  
+  /* Code and highlights */
+  --code-bg: #f5f1ea;
+  --blockquote-border: #d4c5b0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-serif: var(--font-roboto-serif);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Calming Dark Theme - Warm, low-contrast for reduced eye strain */
+    --background: #1a1816;
+    --foreground: #e4ddd4;
+    --foreground-muted: #b8b0a8;
+    --foreground-subtle: #8a8278;
+    
+    /* Accent colors - Warm, muted */
+    --accent-primary: #d4a89a;
+    --accent-primary-hover: #e5bfb3;
+    --accent-secondary: #b89d88;
+    
+    /* Borders - Subtle, warm */
+    --border-color: #2d2926;
+    --border-color-subtle: #252220;
+    
+    /* Code and highlights */
+    --code-bg: #242220;
+    --blockquote-border: #3d3530;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-roboto-serif), Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.6;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Optimal line length: 50-75 characters per line */
+/* For 16px font: max-width ~580-720px */
+p, article {
+  max-width: 65ch; /* ~65 characters per line */
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  max-width: 40ch; /* Headings: 30-40 characters for focus */
+}
+
+/* Article content HTML styling */
+.prose {
+  max-width: 65ch;
+  display: block;
+  line-height: 1.8; /* Increased for better readability */
+}
+
+/* Add spacing between all child elements */
+.prose > * + * {
+  margin-top: 1.5em;
+}
+
+/* Text nodes need spacing too - use line-height and word-spacing */
+.prose {
+  word-spacing: 0.05em;
+}
+
+/* Handle feeds that use <br/> tags instead of proper paragraphs (MacRumors, etc.) */
+.prose br {
+  display: block;
+  content: "";
+  margin-top: 0.75em;
+}
+
+.prose br + br {
+  display: block;
+  content: "";
+  margin-top: 0.75em;
+}
+
+.prose > * {
+  margin-bottom: 1em;
+}
+
+.prose > *:first-child {
+  margin-top: 0;
+}
+
+.prose > *:last-child {
+  margin-bottom: 0;
+}
+
+.prose p {
+  margin-bottom: 1.5em;
+  margin-top: 0;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* Ensure text content has proper spacing */
+.prose {
+  font-size: 16px;
+}
+
+.prose > p:first-child {
+  margin-top: 0;
+}
+
+/* Special handling for discussion/comment links (common in Kottke feed) */
+.prose p:has(a[href*="discussion"]),
+.prose p:has(a[href*="comment"]) {
+  margin-top: 1em;
+  padding-top: 0.5em;
+}
+
+/* Ensure spacing before standalone links at the end */
+.prose > p:last-child:has(a) {
+  margin-top: 1em;
+}
+
+.prose a {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  display: inline; /* Ensure links don't break spacing */
+}
+
+.prose a:hover {
+  color: var(--accent-primary-hover);
+  text-decoration-color: var(--accent-primary-hover);
+}
+
+/* Standalone links (like "Continue Reading" or "Discuss") */
+.prose a[href*="Continue"],
+.prose a[href*="Discuss"],
+.prose a[href*="Read more"],
+.prose a[href*="AppleInsider"],
+.prose a[href*="Forums"] {
+  display: inline-block;
+  margin-top: 2em;
+  padding-top: 1em;
+}
+
+.prose strong,
+.prose b {
+  font-weight: 600;
+}
+
+.prose em,
+.prose i {
+  font-style: italic;
+}
+
+.prose ul,
+.prose ol {
+  margin-left: 1.5em;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  padding-left: 0;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li {
+  margin-bottom: 0.75em;
+  line-height: 1.6;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--blockquote-border);
+  padding-left: 1em;
+  margin-left: 0;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  font-style: italic;
+  color: var(--foreground-muted);
+}
+
+.prose blockquote p {
+  margin-bottom: 0.75em;
+}
+
+.prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.prose code {
+  background-color: var(--code-bg);
+  color: var(--foreground);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: ui-monospace, monospace;
+}
+
+.prose pre {
+  background-color: var(--code-bg);
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.prose img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 6px;
+  margin-top: 2em !important;
+  margin-bottom: 2em !important;
+  display: block;
+}
+
+/* Ensure spacing around images even with inline text */
+.prose img:first-child {
+  margin-top: 1em !important;
+}
+
+.prose img:last-child {
+  margin-bottom: 1em !important;
+}
+
+/* Headings in prose */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+  line-height: 1.3;
+}
+
+.prose h1:first-child,
+.prose h2:first-child,
+.prose h3:first-child,
+.prose h4:first-child,
+.prose h5:first-child,
+.prose h6:first-child {
+  margin-top: 0;
+}
+
+/* Article title links */
+.article-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.article-link:hover {
+  color: var(--accent-primary-hover);
+}
+
+/* Button hover utility */
+.button-hover-fade:hover {
+  opacity: 0.8;
+}
+
+/* Smooth expand/collapse animation */
+.prose {
+  transition: max-height 0.3s ease;
+}
+
+/* Selection color - warm and inviting */
+::selection {
+  background-color: var(--accent-primary);
+  color: var(--background);
+}
+
+::-moz-selection {
+  background-color: var(--accent-primary);
+  color: var(--background);
+}
+
+/* Animations */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}

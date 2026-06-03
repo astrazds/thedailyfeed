@@ -1,0 +1,50 @@
+services:
+  thedailyfeed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: thedailyfeed
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - LOG_SERVICE_NAME=${LOG_SERVICE_NAME:-thedailyfeed}
+      - LOG_REDACT_FIELDS=${LOG_REDACT_FIELDS:-authorization,cookie,set-cookie,password,token}
+      - APP_VERSION=${APP_VERSION:-0.1.0}
+      - APP_COMMIT=${APP_COMMIT:-unknown}
+      # Set to 'true' if you need to fetch RSS feeds from local network IPs
+      - ALLOW_PRIVATE_NETWORKS=false
+      # Timezone support
+      - TZ=Australia/Melbourne
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    # Optional: Mount env file for runtime configuration
+    # env_file:
+    #   - .env.production
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dailyfeed.entrypoints=websecure"
+      - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.astrazds.net}`)"
+      - "traefik.http.routers.dailyfeed.tls=true"
+      - "traefik.http.routers.dailyfeed.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-route53}"
+      - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
+networks:
+  traefik_proxy:
+    external: true
