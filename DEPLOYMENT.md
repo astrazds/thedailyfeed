@@ -7,7 +7,7 @@ This guide covers running The Daily Feed in production with Docker, Docker Compo
 - Docker 20.10+
 - Docker Compose 2+
 - A DNS name for production HTTPS
-- pnpm, when running local checks outside Docker
+- Node.js 24 LTS or newer and pnpm 10.33.4+, when running local checks outside Docker
 
 ## Build the Image
 
@@ -17,7 +17,7 @@ cd thedailyfeed
 docker build -t thedailyfeed:latest .
 ```
 
-The image build runs `pnpm build`. That production build also verifies the PWA service worker contract, including `public/sw.js`, referenced Workbox runtime assets, and the declared `/api/feeds` `NetworkOnly` runtime route.
+The image builds and runs on Node.js 24 Alpine. The build runs `pnpm build`, which also verifies the PWA service worker contract, including `public/sw.js`, referenced Workbox runtime assets, and the declared `/api/feeds` `NetworkOnly` runtime route.
 
 ## Run with Compose
 

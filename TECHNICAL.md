@@ -7,6 +7,7 @@ This document reflects the current implementation as of June 3, 2026.
 The Daily Feed is a Next.js App Router project with:
 
 - A client-driven UI for feed rendering and management
+- Node.js 24 LTS or newer as the supported server runtime
 - Streaming feed retrieval with progressive per-feed updates
 - User-timezone-aware "today" filtering on the server
 - Per-feed in-memory cache (TTL-based)
@@ -244,6 +245,7 @@ Chunk types:
 ### Containerization
 
 - Multi-stage Docker build (`Dockerfile`)
+- Node.js 24 Alpine base image
 - Standalone Next.js output used for runtime image
 - Runs as non-root user in final image
 

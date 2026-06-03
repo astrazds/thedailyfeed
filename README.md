@@ -20,6 +20,7 @@ The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, kee
 
 - Next.js 16 App Router
 - React 19
+- Node.js 24 LTS or newer
 - TypeScript strict mode
 - Tailwind CSS v4
 - `rss-parser`, `date-fns`, `dompurify`
@@ -27,6 +28,11 @@ The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, kee
 - Docker standalone output for self-hosting
 
 ## Quick Start
+
+Requirements:
+
+- Node.js 24 LTS or newer
+- pnpm 10.33.4 or newer
 
 ```bash
 git clone https://repos.astrazds.net/astrazds/thedailyfeed.git
