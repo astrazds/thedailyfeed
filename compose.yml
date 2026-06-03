@@ -17,10 +17,18 @@ services:
       - LOG_REDACT_FIELDS=${LOG_REDACT_FIELDS:-authorization,cookie,set-cookie,password,token}
       - APP_VERSION=${APP_VERSION:-0.1.0}
       - APP_COMMIT=${APP_COMMIT:-unknown}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-10}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
+      - FEED_TIMEOUT_MS=${FEED_TIMEOUT_MS:-10000}
+      - FEED_RETRY_COUNT=${FEED_RETRY_COUNT:-3}
+      - FEED_OVERALL_TIMEOUT_MS=${FEED_OVERALL_TIMEOUT_MS:-30000}
+      - FEED_CACHE_TTL_MS=${FEED_CACHE_TTL_MS:-3600000}
+      - FEED_CACHE_MAX_ENTRIES=${FEED_CACHE_MAX_ENTRIES:-200}
+      - METRICS_AUTH_TOKEN=${METRICS_AUTH_TOKEN:-}
       # Set to 'true' if you need to fetch RSS feeds from local network IPs
-      - ALLOW_PRIVATE_NETWORKS=false
+      - ALLOW_PRIVATE_NETWORKS=${ALLOW_PRIVATE_NETWORKS:-false}
       # Timezone support
-      - TZ=Australia/Melbourne
+      - TZ=${TZ:-UTC}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
@@ -41,7 +49,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dailyfeed.entrypoints=websecure"
-      - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.astrazds.net}`)"
+      - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.example.com}`)"
       - "traefik.http.routers.dailyfeed.tls=true"
       - "traefik.http.routers.dailyfeed.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-route53}"
       - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"

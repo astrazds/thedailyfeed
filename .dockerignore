@@ -59,4 +59,5 @@ docker-compose*.yml
 # Documentation
 README.md
 TECHNICAL.md
+DEPLOYMENT.md
 .tmp/

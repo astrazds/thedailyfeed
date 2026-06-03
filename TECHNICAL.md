@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the current implementation as of June 1, 2026.
+This document reflects the current implementation as of June 3, 2026.
 
 ## System Overview
 
@@ -29,15 +29,17 @@ The Daily Feed is a Next.js App Router project with:
 - `POST /api/feeds` (`app/api/feeds/route.ts`)
   - Accepts `{ feedUrls: string[], timeZone?: string }`
   - Validates payload/URLs
-  - Applies per-IP rate limiting
+  - Applies shared route admission, Request ID derivation, and rate limiting
   - Splits requested feeds into cached/missing sets
   - Supports JSON mode and NDJSON stream mode
 - `POST /api/feeds/validate` (`app/api/feeds/validate/route.ts`)
   - Validates URL format and probes/parses feed
-  - No dedicated in-app rate limiter (recommended at proxy/edge)
+  - Applies the same shared route admission and rate-limit policy as `POST /api/feeds`
 - `GET /api/metrics` (`app/api/metrics/route.ts`)
   - Exposes in-memory request/cache metrics
-  - Unauthenticated by default
+  - Production exposure mode is `app-authenticated-operator`
+  - Requires bearer auth in production when `METRICS_AUTH_TOKEN` is configured
+  - Returns `404` in production when `METRICS_AUTH_TOKEN` is missing
 - `GET /api/test-feed` (`app/api/test-feed/route.ts`)
   - Integration-test helper endpoint
   - Returns `404` in production
@@ -46,7 +48,7 @@ The Daily Feed is a Next.js App Router project with:
 
 1. `FeedContent` loads enabled feed config from `localStorage` (`lib/feed-storage.ts`)
 2. Client resolves browser timezone and posts `{ feedUrls, timeZone }` to `/api/feeds`
-3. API derives Request ID and trusted client identity through `lib/request-context.ts`, then performs rate-limit checks
+3. API derives Request ID and client identity through `lib/request-context.ts`, then performs rate-limit checks
 4. API normalizes timezone and splits feed URLs into cached + missing
 5. In stream mode:
    - API emits `meta`
@@ -82,7 +84,7 @@ The Daily Feed is a Next.js App Router project with:
   - request completion and failure
 - `X-Request-Id` header is returned to correlate user reports with logs
 - Feed, validation, metrics, and rate-limit adapters use the shared Request ID/client identity policy
-- Forwarded client identity headers are trusted only through that policy; deployment proxies must strip spoofed inbound headers and inject trusted `X-Forwarded-For`/`X-Real-IP` values
+- Forwarded client identity headers are trusted only when an explicit route policy opts into them; deployments that enable trusted forwarding must strip spoofed inbound headers and inject trusted `X-Forwarded-For`/`X-Real-IP` values
 
 ### Metrics (`lib/metrics.ts` + `/api/metrics`)
 
@@ -225,7 +227,9 @@ Chunk types:
 
 ### Request Protection
 
-- In-memory per-IP rate limiting with response headers on `POST /api/feeds`
+- In-memory rate limiting with response headers on `POST /api/feeds` and `POST /api/feeds/validate`
+- The limiter key is the derived client identity from `lib/request-context.ts`
+- The default route policy does not trust forwarded IP headers, so untrusted requests collapse to the `unknown` identity unless a trusted proxy policy is explicitly configured
 
 ### Headers and Policies
 
@@ -250,13 +254,14 @@ Chunk types:
 - Traefik labels parameterized via:
   - `TRAEFIK_DOMAIN`
   - `TRAEFIK_CERT_RESOLVER`
+- Reverse proxies should avoid buffering the feed stream route so `POST /api/feeds?stream=1` can deliver per-feed progress as chunks are produced
 
 ### Environment
 
 See `env.template` for supported variables. Key groups:
 
 - Rate limiting
-- Feed fetching/retry/timeout/cache TTL
+- Feed fetching/retry/timeout/cache TTL/cache size
 - Logging (`LOG_*`) and build metadata (`APP_*`)
 - SSRF private-network toggle
 - Traefik deployment parameters

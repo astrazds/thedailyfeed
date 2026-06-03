@@ -1,7 +1,12 @@
 {
   "name": "thedailyfeed",
   "version": "0.1.0",
+  "description": "A focused RSS reader for today's articles.",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://repos.astrazds.net/astrazds/thedailyfeed.git"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack && pnpm verify:pwa-build",

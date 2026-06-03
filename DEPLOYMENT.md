@@ -1,62 +1,79 @@
-# Deployment Guide - The Daily Feed
+# Deployment Guide
 
-This guide covers deploying The Daily Feed in production using Docker with an optional Traefik reverse proxy.
+This guide covers running The Daily Feed in production with Docker, Docker Compose, and an optional Traefik reverse proxy.
 
 ## Prerequisites
 
 - Docker 20.10+
-- Docker Compose 2.0+
-- Domain name with DNS configured (for production)
-- pnpm (for local builds)
+- Docker Compose 2+
+- A DNS name for production HTTPS
+- pnpm, when running local checks outside Docker
 
-## Quick Start (Docker)
-
-### 1. Build the Image
+## Build the Image
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://repos.astrazds.net/astrazds/thedailyfeed.git
 cd thedailyfeed
-
-# Build the Docker image
 docker build -t thedailyfeed:latest .
 ```
 
-The image build runs `pnpm build`, which fails if `public/sw.js`, its referenced Workbox runtime assets, or the declared `/api/feeds` `NetworkOnly` runtime route are missing.
+The image build runs `pnpm build`. That production build also verifies the PWA service worker contract, including `public/sw.js`, referenced Workbox runtime assets, and the declared `/api/feeds` `NetworkOnly` runtime route.
 
-### 2. Run with Docker Compose
+## Run with Compose
+
+Create an environment file from the template when you need non-default settings:
 
 ```bash
-# Start the container
-docker compose -f compose.yml up -d
+cp env.template .env.production
+```
 
-# View logs
+Start the service:
+
+```bash
+docker compose -f compose.yml --env-file .env.production up -d
 docker compose -f compose.yml logs -f thedailyfeed
 ```
 
-### 3. Verify Deployment
+Check container health:
 
 ```bash
-# Check container status
-docker ps | grep thedailyfeed
-
-# Check health
 docker inspect --format='{{.State.Health.Status}}' thedailyfeed
-
-# Test endpoint
 curl http://localhost:3000
-
-# Metrics endpoint
-curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" http://localhost:3000/api/metrics
 ```
 
-## Traefik Integration (Recommended)
+## Runtime Configuration
 
-For automatic HTTPS and easy domain management, use Traefik.
+`compose.yml` passes these variables through to the container:
 
-### 1. Traefik Configuration
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `NODE_ENV` | `production` | Fixed by Compose. |
+| `PORT` | `3000` | Fixed by Compose and exposed to Traefik internally. |
+| `HOSTNAME` | `0.0.0.0` | Fixed by Compose. |
+| `TZ` | `UTC` | Container timezone. User-facing "today" still comes from browser timezone. |
+| `LOG_LEVEL` | `info` | Server logger level. |
+| `LOG_FORMAT` | `json` | Use JSON logs in production. |
+| `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
+| `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
+| `APP_VERSION` | `0.1.0` | Build/runtime metadata in logs. |
+| `APP_COMMIT` | `unknown` | Commit metadata in logs. |
+| `RATE_LIMIT_MAX_REQUESTS` | `10` | Feed API requests per identity per window. |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window. |
+| `FEED_TIMEOUT_MS` | `10000` | Upstream feed fetch timeout. |
+| `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
+| `FEED_OVERALL_TIMEOUT_MS` | `30000` | Overall per-feed timeout budget. |
+| `FEED_CACHE_TTL_MS` | `3600000` | Per-feed server cache TTL. |
+| `FEED_CACHE_MAX_ENTRIES` | `200` | In-memory cache entry cap. |
+| `ALLOW_PRIVATE_NETWORKS` | `false` | Production SSRF escape hatch for private network feeds. |
+| `METRICS_AUTH_TOKEN` | empty | Required to expose production metrics. |
+| `TRAEFIK_DOMAIN` | `dailyfeed.example.com` | Traefik router hostname. |
+| `TRAEFIK_CERT_RESOLVER` | `route53` | Traefik certificate resolver name. |
 
-`compose.yml` already includes labels for Traefik integration:
+Keep real secrets out of the repository. `.env*` files are ignored by git.
+
+## Traefik
+
+`compose.yml` includes Traefik labels:
 
 ```yaml
 labels:
@@ -68,20 +85,25 @@ labels:
   - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
 ```
 
-Set `TRAEFIK_DOMAIN` and `TRAEFIK_CERT_RESOLVER` per environment.
+The service joins an external network named `traefik_proxy`. Change the network name in `compose.yml` if your Traefik stack uses a different network.
 
-### 2. External Traefik Network
+Recommended Traefik hardening:
 
-If you are using an external Traefik network, ensure the network name in `compose.yml` matches your Traefik stack network (default in this repo: `traefik_proxy`).
+- Keep direct access to the app container blocked.
+- Strip inbound `X-Forwarded-For` and `X-Real-IP` at the public edge, then inject trusted values from Traefik if the app is configured to trust proxy identity headers.
+- Preserve or inject `X-Request-Id` or `X-Correlation-Id` when upstream request correlation is needed.
+- Keep `/api/metrics` behind trusted networks as defense in depth, even though production metrics require bearer auth.
+- Add proxy-level request limits for feed endpoints as defense in depth.
+- Avoid response buffering on the app route so `POST /api/feeds?stream=1` can deliver NDJSON chunks progressively.
 
-## Alternative Reverse Proxies
+## Other Reverse Proxies
 
 ### Nginx
 
 ```nginx
 server {
     listen 80;
-    server_name thedailyfeed.example.com;
+    server_name dailyfeed.example.com;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -89,10 +111,12 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-Id $request_id;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
     }
 }
 ```
@@ -100,71 +124,20 @@ server {
 ### Caddy
 
 ```caddy
-thedailyfeed.example.com {
+dailyfeed.example.com {
     reverse_proxy localhost:3000
 }
 ```
 
-## Environment Variables
+## Metrics
 
-Primary runtime variables used by the container:
+`GET /api/metrics` exposes an operator snapshot with in-memory feed API counters and redacted feed cache stats.
 
-- `NODE_ENV=production`
-- `PORT=3000`
-- `HOSTNAME=0.0.0.0`
-- `LOG_LEVEL` (default: `info`)
-- `LOG_FORMAT` (default: `json`)
-- `LOG_SERVICE_NAME` (default: `thedailyfeed`)
-- `LOG_REDACT_FIELDS` (default: `authorization,cookie,set-cookie,password,token`)
-- `APP_VERSION` (default: `0.1.0`)
-- `APP_COMMIT` (default: `unknown`)
-- `RATE_LIMIT_MAX_REQUESTS`
-- `RATE_LIMIT_WINDOW_MS`
-- `FEED_TIMEOUT_MS`
-- `FEED_RETRY_COUNT`
-- `FEED_OVERALL_TIMEOUT_MS`
-- `FEED_CACHE_TTL_MS`
-- `ALLOW_PRIVATE_NETWORKS`
-- `METRICS_AUTH_TOKEN` (required in production for `GET /api/metrics`)
+Production behavior:
 
-Use `env.template` as the baseline and inject values through `compose.yml` `environment` and/or `env_file`.
-
-## Monitoring & Maintenance
-
-### Logs
-
-```bash
-docker compose -f compose.yml logs -f thedailyfeed
-```
-
-Server logs are structured and include:
-
-- request correlation via `requestId`
-- cache split/hit details
-- progressive parse events
-- per-request durations and item counts
-
-`compose.yml` configures Docker log rotation:
-
-- logging driver: `json-file`
-- max size per file: `10m`
-- max retained files: `5`
-
-### Metrics
-
-`GET /api/metrics` exposes an operator runtime snapshot. The app-level exposure mode is
-`app-authenticated-operator`: production requests require `Authorization: Bearer <METRICS_AUTH_TOKEN>`.
-When `NODE_ENV=production` and no token is configured, the endpoint returns `404`.
-
-Responses include:
-
-- `metricsExposure`, naming the access, cache, and Request ID policy
-- `feedApi`, with aggregate feed API counters and averages
-- `feedCache`, with cache size and redacted entry ages
-
-Metrics responses use `Cache-Control: no-store` and emit `X-Request-Id` using the shared
-Request ID policy. Forward `X-Request-Id` or `X-Correlation-Id` from the proxy if upstream
-correlation is needed; otherwise the app generates an ID.
+- `METRICS_AUTH_TOKEN` unset: returns `404`.
+- `METRICS_AUTH_TOKEN` set and bearer missing/invalid: returns `401`.
+- `METRICS_AUTH_TOKEN` set and bearer valid: returns metrics with `Cache-Control: no-store`.
 
 Example:
 
@@ -172,53 +145,43 @@ Example:
 curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" http://localhost:3000/api/metrics
 ```
 
-### Health Checks
+The response includes `X-Request-Id`.
+
+## Logs
+
+Compose configures Docker `json-file` log rotation:
+
+- `max-size=10m`
+- `max-file=5`
+
+View logs:
 
 ```bash
-docker inspect --format='{{.State.Health.Status}}' thedailyfeed
+docker compose -f compose.yml logs -f thedailyfeed
 ```
 
-### Updates
+Server logs include request IDs, feed/cache lifecycle events, validation failures, rate-limit rejections, request durations, and build metadata.
+
+## Updates
 
 ```bash
 git pull
-docker compose -f compose.yml build
-docker compose -f compose.yml up -d
+docker compose -f compose.yml --env-file .env.production build
+docker compose -f compose.yml --env-file .env.production up -d
 docker image prune -f
 ```
 
-## Security Considerations
+## Security Notes
 
-- Running as non-root user (`nextjs:nodejs`)
-- Security headers are split by surface in `lib/platform-policy.ts` and adapted by `next.config.ts`: common transport/MIME headers, app-shell CSP, API `no-store`, service-worker/Workbox headers, manifest headers, and static asset headers
-- CSP allows remote article images for sanitized feed content rendering (`img-src ... https: http:`) and blocks rendered audio/video with `media-src 'none'`
-- URL validation + SSRF protection for private/local addresses (in production unless `ALLOW_PRIVATE_NETWORKS=true`)
-- In-memory rate limiting on `POST /api/feeds` and `POST /api/feeds/validate` requests
-- `POST /api/feeds` responses return `Cache-Control: no-store`; the PWA runtime cache also pins `/api/feeds` to `NetworkOnly` from the declared platform policy
-- `/sw.js` and Workbox scripts are served as JavaScript with `no-cache, no-store, must-revalidate`; `/manifest.webmanifest` is served as a web manifest with bounded revalidation
-- HTML sanitization before rendering feed content
-- `GET /api/metrics` uses the explicit `app-authenticated-operator` exposure mode:
-  bearer auth in production, `Cache-Control: no-store`, and request correlation via
-  `X-Request-Id`
-- Consider proxy-level rate limiting for `POST /api/feeds/validate` as defense in depth
+- The final Docker image runs as a non-root user.
+- Security headers are declared in `lib/platform-policy.ts` and adapted by `next.config.ts`.
+- API routes use `Cache-Control: no-store`.
+- `/api/feeds` is pinned to the service worker `NetworkOnly` runtime policy.
+- Feed URL validation blocks non-HTTP(S) URLs.
+- Production SSRF protection blocks private/local IP ranges unless `ALLOW_PRIVATE_NETWORKS=true`.
+- Feed HTML is sanitized before rendering.
+- Rendered feed media is blocked by CSP; remote article images are allowed for feed content.
+- Feed endpoints are rate-limited in-process by derived client identity.
+- Cache, rate limiter, and metrics state are process-local and reset on restart.
 
-## Recommended Traefik Hardening
-
-- Keep `/api/metrics` behind trusted networks as defense in depth, even with app bearer auth
-- Add request rate limiting middleware for `/api/feeds/validate`
-- Ensure direct access to the app container is blocked so forwarded client IP headers are trusted only from Traefik
-- Strip inbound `X-Forwarded-For` and `X-Real-IP` at the public edge, then inject trusted values from the proxy connection before forwarding to the app
-- Preserve or inject `X-Request-Id`/`X-Correlation-Id` at the proxy if upstream request correlation is required; the app will generate a Request ID when forwarded IDs are missing or too long
-- Keep HTTPS redirection and TLS termination enforced at the router level
-
-## Operational Notes
-
-- `/api/test-feed` is a development/testing endpoint and returns `404` in production.
-- Cache, rate limiter, and metrics are process-local and reset on restart.
-- For horizontal scaling, move cache/rate-limit/metrics state to shared infrastructure.
-
----
-
-**Last Updated**: 2026-06-01
-**Docker Version**: 20.10+
-**Next.js Version**: 16.2.6
+For horizontal scaling, move cache, rate-limit, and metrics state to shared infrastructure.
