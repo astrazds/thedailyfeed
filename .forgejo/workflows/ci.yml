@@ -42,12 +42,13 @@ jobs:
             rendered_compose="$(mktemp)"
             docker compose -f compose.yml config > "$rendered_compose"
 
-            grep -F "APP_VERSION: $APP_VERSION" "$rendered_compose"
-            grep -F "APP_COMMIT: $APP_COMMIT" "$rendered_compose"
+            grep -Fq "APP_VERSION: $APP_VERSION" "$rendered_compose"
+            grep -Fq "APP_COMMIT: $APP_COMMIT" "$rendered_compose"
+            echo "Compose metadata renders APP_VERSION=$APP_VERSION and APP_COMMIT=$APP_COMMIT."
           else
-            echo "Docker Compose is not available in this runner; validating Compose interpolation hooks statically."
-            grep -E 'APP_VERSION=\$\{APP_VERSION:-[^}]+\}' compose.yml
-            grep -F 'APP_COMMIT=${APP_COMMIT:-unknown}' compose.yml
+            grep -Eq 'APP_VERSION=\$\{APP_VERSION:-[^}]+\}' compose.yml
+            grep -Fq 'APP_COMMIT=${APP_COMMIT:-unknown}' compose.yml
+            echo "Compose metadata interpolation hooks are present."
           fi
 
       - name: Install pnpm
