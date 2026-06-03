@@ -14,6 +14,21 @@
 /coverage
 /.playwright-mcp/
 
+# AI agent local configuration and prompts
+/.agents/
+/.codex/
+/.claude/
+/.cursor/
+/.windsurf/
+/.roo/
+/.aider*
+/docs/agents/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+skills-lock.json
+
 # next.js
 /.next/
 /out/
