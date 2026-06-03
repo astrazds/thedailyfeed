@@ -15,7 +15,7 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - LOG_SERVICE_NAME=${LOG_SERVICE_NAME:-thedailyfeed}
       - LOG_REDACT_FIELDS=${LOG_REDACT_FIELDS:-authorization,cookie,set-cookie,password,token}
-      - APP_VERSION=${APP_VERSION:-0.1.0}
+      - APP_VERSION=${APP_VERSION:-0.2.0}
       - APP_COMMIT=${APP_COMMIT:-unknown}
       - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-10}
       - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}

@@ -55,7 +55,7 @@ curl http://localhost:3000
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `0.1.0` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `0.2.0` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `RATE_LIMIT_MAX_REQUESTS` | `10` | Feed API requests per identity per window. |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window. |
