@@ -66,17 +66,11 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Install Docker CLI
-        run: |
-          apt-get update
-          apt-get install --no-install-recommends --yes docker.io
-          rm -rf /var/lib/apt/lists/*
-
       - name: Build Docker image
-        run: |
-          if ! docker info >/dev/null 2>&1; then
-            echo "Docker daemon is unavailable. Configure the Forgejo runner with Docker daemon access to verify production images."
-            exit 1
-          fi
-
-          docker build --pull --tag "thedailyfeed:${APP_COMMIT}" .
+        uses: docker://gcr.io/kaniko-project/executor:v1.23.2
+        with:
+          args: >-
+            --context=${{ github.workspace }}
+            --dockerfile=${{ github.workspace }}/Dockerfile
+            --no-push
+            --destination=thedailyfeed:${{ env.APP_COMMIT }}

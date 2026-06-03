@@ -254,6 +254,7 @@ Chunk types:
 
 - Runtime config in `compose.yml`
 - `scripts/deploy-compose.sh` derives and exports `APP_VERSION` and `APP_COMMIT` before running Compose
+- Forgejo CI runs lint, tests, Next/PWA build, and a daemonless Docker image build
 - Container log rotation configured via Docker `json-file` logging driver
 - Traefik labels parameterized via:
   - `TRAEFIK_DOMAIN`
