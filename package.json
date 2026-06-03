@@ -12,7 +12,7 @@
     "build": "next build --webpack && pnpm verify:pwa-build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test \"tests/**/*.test.mts\"",
+    "test": "tsx --test --test-concurrency=1 \"tests/**/*.test.mts\"",
     "verify:pwa-build": "tsx scripts/verify-pwa-build.mts"
   },
   "dependencies": {
