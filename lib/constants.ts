@@ -37,6 +37,7 @@ export const FEED_TIMEOUT_MS = parsePositiveIntEnv('FEED_TIMEOUT_MS', 10000); //
 export const FEED_RETRY_COUNT = parseNonNegativeIntEnv('FEED_RETRY_COUNT', 3);
 export const FEED_RETRY_DELAY_MS = 1000;
 export const FEED_OVERALL_TIMEOUT_MS = parsePositiveIntEnv('FEED_OVERALL_TIMEOUT_MS', 30000); // 30 seconds
+export const FEED_REQUEST_TIMEOUT_MS = parsePositiveIntEnv('FEED_REQUEST_TIMEOUT_MS', 30000); // 30 seconds
 export const MAX_FEEDS_PER_REQUEST = 50;
 
 // Auto-refresh

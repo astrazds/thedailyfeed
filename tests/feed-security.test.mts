@@ -47,12 +47,52 @@ test('rejects feed hostnames that resolve to private addresses in production', a
   });
 });
 
+test('rejects feed hostnames that resolve to non-global IPv4 ranges in production', async () => {
+  const nonGlobalAddresses = [
+    '100.64.0.1',
+    '192.0.2.10',
+    '198.18.0.1',
+    '198.51.100.10',
+    '203.0.113.10',
+    '224.0.0.1',
+    '240.0.0.1',
+  ];
+
+  await withEnv({ NODE_ENV: 'production' }, async () => {
+    for (const address of nonGlobalAddresses) {
+      const resolveHostname: ResolveHostname = async () => [{ address, family: 4 }];
+
+      await assert.rejects(
+        () => validateFeedUrlForFetch('https://feeds.example.com/rss.xml', { resolveHostname }),
+        FeedSecurityError,
+        `${address} should be rejected`
+      );
+    }
+  });
+});
+
 test('rejects hexadecimal IPv4-mapped IPv6 localhost literals in production', async () => {
   await withEnv({ NODE_ENV: 'production' }, async () => {
     await assert.rejects(
       () => validateFeedUrlForFetch('http://[::ffff:7f00:1]/rss.xml'),
       FeedSecurityError
     );
+  });
+});
+
+test('rejects feed hostnames that resolve to non-global IPv6 ranges in production', async () => {
+  const nonGlobalAddresses = ['2001:db8::1', 'ff02::1'];
+
+  await withEnv({ NODE_ENV: 'production' }, async () => {
+    for (const address of nonGlobalAddresses) {
+      const resolveHostname: ResolveHostname = async () => [{ address, family: 6 }];
+
+      await assert.rejects(
+        () => validateFeedUrlForFetch('https://feeds.example.com/rss.xml', { resolveHostname }),
+        FeedSecurityError,
+        `${address} should be rejected`
+      );
+    }
   });
 });
 

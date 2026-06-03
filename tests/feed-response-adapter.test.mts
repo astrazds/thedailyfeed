@@ -14,6 +14,7 @@ import type { FeedItem } from '../lib/rss';
 
 const rateLimit: ApiRateLimitResult = {
   allowed: true,
+  enabled: true,
   identifier: 'feed-response-adapter-test',
   limit: 60,
   remaining: 59,

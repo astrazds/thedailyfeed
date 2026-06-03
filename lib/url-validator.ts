@@ -2,29 +2,70 @@
  * URL validation utilities to prevent SSRF and invalid URLs
  */
 
+const NON_GLOBAL_IPV4_RANGES: Array<[string, number]> = [
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.0.0.0', 24],
+  ['192.0.2.0', 24],
+  ['192.88.99.0', 24],
+  ['192.168.0.0', 16],
+  ['198.18.0.0', 15],
+  ['198.51.100.0', 24],
+  ['203.0.113.0', 24],
+  ['224.0.0.0', 4],
+  ['240.0.0.0', 4],
+];
+
+function parseIPv4Address(address: string): number | null {
+  const parts = address.split('.');
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  let value = 0;
+
+  for (const part of parts) {
+    if (!/^\d+$/.test(part)) {
+      return null;
+    }
+
+    const octet = Number.parseInt(part, 10);
+
+    if (octet < 0 || octet > 255) {
+      return null;
+    }
+
+    value = (value << 8) + octet;
+  }
+
+  return value >>> 0;
+}
+
+function isIPv4InCidr(address: number, rangeBase: string, prefixLength: number): boolean {
+  const base = parseIPv4Address(rangeBase);
+
+  if (base === null) {
+    return false;
+  }
+
+  const mask = prefixLength === 0 ? 0 : (0xffffffff << (32 - prefixLength)) >>> 0;
+  return (address & mask) === (base & mask);
+}
+
 export function isPrivateOrLocalIPv4(hostname: string): boolean {
-  return (
-    hostname === '0.0.0.0' ||
-    hostname.startsWith('127.') ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('10.') ||
-    hostname.startsWith('172.16.') ||
-    hostname.startsWith('172.17.') ||
-    hostname.startsWith('172.18.') ||
-    hostname.startsWith('172.19.') ||
-    hostname.startsWith('172.20.') ||
-    hostname.startsWith('172.21.') ||
-    hostname.startsWith('172.22.') ||
-    hostname.startsWith('172.23.') ||
-    hostname.startsWith('172.24.') ||
-    hostname.startsWith('172.25.') ||
-    hostname.startsWith('172.26.') ||
-    hostname.startsWith('172.27.') ||
-    hostname.startsWith('172.28.') ||
-    hostname.startsWith('172.29.') ||
-    hostname.startsWith('172.30.') ||
-    hostname.startsWith('172.31.') ||
-    hostname.startsWith('169.254.')
+  const address = parseIPv4Address(hostname);
+
+  if (address === null) {
+    return false;
+  }
+
+  return NON_GLOBAL_IPV4_RANGES.some(([rangeBase, prefixLength]) =>
+    isIPv4InCidr(address, rangeBase, prefixLength)
   );
 }
 
@@ -89,6 +130,16 @@ export function isPrivateOrLocalIPv6(hostname: string): boolean {
 
   // RFC 4291 link-local unicast fe80::/10
   if (/^fe[89ab]/.test(normalized)) {
+    return true;
+  }
+
+  // RFC 3849 documentation addresses 2001:db8::/32
+  if (normalized.startsWith('2001:db8:') || normalized === '2001:db8::') {
+    return true;
+  }
+
+  // RFC 4291 multicast addresses ff00::/8
+  if (normalized.startsWith('ff')) {
     return true;
   }
 

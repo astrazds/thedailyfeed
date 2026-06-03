@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed in production with Docker, Docker Compose, and an optional Traefik reverse proxy.
+This guide covers running The Daily Feed in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 ## Prerequisites
 
@@ -59,19 +59,21 @@ curl http://localhost:3000
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
 | `APP_VERSION` | `0.2.0` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
-| `RATE_LIMIT_MAX_REQUESTS` | `10` | Feed API requests per identity per window. |
-| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window. |
 | `FEED_TIMEOUT_MS` | `10000` | Upstream feed fetch timeout. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
 | `FEED_OVERALL_TIMEOUT_MS` | `30000` | Overall per-feed timeout budget. |
+| `FEED_REQUEST_TIMEOUT_MS` | `30000` | Overall missing-feed work budget per request. |
 | `FEED_CACHE_TTL_MS` | `3600000` | Per-feed server cache TTL. |
 | `FEED_CACHE_MAX_ENTRIES` | `200` | In-memory cache entry cap. |
 | `ALLOW_PRIVATE_NETWORKS` | `false` | Production SSRF escape hatch for private network feeds. |
 | `METRICS_AUTH_TOKEN` | empty | Required to expose production metrics. |
 | `TRAEFIK_DOMAIN` | `dailyfeed.example.com` | Traefik router hostname. |
 | `TRAEFIK_CERT_RESOLVER` | `route53` | Traefik certificate resolver name. |
+| `TRAEFIK_RATE_LIMIT_AVERAGE` | `60` | Traefik average request rate. |
+| `TRAEFIK_RATE_LIMIT_BURST` | `120` | Traefik burst request allowance. |
+| `TRAEFIK_MAX_REQUEST_BODY_BYTES` | `1048576` | Traefik maximum request body size. |
 
-Keep real secrets out of the repository. `.env*` files are ignored by git.
+Keep real secrets out of the repository. `.env*` files are ignored by git and by the Docker build context; `env.template` remains intentionally tracked.
 
 ## Traefik
 
@@ -84,18 +86,23 @@ labels:
   - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.example.com}`)"
   - "traefik.http.routers.dailyfeed.tls=true"
   - "traefik.http.routers.dailyfeed.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-route53}"
+  - "traefik.http.routers.dailyfeed.middlewares=dailyfeed-ratelimit,dailyfeed-request-limit"
+  - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-60}"
+  - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-120}"
+  - "traefik.http.middlewares.dailyfeed-request-limit.buffering.maxRequestBodyBytes=${TRAEFIK_MAX_REQUEST_BODY_BYTES:-1048576}"
   - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
 ```
 
 The service joins an external network named `traefik_proxy`. Change the network name in `compose.yml` if your Traefik stack uses a different network.
 
-Recommended Traefik hardening:
+Traefik owns production ingress controls:
 
 - Keep direct access to the app container blocked.
-- Strip inbound `X-Forwarded-For` and `X-Real-IP` at the public edge, then inject trusted values from Traefik if the app is configured to trust proxy identity headers.
+- Keep public client IP access logs at Traefik. The app does not log raw client IPs by default.
+- Strip inbound `X-Forwarded-For` and `X-Real-IP` at the public edge, then inject trusted values from Traefik if downstream tooling needs them.
 - Preserve or inject `X-Request-Id` or `X-Correlation-Id` when upstream request correlation is needed.
 - Keep `/api/metrics` behind trusted networks as defense in depth, even though production metrics require bearer auth.
-- Add proxy-level request limits for feed endpoints as defense in depth.
+- Configure proxy-level request rate limits, request body limits, TLS, and ingress timeouts.
 - Avoid response buffering on the app route so `POST /api/feeds?stream=1` can deliver NDJSON chunks progressively.
 
 ## Other Reverse Proxies
@@ -162,7 +169,7 @@ View logs:
 docker compose -f compose.yml logs -f thedailyfeed
 ```
 
-Server logs include request IDs, feed/cache lifecycle events, validation failures, rate-limit rejections, request durations, and build metadata.
+Server logs include request IDs, feed/cache lifecycle events, validation failures, request durations, and build metadata. Logs do not include raw client IPs by default, and URL values have credentials, query strings, and fragments redacted.
 
 ## Updates
 
@@ -180,10 +187,10 @@ docker image prune -f
 - API routes use `Cache-Control: no-store`.
 - `/api/feeds` is pinned to the service worker `NetworkOnly` runtime policy.
 - Feed URL validation blocks non-HTTP(S) URLs.
-- Production SSRF protection blocks private/local IP ranges unless `ALLOW_PRIVATE_NETWORKS=true`.
+- Production SSRF protection blocks private, local, and special-use IP ranges unless `ALLOW_PRIVATE_NETWORKS=true`.
 - Feed HTML is sanitized before rendering.
 - Rendered feed media is blocked by CSP; remote article images are allowed for feed content.
-- Feed endpoints are rate-limited in-process by derived client identity.
-- Cache, rate limiter, and metrics state are process-local and reset on restart.
+- Production feed ingress rate limiting, public IP access logs, request body limits, edge TLS, and ingress timeouts are proxy-owned.
+- Cache and metrics state are process-local and reset on restart.
 
-For horizontal scaling, move cache, rate-limit, and metrics state to shared infrastructure.
+For horizontal scaling, move cache and metrics state to shared infrastructure.

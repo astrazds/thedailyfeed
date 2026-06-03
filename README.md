@@ -14,7 +14,7 @@ The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, kee
 - Browser-local offline snapshots for same-day fallback.
 - Installable PWA behavior when served over HTTPS and browser installability criteria are met.
 - Structured server logs, request correlation, and bearer-protected production metrics.
-- Defense-in-depth around untrusted feeds: SSRF guards, URL normalization, HTML sanitization, strict response headers, and feed API rate limiting.
+- Defense-in-depth around untrusted feeds: SSRF guards, URL normalization, HTML sanitization, strict response headers, and proxy-owned production ingress controls.
 
 ## Tech Stack
 
@@ -70,6 +70,7 @@ Important runtime variables:
 | `FEED_TIMEOUT_MS` | Per-fetch timeout for upstream feed requests. |
 | `FEED_RETRY_COUNT` | Retry count for transient feed failures. |
 | `FEED_OVERALL_TIMEOUT_MS` | Overall timeout budget per feed. |
+| `FEED_REQUEST_TIMEOUT_MS` | Overall timeout budget for missing-feed work in a single request. |
 | `FEED_CACHE_TTL_MS` | Server-side feed cache TTL. |
 | `FEED_CACHE_MAX_ENTRIES` | Maximum in-memory feed cache entries. |
 | `LOG_LEVEL`, `LOG_FORMAT` | Server log verbosity and output format. |
@@ -77,13 +78,13 @@ Important runtime variables:
 | `ALLOW_PRIVATE_NETWORKS` | Production escape hatch for private-network feed URLs. Defaults to blocked. |
 | `METRICS_AUTH_TOKEN` | Required in production to access `GET /api/metrics`. |
 
-Numeric values are parsed with safe fallbacks in `lib/constants.ts`.
+Numeric values are parsed with safe fallbacks in `lib/constants.ts`. `RATE_LIMIT_*` only controls the local/development fallback limiter; production ingress rate limits belong at the reverse proxy.
 
 ## How It Works
 
 1. The client loads enabled feed configuration from `localStorage`.
 2. The client sends `{ feedUrls, timeZone }` to `POST /api/feeds`.
-3. The server validates, normalizes, deduplicates, and rate-limits the request.
+3. The server validates, normalizes, and deduplicates the request.
 4. Cached feed results are returned immediately when available.
 5. Missing feeds are fetched with retry and timeout controls.
 6. Feed items are filtered to the user's timezone-aware day key and sorted newest-first.
@@ -120,7 +121,7 @@ All responses include `X-Request-Id` for log correlation.
 
 ### `POST /api/feeds/validate`
 
-Validates a single feed URL before saving it in the browser. The endpoint applies the same route-admission and rate-limit policy as the main feed endpoint.
+Validates a single feed URL before saving it in the browser. The endpoint applies the same request ID, logging, and validation policy as the main feed endpoint.
 
 ### `GET /api/metrics`
 
@@ -143,8 +144,10 @@ Development and integration-test helper. It returns `404` in production.
 The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 
 - Feed URLs must be `http` or `https`.
-- Production SSRF protection blocks localhost, private IPv4 ranges, local/private IPv6 ranges, and IPv4-mapped private/local IPv6 addresses unless `ALLOW_PRIVATE_NETWORKS=true`.
-- Feed API rate limiting is keyed by the derived client identity. By default, forwarded IP headers are not trusted; trusted proxy deployments must strip spoofed inbound forwarding headers and inject their own.
+- Production SSRF protection blocks localhost, private and special-use IPv4 ranges, local/private/special-use IPv6 ranges, and IPv4-mapped non-global addresses unless `ALLOW_PRIVATE_NETWORKS=true`.
+- Production deployments must run behind Traefik or another trusted reverse proxy. The proxy owns TLS, public client IP access logs, ingress rate limits, request body limits, and edge timeouts; direct internet exposure of the app container is unsupported.
+- The app does not log raw client IPs by default. Structured logs redact configured secret fields and remove credentials, query strings, and fragments from URL values.
+- The app keeps controls that the proxy cannot provide: outbound feed destination validation, feed fetch/parser timeouts, feed HTML sanitization, API `no-store` responses, service-worker `NetworkOnly` policy for feed APIs, and metrics authentication.
 - Feed HTML is sanitized with DOMPurify before rendering.
 - Long article HTML is truncated with DOM-aware logic so tags remain balanced.
 - API responses use `Cache-Control: no-store`.
@@ -153,7 +156,7 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 
 ## Deployment
 
-The repository includes a multi-stage `Dockerfile` and a Traefik-ready `compose.yml`.
+The repository includes a multi-stage `Dockerfile` and a Traefik-ready `compose.yml`. Production deployments should put the app behind Traefik or an equivalent reverse proxy.
 
 ```bash
 docker compose -f compose.yml up -d
@@ -164,7 +167,8 @@ For production:
 
 - Set `TRAEFIK_DOMAIN` and `TRAEFIK_CERT_RESOLVER`.
 - Set `METRICS_AUTH_TOKEN` if you want operator metrics.
-- Keep direct container access blocked behind a trusted reverse proxy.
+- Keep direct container access blocked; the app is not intended to be exposed directly to the public internet.
+- Configure proxy-owned rate limits, request body limits, TLS, and access logging at the edge.
 - Preserve streaming behavior for `POST /api/feeds?stream=1`; avoid proxy buffering on the app route.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the full production guide.

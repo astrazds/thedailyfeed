@@ -355,6 +355,77 @@ test('progressive feed requests emit feed results and terminal outcome from the 
   }
 });
 
+test('progressive feed requests enforce a request-wide budget for missing feed work', async () => {
+  const eventsPromise = (async () => {
+    const chunks = [];
+
+    for await (const chunk of executeFeedRequestProgressively(
+      {
+        feedSet: {
+          feedUrls: ['https://example.com/slow.xml'],
+          timeZone: 'UTC',
+          originalFeedCount: 1,
+          uniqueFeedCount: 1,
+          duplicateFeedCount: 0,
+        },
+        requestId: 'request-budget-1',
+        requestTimeoutMs: 10,
+        todayReferenceDate: TODAY_REFERENCE_DATE,
+        startedAt: 200,
+      },
+      {
+        now: () => 225,
+        getCachedFeedSplit: () => ({
+          cached: [],
+          missing: ['https://example.com/slow.xml'],
+        }),
+        cacheFeed: () => {},
+        parseFeedsProgressively: async function* (feedUrls, options) {
+          assert.ok(options.signal);
+
+          if (!options.signal.aborted) {
+            await new Promise<void>((resolve) => {
+              options.signal?.addEventListener('abort', () => resolve(), { once: true });
+            });
+          }
+
+          yield {
+            feedUrl: feedUrls[0],
+            items: [],
+            durationMs: 10,
+            status: 'timeout',
+          };
+        },
+      }
+    )) {
+      chunks.push(chunk);
+    }
+
+    return chunks;
+  })();
+
+  const chunks = await Promise.race([
+    eventsPromise,
+    new Promise<never>((_resolve, reject) => {
+      setTimeout(() => reject(new Error('request budget did not abort missing feed work')), 250);
+    }),
+  ]);
+
+  assert.deepEqual(
+    chunks.map((chunk) => chunk.type),
+    ['meta', 'feed_result', 'done']
+  );
+  assert.equal(chunks[1].type, 'feed_result');
+  if (chunks[1].type === 'feed_result') {
+    assert.equal(chunks[1].status, 'timeout');
+  }
+  assert.equal(chunks[2].type, 'done');
+  if (chunks[2].type === 'done') {
+    assert.equal(chunks[2].outcome.timedOutFeedCount, 1);
+    assert.equal(chunks[2].outcome.metrics.timeoutFeedCount, 1);
+  }
+});
+
 test('feed route JSON responses use no-store for body-dependent feed sets', async () => {
   cacheFeed('https://example.com/route-cache.xml', [routeFeedItem()]);
 

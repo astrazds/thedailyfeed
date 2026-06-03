@@ -8,6 +8,7 @@ import type { RequestContext } from './request-context';
 
 export interface ApiRateLimitResult {
   allowed: boolean;
+  enabled: boolean;
   identifier: string;
   limit: number;
   remaining: number;
@@ -21,12 +22,26 @@ export function getRateLimitIdentity(context: RequestContext): string {
 
 export function checkApiRateLimit(context: RequestContext): ApiRateLimitResult {
   const identifier = getRateLimitIdentity(context);
+
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      allowed: true,
+      enabled: false,
+      identifier,
+      limit: 0,
+      remaining: 0,
+      resetTime: 0,
+      retryAfter: 0,
+    };
+  }
+
   const allowed = checkRateLimit(identifier, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
   const resetTime = getRateLimitResetTime(identifier);
   const remaining = allowed ? getRemainingRequests(identifier, RATE_LIMIT_MAX_REQUESTS) : 0;
 
   return {
     allowed,
+    enabled: true,
     identifier,
     limit: RATE_LIMIT_MAX_REQUESTS,
     remaining,
@@ -36,6 +51,10 @@ export function checkApiRateLimit(context: RequestContext): ApiRateLimitResult {
 }
 
 export function getRateLimitHeaders(result: ApiRateLimitResult): HeadersInit {
+  if (!result.enabled) {
+    return {};
+  }
+
   return {
     'X-RateLimit-Limit': String(result.limit),
     'X-RateLimit-Remaining': String(result.remaining),

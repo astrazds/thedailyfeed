@@ -10,6 +10,7 @@ import {
 
 const allowedRateLimit: ApiRateLimitResult = {
   allowed: true,
+  enabled: true,
   identifier: 'admission-test',
   limit: 10,
   remaining: 9,
@@ -17,7 +18,7 @@ const allowedRateLimit: ApiRateLimitResult = {
   retryAfter: 0,
 };
 
-test('Feed route admission derives request context, rate-limit identity, and logger facts', () => {
+test('Feed route admission derives request context, rate-limit identity, and app logger facts', () => {
   let rateLimitContext: RequestContext | undefined;
 
   const admission = admitFeedRouteRequest(
@@ -55,11 +56,41 @@ test('Feed route admission derives request context, rate-limit identity, and log
   assert.equal(rateLimitContext?.clientIdentity.value, '203.0.113.10');
   assert.deepEqual(admission.loggerFacts, {
     event: 'feed_api_request',
-    ip: '203.0.113.10',
-    clientIdentitySource: 'trusted-header',
-    clientIdentityHeader: 'x-forwarded-for',
     method: 'POST',
     requestId: 'feed-admission-request-1',
+    route: '/api/feeds',
+  });
+});
+
+test('Feed route admission logger facts do not expose client IP identity', () => {
+  const admission = admitFeedRouteRequest(
+    new Request('https://thedailyfeed.test/api/feeds', {
+      method: 'POST',
+      headers: {
+        'x-request-id': 'feed-admission-no-ip-log',
+        'x-forwarded-for': '203.0.113.10, 198.51.100.5',
+        'x-real-ip': '203.0.113.11',
+      },
+    }),
+    {
+      event: 'feed_api_request',
+      method: 'POST',
+      rateLimitEvent: 'feed_api_rate_limited',
+      route: '/api/feeds',
+      requestContextPolicy: {
+        trustedClientIdentityHeaders: ['x-forwarded-for'],
+        generateRequestId: () => 'generated-request-id',
+      },
+    },
+    {
+      checkRateLimit: () => allowedRateLimit,
+    }
+  );
+
+  assert.deepEqual(admission.loggerFacts, {
+    event: 'feed_api_request',
+    method: 'POST',
+    requestId: 'feed-admission-no-ip-log',
     route: '/api/feeds',
   });
 });
@@ -97,9 +128,6 @@ test('Feed route admission preserves generated request IDs and explicit identity
   assert.equal(admission.rateLimit.identifier, 'unknown');
   assert.deepEqual(admission.loggerFacts, {
     event: 'feed_validation_request',
-    ip: 'unknown',
-    clientIdentitySource: 'untrusted',
-    clientIdentityHeader: undefined,
     method: 'POST',
     requestId: 'generated-feed-admission-request',
     route: '/api/feeds/validate',
@@ -127,6 +155,7 @@ test('Feed route admission creates the shared rate-limit response contract', asy
     {
       checkRateLimit: (context) => ({
         allowed: false,
+        enabled: true,
         identifier: context.clientIdentity.value,
         limit: 10,
         remaining: 0,

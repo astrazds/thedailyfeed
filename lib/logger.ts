@@ -92,6 +92,29 @@ function serializeError(error: unknown): LogContext {
   };
 }
 
+function sanitizeUrlString(value: string): string {
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    return value;
+  }
+
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    return value;
+  }
+
+  if (!url.username && !url.password && !url.search && !url.hash) {
+    return value;
+  }
+
+  const redactedSearch = url.search ? `?${REDACTED_VALUE}` : '';
+  const redactedHash = url.hash ? `#${REDACTED_VALUE}` : '';
+
+  return `${url.protocol}//${url.host}${url.pathname}${redactedSearch}${redactedHash}`;
+}
+
 function sanitizeValue(
   value: unknown,
   redactedKeys: Set<string>,
@@ -120,6 +143,10 @@ function sanitizeValue(
 
   if (typeof value === 'function') {
     return `[Function ${value.name || 'anonymous'}]`;
+  }
+
+  if (typeof value === 'string') {
+    return sanitizeUrlString(value);
   }
 
   if (Array.isArray(value)) {

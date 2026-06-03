@@ -40,9 +40,6 @@ function createLoggerFacts(
 ): LogContext {
   return {
     event: policy.event,
-    ip: requestContext.clientIdentity.value,
-    clientIdentitySource: requestContext.clientIdentity.source,
-    clientIdentityHeader: requestContext.clientIdentity.headerName,
     method: policy.method,
     requestId: requestContext.requestId,
     route: policy.route,

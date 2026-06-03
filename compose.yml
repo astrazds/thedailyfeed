@@ -26,11 +26,10 @@ services:
       - LOG_REDACT_FIELDS=${LOG_REDACT_FIELDS:-authorization,cookie,set-cookie,password,token}
       - APP_VERSION=${APP_VERSION:-0.2.0}
       - APP_COMMIT=${APP_COMMIT:-unknown}
-      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-10}
-      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
       - FEED_TIMEOUT_MS=${FEED_TIMEOUT_MS:-10000}
       - FEED_RETRY_COUNT=${FEED_RETRY_COUNT:-3}
       - FEED_OVERALL_TIMEOUT_MS=${FEED_OVERALL_TIMEOUT_MS:-30000}
+      - FEED_REQUEST_TIMEOUT_MS=${FEED_REQUEST_TIMEOUT_MS:-30000}
       - FEED_CACHE_TTL_MS=${FEED_CACHE_TTL_MS:-3600000}
       - FEED_CACHE_MAX_ENTRIES=${FEED_CACHE_MAX_ENTRIES:-200}
       - METRICS_AUTH_TOKEN=${METRICS_AUTH_TOKEN:-}
@@ -64,6 +63,10 @@ services:
       - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.example.com}`)"
       - "traefik.http.routers.dailyfeed.tls=true"
       - "traefik.http.routers.dailyfeed.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-route53}"
+      - "traefik.http.routers.dailyfeed.middlewares=dailyfeed-ratelimit,dailyfeed-request-limit"
+      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-60}"
+      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-120}"
+      - "traefik.http.middlewares.dailyfeed-request-limit.buffering.maxRequestBodyBytes=${TRAEFIK_MAX_REQUEST_BODY_BYTES:-1048576}"
       - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
 networks:
   traefik_proxy:
