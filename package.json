@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack && pnpm verify:pwa-build",
+    "deploy:compose": "sh scripts/deploy-compose.sh",
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test --test-concurrency=1 \"tests/**/*.test.mts\"",

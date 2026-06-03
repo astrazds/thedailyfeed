@@ -30,9 +30,11 @@ cp env.template .env.production
 Start the service:
 
 ```bash
-docker compose -f compose.yml --env-file .env.production up -d
+./scripts/deploy-compose.sh
 docker compose -f compose.yml logs -f thedailyfeed
 ```
+
+`scripts/deploy-compose.sh` exports `APP_VERSION` from `package.json` and `APP_COMMIT` from the current git commit before running `docker compose up -d --build`. Override `COMPOSE_FILE`, `ENV_FILE`, `APP_VERSION`, or `APP_COMMIT` when needed.
 
 Check container health:
 
@@ -166,14 +168,14 @@ Server logs include request IDs, feed/cache lifecycle events, validation failure
 
 ```bash
 git pull
-docker compose -f compose.yml --env-file .env.production build
-docker compose -f compose.yml --env-file .env.production up -d
+./scripts/deploy-compose.sh
 docker image prune -f
 ```
 
 ## Security Notes
 
 - The final Docker image runs as a non-root user.
+- Compose runs the container with a read-only root filesystem, all Linux capabilities dropped, `no-new-privileges`, process and resource limits, and tmpfs mounts only for runtime scratch/cache paths.
 - Security headers are declared in `lib/platform-policy.ts` and adapted by `next.config.ts`.
 - API routes use `Cache-Control: no-store`.
 - `/api/feeds` is pinned to the service worker `NetworkOnly` runtime policy.

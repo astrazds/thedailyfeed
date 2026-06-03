@@ -248,10 +248,12 @@ Chunk types:
 - Node.js 24 Alpine base image
 - Standalone Next.js output used for runtime image
 - Runs as non-root user in final image
+- Compose hardens the runtime with a read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, process/resource limits, graceful shutdown, and tmpfs runtime scratch/cache paths
 
 ### Compose / Traefik
 
 - Runtime config in `compose.yml`
+- `scripts/deploy-compose.sh` derives and exports `APP_VERSION` and `APP_COMMIT` before running Compose
 - Container log rotation configured via Docker `json-file` logging driver
 - Traefik labels parameterized via:
   - `TRAEFIK_DOMAIN`

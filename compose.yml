@@ -5,6 +5,15 @@ services:
       dockerfile: Dockerfile
     container_name: thedailyfeed
     restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: "1.0"
+    stop_grace_period: 30s
     networks:
       - traefik_proxy
     environment:
@@ -32,6 +41,9 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /app/.next/cache:rw,nosuid,nodev,size=128m,uid=1001,gid=1001,mode=1770
     # Optional: Mount env file for runtime configuration
     # env_file:
     #   - .env.production
