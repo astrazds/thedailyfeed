@@ -24,7 +24,7 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - LOG_SERVICE_NAME=${LOG_SERVICE_NAME:-thedailyfeed}
       - LOG_REDACT_FIELDS=${LOG_REDACT_FIELDS:-authorization,cookie,set-cookie,password,token}
-      - APP_VERSION=${APP_VERSION:-0.2.0}
+      - APP_VERSION=${APP_VERSION:-1.0.0}
       - APP_COMMIT=${APP_COMMIT:-unknown}
       - FEED_TIMEOUT_MS=${FEED_TIMEOUT_MS:-10000}
       - FEED_RETRY_COUNT=${FEED_RETRY_COUNT:-3}

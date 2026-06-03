@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.0.0 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 ## Prerequisites
 
@@ -57,7 +57,7 @@ curl http://localhost:3000
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `0.2.0` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.0.0` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Upstream feed fetch timeout. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
