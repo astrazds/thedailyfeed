@@ -241,6 +241,34 @@ async function requestFeedUrl(
 }
 
 export async function fetchFeedXml(feedUrl: string, options: FetchFeedXmlOptions = {}): Promise<string> {
-  const url = await validateFeedUrlForFetch(feedUrl, options);
-  return requestFeedUrl(url, 0, options);
+  throwIfAborted(options.signal);
+
+  const timeoutMs = options.timeoutMs ?? FEED_TIMEOUT_MS;
+  const timeoutController = new AbortController();
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeoutController.signal])
+    : timeoutController.signal;
+  const timeout = setTimeout(() => {
+    timeoutController.abort(new FeedTimeoutError(timeoutMs));
+  }, timeoutMs);
+  let rejectOnAbort: ((reason: unknown) => void) | undefined;
+  const abortPromise = new Promise<never>((_resolve, reject) => {
+    rejectOnAbort = () => reject(signal.reason ?? createAbortError());
+    signal.addEventListener('abort', rejectOnAbort, { once: true });
+  });
+
+  try {
+    const fetchPromise = (async () => {
+      const fetchOptions = { ...options, signal };
+      const url = await validateFeedUrlForFetch(feedUrl, fetchOptions);
+      return requestFeedUrl(url, 0, fetchOptions);
+    })();
+
+    return await Promise.race([fetchPromise, abortPromise]);
+  } finally {
+    clearTimeout(timeout);
+    if (rejectOnAbort) {
+      signal.removeEventListener('abort', rejectOnAbort);
+    }
+  }
 }

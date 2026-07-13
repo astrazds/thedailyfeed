@@ -1,54 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { fetchFeedXml, FeedResponseTooLargeError } from '../lib/feed-fetcher';
+import { fetchFeedXml, FeedResponseTooLargeError, FeedTimeoutError } from '../lib/feed-fetcher';
 import { parseFeed, parseFeedsProgressively } from '../lib/rss';
-
-interface TestServer {
-  close: () => Promise<void>;
-  url: string;
-}
-
-async function createTestServer(
-  handler: (request: IncomingMessage, response: ServerResponse) => void
-): Promise<TestServer> {
-  const server = createServer(handler);
-
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve);
-  });
-
-  const address = server.address() as AddressInfo;
-
-  return {
-    url: `http://127.0.0.1:${address.port}`,
-    close: () => new Promise((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
-    }),
-  };
-}
-
-async function waitFor(condition: () => boolean, timeoutMs: number): Promise<void> {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeoutMs) {
-    if (condition()) {
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-
-  assert.equal(condition(), true);
-}
+import { createTestServer, waitFor } from './helpers/http-test-server.mts';
 
 test('fetchFeedXml enforces max response size', async () => {
   const server = await createTestServer((_request, response) => {
@@ -91,6 +45,80 @@ test('fetchFeedXml aborts the underlying request when its signal aborts', async 
     await waitFor(() => connectionClosed, 1_000);
   } finally {
     abortController.abort();
+    await server.close();
+  }
+});
+
+test('fetchFeedXml timeout includes DNS resolution', async () => {
+  await assert.rejects(
+    () => fetchFeedXml('https://feeds.example.com/feed.xml', {
+      resolveHostname: () => new Promise(() => {}),
+      timeoutMs: 20,
+    }),
+    FeedTimeoutError
+  );
+});
+
+test('fetchFeedXml can be aborted during DNS resolution', async () => {
+  const abortController = new AbortController();
+  const pendingFetch = fetchFeedXml('https://feeds.example.com/feed.xml', {
+    resolveHostname: () => new Promise(() => {}),
+    signal: abortController.signal,
+    timeoutMs: 10_000,
+  });
+
+  abortController.abort();
+
+  await assert.rejects(pendingFetch, (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.name, 'AbortError');
+    return true;
+  });
+});
+
+test('fetchFeedXml timeout includes redirect validation', async () => {
+  const server = await createTestServer((_request, response) => {
+    response.writeHead(302, { Location: 'https://redirect.example.com/feed.xml' });
+    response.end();
+  });
+  let resolutionCount = 0;
+
+  try {
+    await assert.rejects(
+      () => fetchFeedXml(`${server.url}/feed.xml`, {
+        resolveHostname: async () => {
+          resolutionCount += 1;
+          if (resolutionCount > 2) {
+            return new Promise(() => {});
+          }
+          return [{ address: '127.0.0.1', family: 4 }];
+        },
+        timeoutMs: 30,
+      }),
+      FeedTimeoutError
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test('fetchFeedXml timeout aborts response-body streaming', async () => {
+  let connectionClosed = false;
+  const server = await createTestServer((request, response) => {
+    request.socket.on('close', () => {
+      connectionClosed = true;
+    });
+    response.writeHead(200, { 'Content-Type': 'application/xml' });
+    response.write('<rss>');
+  });
+
+  try {
+    await assert.rejects(
+      () => fetchFeedXml(`${server.url}/feed.xml`, { timeoutMs: 30 }),
+      FeedTimeoutError
+    );
+    await waitFor(() => connectionClosed, 1_000);
+  } finally {
     await server.close();
   }
 });

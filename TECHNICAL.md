@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.0 implementation as of July 13, 2026.
+This document reflects the 1.0.1 implementation as of July 13, 2026.
 
 ## System Overview
 
@@ -38,6 +38,8 @@ The Daily Feed is a Next.js App Router project with:
 - `POST /api/feeds/validate` (`app/api/feeds/validate/route.ts`)
   - Validates URL format and probes/parses feed
   - Applies the same shared route admission and Request ID policy as `POST /api/feeds`
+  - Composes `request.signal` with one `FEED_OVERALL_TIMEOUT_MS` operation budget
+  - Passes that signal through DNS validation, redirects, response streaming, retry delay, and both parse attempts
 - `GET /api/metrics` (`app/api/metrics/route.ts`)
   - Exposes in-memory request/cache metrics
   - Production exposure mode is `app-authenticated-operator`
@@ -153,13 +155,24 @@ PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by `next.
 
 ### Key Behavior
 
-- Uses `rss-parser` with configured timeout and headers
+- Uses `rss-parser` after a bounded HTTP(S) fetch with configured headers
 - Retries per feed (`FEED_RETRY_COUNT`, fallback `3`)
-- Applies per-feed timeout (`FEED_OVERALL_TIMEOUT_MS`) via `withTimeout`
+- Applies `FEED_TIMEOUT_MS` to each fetch attempt as a single budget spanning DNS resolution, all redirect legs, and response-body streaming
+- Applies per-feed timeout (`FEED_OVERALL_TIMEOUT_MS`) via `withTimeout`, spanning retry delays and every attempt
 - Applies request-wide missing-feed timeout (`FEED_REQUEST_TIMEOUT_MS`) through the request orchestration layer
 - Progressive parser yields feed results as they complete
 - Supports bounded concurrency (`concurrency` option, default `4`)
 - Supports cancellation via `AbortSignal`
+
+### Validation Operation Budget
+
+`POST /api/feeds/validate` is a separate caller of `parseFeedWithRetry`. After request-body validation, the route creates its operation signal through `lib/feed-operation-budget.ts`:
+
+- `request.signal` cancels outbound work when the inbound request is aborted
+- `AbortSignal.timeout(FEED_OVERALL_TIMEOUT_MS)` limits connected callers to one aggregate validation budget
+- `AbortSignal.any` gives DNS validation, redirects, response reads, retry delay, and both attempts the same cancellation source
+
+The deadline is created once per route invocation and is never recreated at redirect or retry boundaries. Timeout and caller-abort failures retain the endpoint's existing generic `400` response so internal failure details are not exposed.
 
 ### Output Processing
 
@@ -244,7 +257,8 @@ Chunk types:
 - Production deployments must run behind Traefik or an equivalent trusted reverse proxy
 - The reverse proxy owns public client IP access logs, ingress rate limits, request body limits, TLS, and ingress timeouts
 - Direct public internet exposure of the Next.js app container is unsupported
-- The app retains outbound feed destination validation, feed fetch/parser timeout controls, feed HTML sanitization, API `no-store` behavior, PWA feed API `NetworkOnly` behavior, and production metrics auth
+- The app retains outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` behavior, PWA feed API `NetworkOnly` behavior, and production metrics auth
+- The unauthenticated validation route shares one cancellation signal across DNS, redirects, body streaming, retry delay, and retries; caller abort closes the active outbound request and prevents later attempts
 - In non-production, the app keeps an in-process fallback feed API limiter for local abuse testing
 
 ### Headers and Policies
@@ -313,7 +327,7 @@ This mode starts a local Next.js dev server and exercises API endpoints (`/api/f
 - Optimized for single-container deployments
 - Feed preferences and offline snapshots are browser-local (not cross-device synced)
 - Metrics are in-memory and reset on process restart
-- `/api/feeds/validate` is unauthenticated and depends on the production reverse proxy for ingress controls; `/api/metrics` requires bearer auth in production
+- `/api/feeds/validate` is unauthenticated and depends on the production reverse proxy for ingress admission controls; admitted validation work is independently bounded by `FEED_OVERALL_TIMEOUT_MS` and inbound cancellation. `/api/metrics` requires bearer auth in production
 - Some upstream feeds can intermittently return malformed XML; retry logic reduces impact but cannot eliminate source-side errors
 
 ## Verification Commands

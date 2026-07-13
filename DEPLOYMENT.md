@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.0.0 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.0.1 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 ## Prerequisites
 
@@ -57,11 +57,11 @@ curl http://localhost:3000
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.0.0` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.0.1` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
-| `FEED_TIMEOUT_MS` | `10000` | Upstream feed fetch timeout. |
+| `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
-| `FEED_OVERALL_TIMEOUT_MS` | `30000` | Overall per-feed timeout budget. |
+| `FEED_OVERALL_TIMEOUT_MS` | `30000` | Aggregate per-feed and validation budget spanning redirects, retry delays, and retries. |
 | `FEED_REQUEST_TIMEOUT_MS` | `30000` | Overall missing-feed work budget per request. |
 | `FEED_CACHE_TTL_MS` | `3600000` | Per-feed server cache TTL. |
 | `FEED_CACHE_MAX_ENTRIES` | `200` | In-memory cache entry cap. |
@@ -74,6 +74,8 @@ curl http://localhost:3000
 | `TRAEFIK_MAX_REQUEST_BODY_BYTES` | `1048576` | Traefik maximum request body size. |
 
 Keep real secrets out of the repository. `.env*` files are ignored by git and by the Docker build context; `env.template` remains intentionally tracked.
+
+Feed timeouts are nested safeguards. `FEED_TIMEOUT_MS` bounds one upstream attempt and is not restarted for each redirect. `FEED_OVERALL_TIMEOUT_MS` bounds the complete logical feed operation, including retries; `POST /api/feeds/validate` also combines that deadline with the inbound request signal so disconnected callers do not leave outbound work running. `FEED_REQUEST_TIMEOUT_MS` is the outer budget for all missing-feed work in the main feed-set endpoint.
 
 ## Traefik
 
@@ -195,6 +197,8 @@ The local verification sequence is optional when the deployment host only builds
 - `/api/feeds` is pinned to the service worker `NetworkOnly` runtime policy.
 - Feed URL validation blocks non-HTTP(S) URLs.
 - Production SSRF protection blocks private, local, and special-use IP ranges unless `ALLOW_PRIVATE_NETWORKS=true`.
+- Each feed validation request has one `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delay, and retries.
+- Aborting an inbound validation request cancels its active outbound request and prevents subsequent retries.
 - Feed HTML is sanitized before rendering.
 - Rendered feed media is blocked by CSP; remote article images are allowed for feed content.
 - Production feed ingress rate limiting, public IP access logs, request body limits, edge TLS, and ingress timeouts are proxy-owned.

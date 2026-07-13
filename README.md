@@ -2,7 +2,7 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.0.0`.
+Current release: `1.0.1`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 
@@ -70,9 +70,9 @@ Important runtime variables:
 | --- | --- |
 | `RATE_LIMIT_MAX_REQUESTS` | Feed API requests allowed per rate-limit window. |
 | `RATE_LIMIT_WINDOW_MS` | Rate-limit window size in milliseconds. |
-| `FEED_TIMEOUT_MS` | Per-fetch timeout for upstream feed requests. |
+| `FEED_TIMEOUT_MS` | Per-attempt upstream timeout spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | Retry count for transient feed failures. |
-| `FEED_OVERALL_TIMEOUT_MS` | Overall timeout budget per feed. |
+| `FEED_OVERALL_TIMEOUT_MS` | Aggregate budget across all work for one feed, including validation redirects and retries. |
 | `FEED_REQUEST_TIMEOUT_MS` | Overall timeout budget for missing-feed work in a single request. |
 | `FEED_CACHE_TTL_MS` | Server-side feed cache TTL. |
 | `FEED_CACHE_MAX_ENTRIES` | Maximum in-memory feed cache entries. |
@@ -89,7 +89,7 @@ Numeric values are parsed with safe fallbacks in `lib/constants.ts`. `RATE_LIMIT
 2. The client sends `{ feedUrls, timeZone }` to `POST /api/feeds`.
 3. The server validates, normalizes, and deduplicates the request.
 4. Cached feed results are returned immediately when available.
-5. Missing feeds are fetched with retry and timeout controls.
+5. Missing feeds are fetched with per-attempt, per-feed, and request-wide timeout controls.
 6. Feed items are filtered to the user's timezone-aware day key and sorted newest-first.
 7. Stream mode emits each feed as it completes, followed by a `done` message.
 8. Successful same-day results are saved in browser storage for offline fallback.
@@ -124,7 +124,7 @@ All responses include `X-Request-Id` for log correlation.
 
 ### `POST /api/feeds/validate`
 
-Validates a single feed URL before saving it in the browser. The endpoint applies the same request ID, logging, and validation policy as the main feed endpoint.
+Validates a single feed URL before saving it in the browser. The endpoint applies the same request ID, logging, and URL policy as the main feed endpoint. It is unauthenticated and therefore relies on production ingress rate limiting, but its outbound work is bounded independently: one `FEED_OVERALL_TIMEOUT_MS` budget spans DNS, redirects, response reads, the retry delay, and both validation attempts. Aborting the inbound request cancels the same operation, closes the active outbound request, and prevents another retry.
 
 ### `GET /api/metrics`
 
@@ -150,7 +150,8 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 - Production SSRF protection blocks localhost, private and special-use IPv4 ranges, local/private/special-use IPv6 ranges, and IPv4-mapped non-global addresses unless `ALLOW_PRIVATE_NETWORKS=true`.
 - Production deployments must run behind Traefik or another trusted reverse proxy. The proxy owns TLS, public client IP access logs, ingress rate limits, request body limits, and edge timeouts; direct internet exposure of the app container is unsupported.
 - The app does not log raw client IPs by default. Structured logs redact configured secret fields and remove credentials, query strings, and fragments from URL values.
-- The app keeps controls that the proxy cannot provide: outbound feed destination validation, feed fetch/parser timeouts, feed HTML sanitization, API `no-store` responses, service-worker `NetworkOnly` policy for feed APIs, and metrics authentication.
+- The app keeps controls that the proxy cannot provide: outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` responses, service-worker `NetworkOnly` policy for feed APIs, and metrics authentication.
+- Feed validation and parsing use one aggregate `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delays, and retries. Per-attempt `FEED_TIMEOUT_MS` remains a narrower socket/fetch safeguard and is not renewed by redirects.
 - Feed HTML is sanitized with DOMPurify before rendering.
 - Long article HTML is truncated with DOM-aware logic so tags remain balanced.
 - API responses use `Cache-Control: no-store`.

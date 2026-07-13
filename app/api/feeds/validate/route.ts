@@ -12,6 +12,7 @@ import { validateSingleFeedUrlBody } from '@/lib/feed-request-validation';
 import { parseFeedWithRetry } from '@/lib/rss';
 import { logger } from '@/lib/logger';
 import { applyRequestIdHeader } from '@/lib/request-context';
+import { createFeedOperationSignal } from '@/lib/feed-operation-budget';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,9 +74,16 @@ export async function POST(request: Request) {
   }
 
   const { url } = validation.value;
+  const signal = createFeedOperationSignal(request.signal);
 
   try {
-    const parsedItems = await parseFeedWithRetry(url, 1, 500, logger.child({ subsystem: 'feed_validation' }));
+    const parsedItems = await parseFeedWithRetry(
+      url,
+      1,
+      500,
+      logger.child({ subsystem: 'feed_validation' }),
+      { signal }
+    );
     const sourceName = parsedItems[0]?.source || new URL(url).hostname;
 
     return jsonResponse(
