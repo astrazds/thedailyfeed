@@ -17,6 +17,14 @@ The Daily Feed is a Next.js App Router project with:
 
 ## Runtime Architecture
 
+### Module Seams
+
+- Feed manager: `runFeedManagerOperation` in `lib/feed-storage.ts` owns one complete browser storage mutation. `lib/feed-manager-operations.ts` is a compatibility re-export, not a second implementation.
+- Feed set execution: `lib/feed-request.ts` owns cached and missing Feed orchestration and emits `FeedProgressEvent<FeedItem>` values.
+- Stream serialization: `lib/feed-response-adapter.ts` converts server `FeedItem` dates to the serialized `FeedProgressEvent<SerializedFeedItem>` wire representation.
+- Stream validation: `lib/feed-stream-parser.ts` validates the untrusted JSON/NDJSON representation before it crosses into client lifecycle state.
+- Client lifecycle: `lib/feed-set-lifecycle.ts` owns offline preview/fallback, progressive merging, terminal state, and persistence effects.
+
 ### Main UI Composition
 
 - `app/page.tsx`
@@ -226,10 +234,12 @@ Chunk types:
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - Modal handles CRUD and OPML import/export
 - Add/edit operations call `POST /api/feeds/validate` before persisting
-- After mutations, dispatches `feedsUpdated`
+- `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled Feed set changes
+- `lib/feed-manager-operations.ts` preserves the former import interface as a compatibility re-export
 
 ### Feed Stream Lifecycle
 
+- `FeedProgressEvent<Item>` is the canonical progress interface for server `FeedItem` values and serialized client values; the response adapter owns Date-to-ISO serialization
 - `useFeedStream` creates its initial Feed set lifecycle transition with a memoized pure initializer
 - React state exposes the current read model, while refs retain transition state needed by asynchronous stream processing
 - Lifecycle transitions, rather than component-local branching, own progressive results, offline fallback, completion, and persistence effects
@@ -329,6 +339,10 @@ This mode starts a local Next.js dev server and exercises API endpoints (`/api/f
 - Metrics are in-memory and reset on process restart
 - `/api/feeds/validate` is unauthenticated and depends on the production reverse proxy for ingress admission controls; admitted validation work is independently bounded by `FEED_OVERALL_TIMEOUT_MS` and inbound cancellation. `/api/metrics` requires bearer auth in production
 - Some upstream feeds can intermittently return malformed XML; retry logic reduces impact but cannot eliminate source-side errors
+
+## Architecture Review
+
+The repository-wide complexity review and its verification evidence are recorded in [`docs/architecture-complexity-sweep.md`](docs/architecture-complexity-sweep.md). It also lists candidates that were deliberately deferred because their current seams earn locality or because a safe change requires stronger security or React race coverage.
 
 ## Verification Commands
 

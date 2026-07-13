@@ -11,7 +11,7 @@ import {
 import {
   runFeedManagerOperation,
   type FeedManagerOperationResult,
-} from '@/lib/feed-manager-operations';
+} from '@/lib/feed-storage';
 import { mapFeedManagerResultToModalState } from '@/components/feed-manager-modal-state';
 import { logger } from '@/lib/logger';
 

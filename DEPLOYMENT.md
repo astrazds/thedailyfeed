@@ -2,6 +2,8 @@
 
 This guide covers running The Daily Feed 1.0.1 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
+For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
+
 ## Prerequisites
 
 - Docker 20.10+
@@ -187,6 +189,8 @@ docker image prune -f
 ```
 
 The local verification sequence is optional when the deployment host only builds through Docker, because the image build runs the production Next/PWA build again. Running it before deployment provides earlier feedback for lint, application and test type errors, unit tests, and generated PWA artifacts.
+
+After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. Browser Feed preferences remain client-local, so this release requires no server-side data migration.
 
 ## Security Notes
 

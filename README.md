@@ -96,6 +96,15 @@ Numeric values are parsed with safe fallbacks in `lib/constants.ts`. `RATE_LIMIT
 
 The app intentionally keeps feed preferences and offline snapshots browser-local. There is no account system or cross-device sync layer.
 
+### Core Modules
+
+- Feed management and browser persistence live in `lib/feed-storage.ts`.
+- Server Feed set execution lives in `lib/feed-request.ts`; response serialization and untrusted stream validation remain separate adapters.
+- `FeedProgressEvent<Item>` is shared by server progress and serialized client progress events. Transport-error chunks remain a separate wire variant.
+- Client progressive state and offline fallback live in `lib/feed-set-lifecycle.ts`.
+
+See [TECHNICAL.md](TECHNICAL.md) for the authoritative module seams and runtime contracts.
+
 ## API Surface
 
 ### `POST /api/feeds`
@@ -194,6 +203,8 @@ thedailyfeed/
 ├── public/
 ├── scripts/
 ├── tests/
+├── docs/
+│   └── architecture-complexity-sweep.md
 ├── compose.yml
 ├── Dockerfile
 ├── DEPLOYMENT.md
@@ -205,3 +216,4 @@ thedailyfeed/
 
 - [TECHNICAL.md](TECHNICAL.md): architecture, runtime contracts, security notes, and known constraints.
 - [DEPLOYMENT.md](DEPLOYMENT.md): Docker, Compose, Traefik, reverse proxy, and operations guidance.
+- [Architecture complexity sweep](docs/architecture-complexity-sweep.md): implemented simplifications, verification evidence, and deliberately deferred candidates.

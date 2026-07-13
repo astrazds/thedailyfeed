@@ -3,6 +3,7 @@ import { cacheFeed, getCachedFeedSplit } from './feed-cache';
 import { filterTodayItems, parseFeedsProgressively, sortByDate, type FeedItem } from './rss';
 import type { ValidatedFeedSet } from './feed-request-validation';
 import type { ProgressiveFeedParseResult } from './rss';
+import type { FeedProgressEvent } from './types';
 
 type FeedCacheSplit = ReturnType<typeof getCachedFeedSplit>;
 
@@ -39,39 +40,13 @@ export interface FeedRequestOutcome {
   metrics: FeedRequestMetrics;
 }
 
-export type FeedRequestProgressStatus = 'cached' | ProgressiveFeedParseResult['status'];
+type FeedRequestEvent = FeedProgressEvent<FeedItem>;
 
-export type FeedRequestProgressEvent =
-  | {
-      type: 'meta';
-      requestId: string;
-      cached: boolean;
-      timeZone: string;
-      totalFeeds: number;
-      completedFeeds: number;
-    }
-  | {
-      type: 'feed_result';
-      requestId: string;
-      cached: boolean;
-      timeZone: string;
-      totalFeeds: number;
-      completedFeeds: number;
-      feedUrl: string;
-      status: FeedRequestProgressStatus;
-      itemCount: number;
-      items: FeedItem[];
-    }
-  | {
-      type: 'done';
-      requestId: string;
-      cached: boolean;
-      timeZone: string;
-      totalFeeds: number;
-      completedFeeds: number;
-      totalItemCount: number;
-      outcome: FeedRequestOutcome;
-    };
+export type FeedRequestProgressEvent = FeedRequestEvent extends infer Event
+  ? Event extends { type: 'done' }
+    ? Event & { outcome: FeedRequestOutcome }
+    : Event
+  : never;
 
 export interface FeedRequestDependencies {
   now?: () => number;

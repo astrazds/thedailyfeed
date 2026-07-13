@@ -27,6 +27,50 @@ export interface FeedImportSummary {
   overLimit: number;
 }
 
+export type ValidateFeedUrl = (url: string) => Promise<void>;
+
+export type FeedManagerOperation =
+  | {
+      type: 'add';
+      name: string;
+      url: string;
+      validateFeedUrl: ValidateFeedUrl;
+    }
+  | {
+      type: 'edit';
+      id: string;
+      name: string;
+      url: string;
+      validateFeedUrl: ValidateFeedUrl;
+    }
+  | {
+      type: 'toggle';
+      id: string;
+    }
+  | {
+      type: 'delete';
+      id: string;
+    }
+  | {
+      type: 'import-opml';
+      feeds: FeedImportEntry[];
+      maxFeeds?: number;
+    };
+
+export type FeedManagerOperationType = FeedManagerOperation['type'];
+
+export interface FeedManagerMutationFacts {
+  type: FeedManagerOperationType;
+  changedFeeds: Feed[];
+  enabledFeedSetChanged: boolean;
+  importSummary?: FeedImportSummary;
+}
+
+export interface FeedManagerOperationResult {
+  feeds: Feed[];
+  mutation: FeedManagerMutationFacts;
+}
+
 const STORAGE_KEY = STORAGE_KEY_FEEDS;
 
 // Default feeds
@@ -232,33 +276,23 @@ function createFeed(url: string, name: string): Feed {
   };
 }
 
-/**
- * Add a new feed
- */
-export function addFeed(url: string, name: string): Feed {
+function addFeedTo(feeds: Feed[], url: string, name: string): { feeds: Feed[]; feed: Feed } {
   const normalized = normalizeFeedMutationInput(url, name);
-  const feeds = getFeeds();
-  
-  // Check for duplicate URL
   const existingFeed = feeds.find((feed) => feed.url === normalized.url);
   if (existingFeed) {
     throw new Error(`Feed already exists: ${existingFeed.name}`);
   }
-  
-  const newFeed = createFeed(normalized.url, normalized.name);
-  
-  saveFeeds([...feeds, newFeed]);
-  return newFeed;
+
+  const feed = createFeed(normalized.url, normalized.name);
+  return { feeds: [...feeds, feed], feed };
 }
 
-/**
- * Import feeds through the same storage mutation semantics as manual feed additions.
- */
-export function importFeeds(
+function importFeedsInto(
+  feeds: Feed[],
   importedFeeds: FeedImportEntry[],
-  maxFeeds: number = MAX_FEEDS_PER_REQUEST
-): FeedImportSummary {
-  const nextFeeds = [...getFeeds()];
+  maxFeeds: number
+): { feeds: Feed[]; summary: FeedImportSummary } {
+  const nextFeeds = [...feeds];
   const summary: FeedImportSummary = {
     added: 0,
     skippedDuplicate: 0,
@@ -275,8 +309,7 @@ export function importFeeds(
       continue;
     }
 
-    const existingFeed = nextFeeds.find((storedFeed) => storedFeed.url === normalized.url);
-    if (existingFeed) {
+    if (nextFeeds.some((storedFeed) => storedFeed.url === normalized.url)) {
       summary.skippedDuplicate += 1;
       continue;
     }
@@ -290,18 +323,10 @@ export function importFeeds(
     summary.added += 1;
   }
 
-  if (summary.added > 0) {
-    saveFeeds(nextFeeds);
-  }
-
-  return summary;
+  return { feeds: nextFeeds, summary };
 }
 
-/**
- * Update an existing feed
- */
-export function updateFeed(id: string, updates: Partial<Feed>): void {
-  const feeds = getFeeds();
+function updateFeedIn(feeds: Feed[], id: string, updates: Partial<Feed>): Feed[] {
   const normalizedUpdates: Partial<Feed> = { ...updates };
   if (typeof normalizedUpdates.url === 'string') {
     normalizedUpdates.url = validateAndNormalizeFeedUrl(normalizedUpdates.url);
@@ -337,7 +362,97 @@ export function updateFeed(id: string, updates: Partial<Feed>): void {
     throw new Error('Feed not found');
   }
 
-  saveFeeds(updatedFeeds);
+  return updatedFeeds;
+}
+
+function notifyFeedsUpdated(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('feedsUpdated'));
+  }
+}
+
+function enabledFeedUrls(feeds: Feed[]): Set<string> {
+  return new Set(feeds.filter((feed) => feed.enabled).map((feed) => feed.url));
+}
+
+function didEnabledFeedSetChange(previousFeeds: Feed[], nextFeeds: Feed[]): boolean {
+  const previousUrls = enabledFeedUrls(previousFeeds);
+  const nextUrls = enabledFeedUrls(nextFeeds);
+  return previousUrls.size !== nextUrls.size || [...previousUrls].some((url) => !nextUrls.has(url));
+}
+
+function didFeedChange(previousFeed: Feed, nextFeed: Feed): boolean {
+  return previousFeed.name !== nextFeed.name
+    || previousFeed.url !== nextFeed.url
+    || previousFeed.enabled !== nextFeed.enabled
+    || previousFeed.addedAt.getTime() !== nextFeed.addedAt.getTime();
+}
+
+function changedFeeds(previousFeeds: Feed[], nextFeeds: Feed[]): Feed[] {
+  const previousById = new Map(previousFeeds.map((feed) => [feed.id, feed]));
+  const nextIds = new Set(nextFeeds.map((feed) => feed.id));
+  return [
+    ...nextFeeds.filter((feed) => {
+      const previousFeed = previousById.get(feed.id);
+      return previousFeed === undefined || didFeedChange(previousFeed, feed);
+    }),
+    ...previousFeeds.filter((feed) => !nextIds.has(feed.id)),
+  ];
+}
+
+function finishManagerOperation(
+  type: FeedManagerOperationType,
+  previousFeeds: Feed[],
+  feeds: Feed[],
+  importSummary?: FeedImportSummary
+): FeedManagerOperationResult {
+  const enabledFeedSetChanged = didEnabledFeedSetChange(previousFeeds, feeds);
+  if (enabledFeedSetChanged) {
+    notifyFeedsUpdated();
+  }
+
+  const mutation: FeedManagerMutationFacts = {
+    type,
+    changedFeeds: changedFeeds(previousFeeds, feeds),
+    enabledFeedSetChanged,
+  };
+  if (importSummary !== undefined) {
+    mutation.importSummary = importSummary;
+  }
+
+  return { feeds, mutation };
+}
+
+/**
+ * Add a new feed
+ */
+export function addFeed(url: string, name: string): Feed {
+  const feeds = getFeeds();
+  const result = addFeedTo(feeds, url, name);
+  saveFeeds(result.feeds);
+  return result.feed;
+}
+
+/**
+ * Import feeds through the same storage mutation semantics as manual feed additions.
+ */
+export function importFeeds(
+  importedFeeds: FeedImportEntry[],
+  maxFeeds: number = MAX_FEEDS_PER_REQUEST
+): FeedImportSummary {
+  const result = importFeedsInto(getFeeds(), importedFeeds, maxFeeds);
+  if (result.summary.added > 0) {
+    saveFeeds(result.feeds);
+  }
+  return result.summary;
+}
+
+/**
+ * Update an existing feed
+ */
+export function updateFeed(id: string, updates: Partial<Feed>): void {
+  const feeds = getFeeds();
+  saveFeeds(updateFeedIn(feeds, id, updates));
 }
 
 /**
@@ -358,4 +473,58 @@ export function toggleFeed(id: string): void {
     feed.id === id ? { ...feed, enabled: !feed.enabled } : feed
   );
   saveFeeds(updatedFeeds);
+}
+
+/**
+ * Apply one user-visible Feed manager mutation through a single storage transaction.
+ */
+export async function runFeedManagerOperation(
+  operation: FeedManagerOperation
+): Promise<FeedManagerOperationResult> {
+  if (operation.type === 'add' || operation.type === 'edit') {
+    await operation.validateFeedUrl(operation.url.trim());
+  }
+
+  const previousFeeds = getFeeds();
+  let feeds: Feed[];
+  let importSummary: FeedImportSummary | undefined;
+
+  switch (operation.type) {
+    case 'add':
+      feeds = addFeedTo(previousFeeds, operation.url.trim(), operation.name.trim()).feeds;
+      saveFeeds(feeds);
+      break;
+    case 'edit':
+      feeds = updateFeedIn(previousFeeds, operation.id, {
+        name: operation.name.trim(),
+        url: operation.url.trim(),
+      });
+      saveFeeds(feeds);
+      break;
+    case 'toggle':
+      feeds = previousFeeds.map((feed) =>
+        feed.id === operation.id ? { ...feed, enabled: !feed.enabled } : feed
+      );
+      saveFeeds(feeds);
+      break;
+    case 'delete':
+      feeds = previousFeeds.filter((feed) => feed.id !== operation.id);
+      saveFeeds(feeds);
+      break;
+    case 'import-opml': {
+      const result = importFeedsInto(
+        previousFeeds,
+        operation.feeds,
+        operation.maxFeeds ?? MAX_FEEDS_PER_REQUEST
+      );
+      feeds = result.feeds;
+      importSummary = result.summary;
+      if (result.summary.added > 0) {
+        saveFeeds(feeds);
+      }
+      break;
+    }
+  }
+
+  return finishManagerOperation(operation.type, previousFeeds, feeds, importSummary);
 }

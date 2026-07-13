@@ -5,22 +5,24 @@
 /**
  * API response from /api/feeds endpoint
  */
+export interface SerializedFeedItem {
+  title: string;
+  link: string;
+  pubDate: string;
+  description?: string;
+  contentHtml?: string;
+  source: string;
+}
+
 export interface FeedApiResponse {
-  items: Array<{
-    title: string;
-    link: string;
-    pubDate: string; // ISO date string
-    description?: string;
-    contentHtml?: string;
-    source: string;
-  }>;
+  items: SerializedFeedItem[];
   cached: boolean;
   timeZone?: string;
 }
 
 export type FeedStreamStatus = 'cached' | 'success' | 'timeout' | 'error';
 
-export type FeedStreamChunk =
+export type FeedProgressEvent<Item> =
   | {
       type: 'meta';
       requestId: string;
@@ -39,7 +41,7 @@ export type FeedStreamChunk =
       feedUrl: string;
       status: FeedStreamStatus;
       itemCount: number;
-      items: FeedApiResponse['items'];
+      items: Item[];
     }
   | {
       type: 'done';
@@ -49,7 +51,10 @@ export type FeedStreamChunk =
       totalFeeds: number;
       completedFeeds: number;
       totalItemCount: number;
-    }
+    };
+
+export type FeedStreamChunk =
+  | FeedProgressEvent<SerializedFeedItem>
   | {
       type: 'error';
       requestId: string;

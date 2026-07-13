@@ -18,7 +18,7 @@ import type { LogContext } from './logger';
 import { recordFeedApiRequest } from './metrics';
 import { applyRequestIdHeader } from './request-context';
 import type { ValidatedFeedSet } from './feed-request-validation';
-import type { FeedStreamChunk } from './types';
+import type { FeedProgressEvent, FeedStreamChunk, SerializedFeedItem } from './types';
 
 const NDJSON_CONTENT_TYPE = 'application/x-ndjson; charset=utf-8';
 const STREAM_QUERY_PARAM = 'stream';
@@ -114,7 +114,9 @@ export function createFeedJsonResponse(
   );
 }
 
-function toFeedStreamChunk(event: FeedRequestProgressEvent): FeedStreamChunk {
+function toFeedStreamChunk(
+  event: FeedRequestProgressEvent
+): FeedProgressEvent<SerializedFeedItem> {
   if (event.type === 'feed_result') {
     return {
       ...event,
