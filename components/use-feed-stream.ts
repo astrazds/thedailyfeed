@@ -53,20 +53,20 @@ function executeLifecycleEffects(effects: FeedSetLifecycleEffect[]): void {
 
 export function useFeedStream(): UseFeedStreamResult {
   const clientTimeZone = useMemo(() => getClientTimeZone(), []);
-  const initialTransitionRef = useRef<FeedSetLifecycleTransition | null>(null);
-  if (initialTransitionRef.current === null) {
-    initialTransitionRef.current = beginFeedSetLifecycle({
+  const initialTransition = useMemo(
+    () => beginFeedSetLifecycle({
       feeds: [],
       timeZone: clientTimeZone,
       snapshot: null,
-    });
-  }
+    }),
+    [clientTimeZone]
+  );
 
   const [feedReadModel, setFeedReadModel] = useState<FeedSetLifecycleReadModel>(
-    initialTransitionRef.current.readModel
+    initialTransition.readModel
   );
   const lifecycleStateRef = useRef<FeedSetLifecycleState>(
-    initialTransitionRef.current.state
+    initialTransition.state
   );
   const feedReadModelRef = useRef(feedReadModel);
   const abortRef = useRef<AbortController | null>(null);

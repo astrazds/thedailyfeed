@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { getFeeds, type Feed } from '@/lib/feed-storage';
 
 const FeedManagerModal = dynamic(
   () => import('./feed-manager-modal').then((mod) => mod.FeedManagerModal),
@@ -10,11 +11,17 @@ const FeedManagerModal = dynamic(
 
 export function FeedManagerButton() {
   const [isOpen, setIsOpen] = useState(false);
+  const [feeds, setFeeds] = useState<Feed[]>([]);
+
+  const handleOpen = () => {
+    setFeeds(getFeeds());
+    setIsOpen(true);
+  };
 
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpen}
         className="fixed top-6 right-6 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 z-40"
         style={{
           backgroundColor: 'var(--accent-primary)',
@@ -39,7 +46,12 @@ export function FeedManagerButton() {
         </svg>
       </button>
 
-      <FeedManagerModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <FeedManagerModal
+        feeds={feeds}
+        isOpen={isOpen}
+        onFeedsChange={setFeeds}
+        onClose={() => setIsOpen(false)}
+      />
     </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Feed } from '@/lib/feed-storage';
-import { getFeeds } from '@/lib/feed-storage';
 import {
   exportToOPML,
   parseOPML,
@@ -17,12 +16,18 @@ import { mapFeedManagerResultToModalState } from '@/components/feed-manager-moda
 import { logger } from '@/lib/logger';
 
 interface FeedManagerModalProps {
+  feeds: Feed[];
   isOpen: boolean;
+  onFeedsChange: (feeds: Feed[]) => void;
   onClose: () => void;
 }
 
-export function FeedManagerModal({ isOpen, onClose }: FeedManagerModalProps) {
-  const [feeds, setFeeds] = useState<Feed[]>([]);
+export function FeedManagerModal({
+  feeds,
+  isOpen,
+  onFeedsChange,
+  onClose,
+}: FeedManagerModalProps) {
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [newFeedName, setNewFeedName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,7 +64,7 @@ export function FeedManagerModal({ isOpen, onClose }: FeedManagerModalProps) {
 
   const applyOperationResult = (result: FeedManagerOperationResult) => {
     const statePatch = mapFeedManagerResultToModalState(result);
-    setFeeds(statePatch.feeds);
+    onFeedsChange(statePatch.feeds);
 
     if (statePatch.newFeedName !== undefined) {
       setNewFeedName(statePatch.newFeedName);
@@ -82,11 +87,10 @@ export function FeedManagerModal({ isOpen, onClose }: FeedManagerModalProps) {
   };
 
   useEffect(() => {
-    if (isOpen) {
-      setFeeds(getFeeds());
-      // Focus close button when modal opens
-      setTimeout(() => closeButtonRef.current?.focus(), 100);
-    }
+    if (!isOpen) return;
+
+    const focusTimer = setTimeout(() => closeButtonRef.current?.focus(), 100);
+    return () => clearTimeout(focusTimer);
   }, [isOpen]);
 
   // Handle ESC key and focus trap
