@@ -1,11 +1,12 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.0 implementation as of June 3, 2026.
+This document reflects the 1.0.0 implementation as of July 13, 2026.
 
 ## System Overview
 
 The Daily Feed is a Next.js App Router project with:
 
+- Next.js 16.2.10 and React 19.2.7
 - A client-driven UI for feed rendering and management
 - Node.js 24 LTS or newer as the supported server runtime
 - Streaming feed retrieval with progressive per-feed updates
@@ -208,9 +209,17 @@ Chunk types:
 ### Feed Manager
 
 - `FeedManagerButton` lazy-loads `FeedManagerModal` via `next/dynamic`
+- `FeedManagerButton` owns the current Feed list and refreshes it from browser storage when the manager opens
+- `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - Modal handles CRUD and OPML import/export
 - Add/edit operations call `POST /api/feeds/validate` before persisting
 - After mutations, dispatches `feedsUpdated`
+
+### Feed Stream Lifecycle
+
+- `useFeedStream` creates its initial Feed set lifecycle transition with a memoized pure initializer
+- React state exposes the current read model, while refs retain transition state needed by asynchronous stream processing
+- Lifecycle transitions, rather than component-local branching, own progressive results, offline fallback, completion, and persistence effects
 
 ## Security
 
@@ -288,7 +297,7 @@ See `env.template` for supported variables. Key groups:
 pnpm test
 ```
 
-Runs test files with Node test runner and TS strip-types mode. Integration tests are skipped unless `RUN_INTEGRATION_TESTS=true`.
+Runs `.mts` test files through `tsx` and the Node test runner with serial test-file concurrency. Integration tests are skipped unless `RUN_INTEGRATION_TESTS=true`.
 
 ### Full Integration Mode
 
@@ -311,10 +320,13 @@ This mode starts a local Next.js dev server and exercises API endpoints (`/api/f
 
 ```bash
 pnpm lint
+pnpm exec tsc --noEmit
 pnpm test
 pnpm build
 ```
 
-`pnpm build` includes the PWA artifact contract; a missing service worker, missing referenced Workbox runtime asset, or missing declared `/api/feeds` `NetworkOnly` runtime route fails the build.
+`pnpm exec tsc --noEmit` checks both application code and `.mts` tests; `allowImportingTsExtensions` is enabled because this project is typechecked without emitting JavaScript. `pnpm build` performs Next.js production typechecking and includes the PWA artifact contract; a missing service worker, missing referenced Workbox runtime asset, or missing declared `/api/feeds` `NetworkOnly` runtime route fails the build.
+
+Next.js 16 uses Turbopack by default for `pnpm dev`. Production builds intentionally pass `--webpack` because `next-pwa` injects webpack configuration.
 
 In restricted environments, `pnpm build` may require external network access for font fetch during build-time optimization.

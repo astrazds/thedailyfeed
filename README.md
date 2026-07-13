@@ -49,11 +49,12 @@ Useful local checks:
 
 ```bash
 pnpm lint
+pnpm exec tsc --noEmit
 pnpm test
 pnpm build
 ```
 
-`pnpm build` uses the production webpack build path required by `next-pwa`, then verifies the emitted service worker contract.
+`pnpm dev` uses the default Next.js development bundler. `pnpm build` follows the production bundler path documented in [TECHNICAL.md](TECHNICAL.md), then verifies the emitted service worker contract. The standalone TypeScript check includes application code and the `.mts` test suite.
 
 ## Configuration
 

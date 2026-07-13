@@ -175,9 +175,16 @@ Server logs include request IDs, feed/cache lifecycle events, validation failure
 
 ```bash
 git pull
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm test
+pnpm build
 ./scripts/deploy-compose.sh
 docker image prune -f
 ```
+
+The local verification sequence is optional when the deployment host only builds through Docker, because the image build runs the production Next/PWA build again. Running it before deployment provides earlier feedback for lint, application and test type errors, unit tests, and generated PWA artifacts.
 
 ## Security Notes
 
