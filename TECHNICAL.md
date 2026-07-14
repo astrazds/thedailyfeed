@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.3 implementation as of July 13, 2026.
+This document reflects the 1.0.4 implementation as of July 14, 2026.
 
 ## System Overview
 
@@ -230,6 +230,7 @@ Chunk types:
 ### Feed Manager
 
 - `FeedManagerButton` lazy-loads `FeedManagerModal` via `next/dynamic`
+- `FeedContent` passes its authoritative per-feed lifecycle statuses through `FeedManagerButton` to the modal for load-result icons
 - `FeedManagerButton` owns the current Feed list and refreshes it from browser storage when the manager opens
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - Modal handles CRUD and OPML import/export
