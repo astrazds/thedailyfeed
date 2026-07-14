@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import { FeedList } from './feed-list';
 import { FeedHeader } from './feed-header';
 import { FeedSkeleton } from './feed-skeleton';
-import { FeedFetchStatus } from './feed-fetch-status';
 import { FeedManagerButton } from './feed-manager-button';
 import { useFeedStream } from './use-feed-stream';
 import type { FeedItem } from '@/lib/rss';
@@ -43,7 +42,6 @@ function FeedContentContainer({
           completedFeeds={completedFeeds}
           totalFeeds={totalFeeds}
         />
-        <FeedFetchStatus loading={loading} items={feedStatuses} />
         <main>{children}</main>
       </div>
     </div>
@@ -123,7 +121,7 @@ export function FeedContent() {
       totalFeeds={totalFeeds}
       feedStatuses={feedStatuses}
     >
-      <FeedList items={items} />
+      <FeedList items={items} loading={loading} />
     </FeedContentContainer>
   );
 }

@@ -1,11 +1,13 @@
 import type { FeedItem } from '@/lib/rss';
 import { FeedItemComponent } from './feed-item';
+import { FeedSkeleton } from './feed-skeleton';
 
 interface FeedListProps {
   items: FeedItem[];
+  loading?: boolean;
 }
 
-export function FeedList({ items }: FeedListProps) {
+export function FeedList({ items, loading = false }: FeedListProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
@@ -24,6 +26,7 @@ export function FeedList({ items }: FeedListProps) {
           item={item} 
         />
       ))}
+      {loading && <FeedSkeleton label="Loading more feed items" />}
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   type FeedSetLifecycleEffect,
   type FeedSetLifecycleReadModel,
   type FeedSetLifecycleState,
+  type FeedSetLifecycleStatusItem,
   type FeedSetLifecycleTransition,
 } from '@/lib/feed-set-lifecycle';
 import { getEnabledFeedUrls, getFeeds } from '@/lib/feed-storage';
@@ -22,7 +23,6 @@ import { logger } from '@/lib/logger';
 import { loadOfflineFeedSnapshot, saveOfflineFeedSnapshot } from '@/lib/offline-feed-cache';
 import { AUTO_REFRESH_INTERVAL_MS } from '@/lib/constants';
 import type { FeedItem } from '@/lib/rss';
-import type { FeedFetchStatusItem } from './feed-fetch-status';
 
 interface UseFeedStreamResult {
   items: FeedItem[];
@@ -31,7 +31,7 @@ interface UseFeedStreamResult {
   isCached: boolean;
   completedFeeds: number;
   totalFeeds: number;
-  feedStatuses: FeedFetchStatusItem[];
+  feedStatuses: FeedSetLifecycleStatusItem[];
   refreshFeeds: () => Promise<void>;
 }
 
