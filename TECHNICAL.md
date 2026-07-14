@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.5 implementation as of July 14, 2026.
+This document reflects the 1.0.6 implementation as of July 14, 2026.
 
 ## System Overview
 
@@ -237,6 +237,7 @@ Chunk types:
 - `FeedManagerButton` owns the current Feed list and refreshes it from browser storage when the manager opens
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - Modal handles CRUD and OPML import/export
+- `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
 - `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled Feed set changes
 - `lib/feed-manager-operations.ts` preserves the former import interface as a compatibility re-export
