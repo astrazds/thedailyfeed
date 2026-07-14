@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.4 implementation as of July 14, 2026.
+This document reflects the 1.0.5 implementation as of July 14, 2026.
 
 ## System Overview
 
@@ -29,8 +29,10 @@ The Daily Feed is a Next.js App Router project with:
 
 - `app/page.tsx`
   - `ErrorBoundary`
-  - `FeedManagerButton` (lazy-loads modal)
   - `FeedContent`
+    - `FeedManagerButton` (lazy-loads modal)
+    - `FeedHeader`
+    - progressive feed list and loading skeleton
   - `OfflineIndicator`
   - `InstallPrompt`
 
@@ -68,7 +70,7 @@ The Daily Feed is a Next.js App Router project with:
    - Emits cached feeds immediately as `feed_result` chunks (`status: cached`)
    - Parses missing feeds progressively and emits `feed_result` chunks (`status: success|timeout|error`)
    - Emits `done`
-6. Client incrementally merges/sorts items, updates status badges, and persists snapshot
+6. Client incrementally merges/sorts items, keeps the loading skeleton visible until the stream completes, updates feed-manager result state, and persists the snapshot
 7. On request failures, client attempts same-day snapshot fallback from `localStorage`
 
 ## Observability and Logging
@@ -219,7 +221,8 @@ Chunk types:
   - `feedStatuses`
 - Uses `AbortController` to cancel in-flight requests
 - Parses NDJSON stream incrementally via `ReadableStream` + `TextDecoderStream`
-- Displays per-feed loading status via `FeedFetchStatus`
+- Displays the pulsing `FeedSkeleton` until initial results arrive and beneath progressively loaded items while more feeds remain pending
+- Keeps per-feed lifecycle status out of the reading view while passing terminal results to the feed manager
 - Persists snapshots on successful completion
 - Uses snapshot fallback on fetch failure when available
 - Listens for:
