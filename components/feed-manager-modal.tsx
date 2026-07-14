@@ -14,9 +14,11 @@ import {
 } from '@/lib/feed-storage';
 import { mapFeedManagerResultToModalState } from '@/components/feed-manager-modal-state';
 import { logger } from '@/lib/logger';
+import type { FeedSetLifecycleStatusItem } from '@/lib/feed-set-lifecycle';
 
 interface FeedManagerModalProps {
   feeds: Feed[];
+  feedStatuses?: FeedSetLifecycleStatusItem[];
   isOpen: boolean;
   onFeedsChange: (feeds: Feed[]) => void;
   onClose: () => void;
@@ -24,6 +26,7 @@ interface FeedManagerModalProps {
 
 export function FeedManagerModal({
   feeds,
+  feedStatuses = [],
   isOpen,
   onFeedsChange,
   onClose,
@@ -462,6 +465,43 @@ export function FeedManagerModal({
                           <h4 className="font-semibold" style={{ color: 'var(--foreground)' }}>
                             {feed.name}
                           </h4>
+                          {feed.enabled &&
+                            (feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'success' ||
+                              feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'cached') && (
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                style={{ color: 'green' }}
+                                aria-label="Loaded successfully"
+                                role="img"
+                              >
+                                <path d="M3 8.5 6.5 12 13 4" />
+                              </svg>
+                            )}
+                          {feed.enabled &&
+                            (feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'error' ||
+                              feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'timeout') && (
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                style={{ color: 'red' }}
+                                aria-label="Failed to load"
+                                role="img"
+                              >
+                                <path d="M4 4 12 12M12 4 4 12" />
+                              </svg>
+                            )}
                           {!feed.enabled && (
                             <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--code-bg)', color: 'var(--foreground-subtle)' }}>
                               Disabled

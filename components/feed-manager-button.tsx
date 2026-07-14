@@ -3,13 +3,18 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { getFeeds, type Feed } from '@/lib/feed-storage';
+import type { FeedSetLifecycleStatusItem } from '@/lib/feed-set-lifecycle';
 
 const FeedManagerModal = dynamic(
   () => import('./feed-manager-modal').then((mod) => mod.FeedManagerModal),
   { ssr: false }
 );
 
-export function FeedManagerButton() {
+interface FeedManagerButtonProps {
+  feedStatuses: FeedSetLifecycleStatusItem[];
+}
+
+export function FeedManagerButton({ feedStatuses }: FeedManagerButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [feeds, setFeeds] = useState<Feed[]>([]);
 
@@ -48,6 +53,7 @@ export function FeedManagerButton() {
 
       <FeedManagerModal
         feeds={feeds}
+        feedStatuses={feedStatuses}
         isOpen={isOpen}
         onFeedsChange={setFeeds}
         onClose={() => setIsOpen(false)}

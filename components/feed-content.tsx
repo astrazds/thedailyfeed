@@ -6,6 +6,7 @@ import { FeedList } from './feed-list';
 import { FeedHeader } from './feed-header';
 import { FeedSkeleton } from './feed-skeleton';
 import { FeedFetchStatus } from './feed-fetch-status';
+import { FeedManagerButton } from './feed-manager-button';
 import { useFeedStream } from './use-feed-stream';
 import type { FeedItem } from '@/lib/rss';
 
@@ -32,6 +33,7 @@ function FeedContentContainer({
 }: FeedContentContainerProps) {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--background)' }}>
+      <FeedManagerButton feedStatuses={feedStatuses} />
       <div className="max-w-[720px] mx-auto px-6 py-12">
         <FeedHeader
           today={today}
