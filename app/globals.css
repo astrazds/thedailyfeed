@@ -11,6 +11,11 @@
   --accent-primary: #c17767;
   --accent-primary-hover: #a86555;
   --accent-secondary: #8b7355;
+
+  /* Destructive actions - Warm red that stays within the paper-toned palette */
+  --danger-background: #b34f4f;
+  --danger-background-hover: #983f3f;
+  --danger-foreground: #fffaf7;
   
   /* Borders - Soft, barely visible */
   --border-color: #e8e3dc;
@@ -39,6 +44,11 @@
     --accent-primary: #d4a89a;
     --accent-primary-hover: #e5bfb3;
     --accent-secondary: #b89d88;
+
+    /* Destructive actions - Softer coral red for dark surfaces */
+    --danger-background: #d97878;
+    --danger-background-hover: #e58a8a;
+    --danger-foreground: #1a1816;
     
     /* Borders - Subtle, warm */
     --border-color: #2d2926;
@@ -300,6 +310,16 @@ h1, h2, h3, h4, h5, h6 {
 /* Button hover utility */
 .button-hover-fade:hover {
   opacity: 0.8;
+}
+
+.destructive-button {
+  background-color: var(--danger-background);
+  color: var(--danger-foreground);
+  transition: background-color 0.2s ease;
+}
+
+.destructive-button:hover {
+  background-color: var(--danger-background-hover);
 }
 
 /* Smooth expand/collapse animation */

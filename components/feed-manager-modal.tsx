@@ -13,6 +13,7 @@ import {
   type FeedManagerOperationResult,
 } from '@/lib/feed-storage';
 import { mapFeedManagerResultToModalState } from '@/components/feed-manager-modal-state';
+import { FeedDeleteActions } from '@/components/feed-delete-actions';
 import { logger } from '@/lib/logger';
 import type { FeedSetLifecycleStatusItem } from '@/lib/feed-set-lifecycle';
 
@@ -36,6 +37,7 @@ export function FeedManagerModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editUrl, setEditUrl] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -171,14 +173,17 @@ export function FeedManagerModal({
     applyOperationResult(result);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this feed?')) {
-      const result = await runFeedManagerOperation({
-        type: 'delete',
-        id,
-      });
-      applyOperationResult(result);
-    }
+  const beginDeleteConfirmation = (id: string) => {
+    setDeletingId(id);
+  };
+
+  const handleConfirmDelete = async (id: string) => {
+    const result = await runFeedManagerOperation({
+      type: 'delete',
+      id,
+    });
+    applyOperationResult(result);
+    setDeletingId(null);
   };
 
   const handleEdit = (feed: Feed) => {
@@ -512,38 +517,15 @@ export function FeedManagerModal({
                           {feed.url}
                         </p>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleToggle(feed.id)}
-                          className="px-3 py-1 rounded text-sm transition-colors button-hover-fade"
-                          style={{
-                            backgroundColor: feed.enabled ? 'var(--code-bg)' : 'var(--accent-primary)',
-                            color: feed.enabled ? 'var(--foreground)' : 'var(--background)',
-                          }}
-                        >
-                          {feed.enabled ? 'Disable' : 'Enable'}
-                        </button>
-                        <button
-                          onClick={() => handleEdit(feed)}
-                          className="px-3 py-1 rounded text-sm"
-                          style={{
-                            backgroundColor: 'var(--code-bg)',
-                            color: 'var(--foreground)',
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(feed.id)}
-                          className="px-3 py-1 rounded text-sm"
-                          style={{
-                            backgroundColor: 'var(--code-bg)',
-                            color: 'var(--accent-primary)',
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <FeedDeleteActions
+                        feed={feed}
+                        isConfirming={deletingId === feed.id}
+                        onCancel={() => setDeletingId(null)}
+                        onConfirm={() => handleConfirmDelete(feed.id)}
+                        onDeleteRequest={() => beginDeleteConfirmation(feed.id)}
+                        onEdit={() => handleEdit(feed)}
+                        onToggle={() => handleToggle(feed.id)}
+                      />
                     </div>
                   )}
                 </div>
