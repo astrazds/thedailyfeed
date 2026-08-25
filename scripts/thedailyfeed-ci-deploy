@@ -80,7 +80,7 @@ health="$(docker inspect --format '{{.State.Health.Status}}' thedailyfeed 2>/dev
 [[ "$health" == healthy ]] || fail container-unhealthy
 image="$(docker inspect --format '{{.Image}}' thedailyfeed 2>/dev/null)" || fail image-missing
 
-TARGET_COMMIT="$target_commit" TARGET_VERSION="$APP_VERSION" docker inspect thedailyfeed | python3 -c '
+docker inspect thedailyfeed | TARGET_COMMIT="$target_commit" TARGET_VERSION="$APP_VERSION" python3 -c '
 import json
 import os
 import sys

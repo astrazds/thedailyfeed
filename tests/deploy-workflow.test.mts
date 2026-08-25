@@ -11,3 +11,16 @@ test('production deployment forces IPv4 for the SRV1 SSH connection', async () =
   assert.ok(deployStep, 'production deployment step is present');
   assert.match(deployStep, /\bssh -4 -F \/dev\/null/);
 });
+
+test('production acceptance passes target metadata to its runtime verifier', async () => {
+  const deployCommand = await readFile('scripts/thedailyfeed-ci-deploy', 'utf8');
+  const acceptance = deployCommand.match(
+    /phase=acceptance[\s\S]*?(?=\nprintf 'phase=complete)/
+  )?.[0];
+
+  assert.ok(acceptance, 'production acceptance phase is present');
+  assert.match(
+    acceptance,
+    /docker inspect thedailyfeed \| TARGET_COMMIT="\$target_commit" TARGET_VERSION="\$APP_VERSION" python3 -c/
+  );
+});
