@@ -142,6 +142,30 @@ network, authentication, or destructive checks only when the corresponding
 boundary changed, and retain each repository's existing authorization,
 fail-closed, and bounded-call requirements.
 
+## Versioning
+
+- Treat `package.json` as the sole release-version authority. Keep its stable
+  `MAJOR.MINOR.PATCH` version synchronized with Compose's `APP_VERSION`
+  fallback, README's current release, the technical-document version header,
+  and the deployment-guide header and runtime-default table.
+- Bump release-worthy user-visible behavior, runtime behavior, security fixes,
+  compatible operational changes, and deployable dependency updates. Skip
+  documentation-only, test-only, CI-only, agent-guidance, non-behavioral
+  refactor, and unchanged-redeployment work.
+- Use patch for fixes and compatible operational or dependency changes, minor
+  for backward-compatible features, and major only for intentionally breaking
+  changes with explicit approval. When several eligible changes ship together,
+  apply the highest required component once.
+- After implementation stabilizes but before the final repository gate, run
+  `pnpm version:bump <patch|minor|major>` and include its synchronized edits in
+  the same eventual commit. Run `pnpm version:check` to validate metadata
+  without changing it.
+- Stop on version drift instead of guessing or silently repairing it. CI
+  enforces valid synchronized metadata only; release eligibility and bump size
+  remain agent/reviewer judgments.
+- Version automation grants no permission to stage, commit, tag, push,
+  dispatch CI, deploy, or perform any other external or production action.
+
 ## Validation, deployment, and recovery
 
 - The CIFS mount cannot reliably create package-manager symlinks. When

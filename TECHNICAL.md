@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.6 implementation as of August 25, 2026.
+This document reflects the 1.1.0 implementation as of August 25, 2026.
 
 ## System Overview
 
@@ -19,6 +19,25 @@ Feed subscriptions, including imported OPML entries, and offline snapshots
 belong to the browser profile; OPML import/export runs client-side. The server
 has no account or subscription database, and its feed cache and metrics are
 process-local and disposable.
+
+## Release Versioning
+
+`package.json` is the sole release-version authority and accepts only stable
+`MAJOR.MINOR.PATCH` SemVer. `pnpm version:check` validates that version and its
+single expected marker in Compose, README, this document, and the deployment
+guide. `pnpm version:bump <patch|minor|major>` first rejects invalid metadata or
+existing drift, then increments `package.json` and synchronizes every marker.
+The technical-document date is deliberately independent and is not changed by
+the bump command. The feed-management interface imports the package metadata
+directly, so its displayed version is fixed at build time without another
+version marker.
+
+Run the bump once after an eligible change set stabilizes and before the final
+repository gate. CI runs `version:check` before compilation and tests, but only
+enforces valid synchronized metadata; deciding whether a change is
+release-worthy and which component it requires remains an agent/reviewer
+judgment. Neither command grants permission to stage, commit, tag, push,
+dispatch CI, or deploy.
 
 ## Runtime Architecture
 

@@ -3,6 +3,28 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import { FeedManagerModal } from '../components/feed-manager-modal';
+import packageMetadata from '../package.json';
+
+const noOp = () => undefined;
+
+function renderEmptyFeedManager(): string {
+  return renderToStaticMarkup(
+    createElement(FeedManagerModal, {
+      feeds: [],
+      isOpen: true,
+      onFeedsChange: noOp,
+      onClose: noOp,
+    })
+  );
+}
+
+test('feed manager footer shows the package version before the Done action', () => {
+  const markup = renderEmptyFeedManager();
+  const versionLabel = `Version ${packageMetadata.version}`;
+
+  assert.ok(markup.includes(versionLabel));
+  assert.ok(markup.indexOf(versionLabel) < markup.indexOf('>Done</button>'));
+});
 
 test('feed manager shows a green accessible tick beside a successfully loaded feed title', () => {
   const markup = renderToStaticMarkup(

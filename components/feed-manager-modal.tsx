@@ -16,6 +16,7 @@ import { mapFeedManagerResultToModalState } from '@/components/feed-manager-moda
 import { FeedDeleteActions } from '@/components/feed-delete-actions';
 import { logger } from '@/lib/logger';
 import type { FeedSetLifecycleStatusItem } from '@/lib/feed-set-lifecycle';
+import packageMetadata from '@/package.json';
 
 interface FeedManagerModalProps {
   feeds: Feed[];
@@ -536,9 +537,12 @@ export function FeedManagerModal({
 
         {/* Footer */}
         <div 
-          className="px-6 py-4 border-t flex justify-end"
+          className="px-6 py-4 border-t flex items-center justify-between"
           style={{ borderColor: 'var(--border-color)' }}
         >
+          <span className="text-sm" style={{ color: 'var(--foreground-subtle)' }}>
+            Version {packageMetadata.version}
+          </span>
           <button
             onClick={handleClose}
             className="px-6 py-2 rounded font-medium"

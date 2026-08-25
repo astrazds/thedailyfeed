@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.0.6 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.1.0 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
 
@@ -79,7 +79,7 @@ image buildability, container health, routing, or production acceptance.
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.0.6` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.0` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
@@ -243,11 +243,13 @@ All workflows use one tracked gate:
 ./scripts/verify-ci.sh
 ```
 
-The gate requires Node 24 and pnpm 10.33.4, derives `APP_VERSION` and the full
-40-character checked-out commit, validates Compose interpolation, runs frozen
-installation, lint, `tsc --noEmit`, tests, and the Next/PWA build, then uses
-rootless BuildKit to create one local OCI archive. The archive is deleted after
-the build and is never published.
+The gate requires Node 24 and pnpm 10.33.4, verifies stable synchronized version
+metadata, derives `APP_VERSION` and the full 40-character checked-out commit,
+validates Compose interpolation, runs frozen installation, lint,
+`tsc --noEmit`, tests, and the Next/PWA build, then uses rootless BuildKit to
+create one local OCI archive. The archive is deleted after the build and is
+never published. CI does not decide whether a change requires a release bump
+or create a version commit.
 
 `pull_request` is intentionally retained. Approved PR jobs execute arbitrary
 PR code using the host executor inside a runner container. That code can read

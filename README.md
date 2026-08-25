@@ -2,7 +2,7 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.0.6`.
+Current release: `1.1.0`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 
@@ -50,6 +50,7 @@ Open `http://localhost:3000`.
 Useful local checks:
 
 ```bash
+pnpm version:check
 pnpm lint
 pnpm exec tsc --noEmit
 pnpm test
@@ -57,6 +58,31 @@ pnpm build
 ```
 
 `pnpm dev` uses the default Next.js development bundler. `pnpm build` follows the production bundler path documented in [TECHNICAL.md](TECHNICAL.md), then verifies the emitted service worker contract. The standalone TypeScript check includes application code and the `.mts` test suite.
+
+## Development and Versioning
+
+`package.json` is the sole release-version authority. Check that its stable
+`MAJOR.MINOR.PATCH` value matches Compose and the release documentation with:
+
+```bash
+pnpm version:check
+```
+
+After a release-worthy change has stabilized, synchronize one SemVer increment
+before the final repository gate:
+
+```bash
+pnpm version:bump patch
+pnpm version:bump minor
+pnpm version:bump major
+```
+
+Choose one component per change set: patch for fixes and compatible operational
+or dependency changes, minor for backward-compatible features, and major only
+for an intentionally breaking change. The command stops on existing drift and
+does not stage, commit, tag, push, dispatch CI, or deploy. CI validates version
+syntax and synchronization; release eligibility and bump size remain reviewer
+judgments.
 
 ## Configuration
 

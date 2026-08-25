@@ -20,6 +20,8 @@ esac
 pnpm_version="$(pnpm --version)"
 [ "$pnpm_version" = "$EXPECTED_PNPM_VERSION" ] || fail "pnpm ${EXPECTED_PNPM_VERSION} is required"
 
+pnpm version:check
+
 APP_VERSION="$(node -p "require('./package.json').version")"
 APP_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')"
 case "$APP_COMMIT" in
