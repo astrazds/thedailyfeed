@@ -58,7 +58,7 @@ jobs:
           printf '%s\n' "$SRV1_DEPLOY_KEY" > "$key_file"
           unset SRV1_DEPLOY_KEY
 
-          ssh -F /dev/null \
+          ssh -4 -F /dev/null \
             -i "$key_file" \
             -o BatchMode=yes \
             -o ClearAllForwardings=yes \

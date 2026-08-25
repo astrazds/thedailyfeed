@@ -263,9 +263,10 @@ the exact confirmation `deploy-production`. The workflow checks out the event's
 `${{ github.sha }}` and reruns `scripts/verify-ci.sh`; there is no arbitrary SHA
 input and verification must succeed before deployment.
 
-The deployment step uses repository secret `SRV1_DEPLOY_KEY` with the host key
-tracked in `.forgejo/srv1_known_hosts`. The matching public key is restricted
-in the SRV1 `astrazds` account to the root-owned forced command
+The deployment step uses repository secret `SRV1_DEPLOY_KEY`, connects to SRV1
+over IPv4, and validates the host key tracked in `.forgejo/srv1_known_hosts`.
+The matching public key is restricted in the SRV1 `astrazds` account to the
+root-owned forced command
 `/usr/local/sbin/thedailyfeed-ci-deploy`. The key cannot open a shell, forward
 ports or agents, allocate a TTY, or invoke another service.
 
