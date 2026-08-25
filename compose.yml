@@ -61,8 +61,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dailyfeed.entrypoints=websecure"
       - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.example.com}`)"
-      - "traefik.http.routers.dailyfeed.tls=true"
-      - "traefik.http.routers.dailyfeed.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-route53}"
       - "traefik.http.routers.dailyfeed.middlewares=dailyfeed-ratelimit,dailyfeed-request-limit"
       - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-60}"
       - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-120}"

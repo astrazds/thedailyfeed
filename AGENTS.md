@@ -93,6 +93,9 @@ procedures; they never grant permission for an external or production action.
   logs, ingress rate limits, request-body limits, and edge timeouts. Keep
   metrics bearer authentication in the app. Do not expose the container
   directly to the public internet or publish a host port incidentally.
+- On SRV1, keep the application router on `websecure` without router-level TLS
+  keys. That entrypoint owns the unnamespaced `default` TLS option, Route 53
+  ACME resolution, and the shared wildcard certificate.
 - Preserve the non-root runtime, read-only root filesystem, dropped
   capabilities, `no-new-privileges`, resource/process limits, tmpfs scratch,
   bounded logs, health check, and sole external `traefik_proxy` network.

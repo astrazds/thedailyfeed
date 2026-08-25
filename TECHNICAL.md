@@ -307,12 +307,12 @@ Chunk types:
 - Container log rotation configured via Docker `json-file` logging driver
 - Traefik labels parameterized via:
   - `TRAEFIK_DOMAIN`
-  - `TRAEFIK_CERT_RESOLVER`
   - `TRAEFIK_RATE_LIMIT_AVERAGE`
   - `TRAEFIK_RATE_LIMIT_BURST`
   - `TRAEFIK_MAX_REQUEST_BODY_BYTES`
 - Reverse proxies should avoid buffering the feed stream route so `POST /api/feeds?stream=1` can deliver per-feed progress as chunks are produced
 - Compose publishes no host port and joins the existing external `traefik_proxy` network; Traefik owns ingress and is not part of this application's lifecycle
+- On SRV1, the `websecure` entrypoint owns TLS enablement, ACME, the unnamespaced `default` TLS profile, and the wildcard certificate; the application router does not declare a TLS section
 - Offline checks do not activate production. Deployment uses `scripts/deploy-compose.sh` and affects only the `thedailyfeed` service; network, Traefik, and project-wide shutdown or pruning are separate operational boundaries
 
 ### Environment

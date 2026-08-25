@@ -90,7 +90,6 @@ image buildability, container health, routing, or production acceptance.
 | `ALLOW_PRIVATE_NETWORKS` | `false` | Production SSRF escape hatch for private network feeds. |
 | `METRICS_AUTH_TOKEN` | empty | Required to expose production metrics. |
 | `TRAEFIK_DOMAIN` | `dailyfeed.example.com` | Traefik router hostname. |
-| `TRAEFIK_CERT_RESOLVER` | `route53` | Traefik certificate resolver name. |
 | `TRAEFIK_RATE_LIMIT_AVERAGE` | `60` | Traefik average request rate. |
 | `TRAEFIK_RATE_LIMIT_BURST` | `120` | Traefik burst request allowance. |
 | `TRAEFIK_MAX_REQUEST_BODY_BYTES` | `1048576` | Traefik maximum request body size. |
@@ -108,14 +107,17 @@ labels:
   - "traefik.enable=true"
   - "traefik.http.routers.dailyfeed.entrypoints=websecure"
   - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.example.com}`)"
-  - "traefik.http.routers.dailyfeed.tls=true"
-  - "traefik.http.routers.dailyfeed.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-route53}"
   - "traefik.http.routers.dailyfeed.middlewares=dailyfeed-ratelimit,dailyfeed-request-limit"
   - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-60}"
   - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-120}"
   - "traefik.http.middlewares.dailyfeed-request-limit.buffering.maxRequestBodyBytes=${TRAEFIK_MAX_REQUEST_BODY_BYTES:-1048576}"
   - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
 ```
+
+On SRV1, Traefik's `websecure` entrypoint centrally owns HTTP TLS enablement,
+the Route 53 certificate resolver, the unnamespaced `default` profile, and the
+wildcard certificate. The Daily Feed router selects that entrypoint and must
+not add a router-level TLS section.
 
 The service joins an existing external network named `traefik_proxy`. Compose
 does not create or own that network. Changing its name or lifecycle is an

@@ -187,7 +187,9 @@ metadata.
 
 For production:
 
-- Set `TRAEFIK_DOMAIN` and `TRAEFIK_CERT_RESOLVER`.
+- Set `TRAEFIK_DOMAIN`; SRV1's `websecure` entrypoint owns TLS, the
+  unnamespaced `default` profile, ACME policy, and the wildcard certificate.
+  The application router must not add a router-level TLS key.
 - Set `METRICS_AUTH_TOKEN` if you want operator metrics.
 - Keep direct container access blocked; the app is not intended to be exposed directly to the public internet.
 - Configure proxy-owned rate limits, request body limits, TLS, and access logging at the edge.
