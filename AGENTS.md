@@ -165,3 +165,27 @@ fail-closed, and bounded-call requirements.
   data, and investigation evidence; stop and report until exact manual
   recovery effects are approved. Recovery must not weaken SSRF, metrics,
   ingress, container, or network controls.
+
+## Forgejo CI and production dispatch
+
+- CI jobs use the user-scoped `srv1-ci` runner pool. Each persistent runner
+  executes one host-label job inside its own hardened runner container and
+  talks only to its paired rootless BuildKit sidecar. Other than the runner's
+  own read-only `token_url` credential file, jobs must never gain a host
+  filesystem mount, host Docker socket, privileged mode, or production
+  credential.
+- `pull_request` remains enabled. An approved PR workflow can read the
+  persistent host-executor runner token from inside its runner container; this
+  accepted impersonation risk does not grant access to deployment secrets.
+- Both CI and manual deployment call `scripts/verify-ci.sh` for the frozen
+  install, lint, TypeScript, tests, Next/PWA gates, and one unpublished OCI
+  artifact build through rootless BuildKit.
+- `.forgejo/workflows/deploy-production.yml` is manual-only. Dispatch requires
+  the `main` ref, the `main` choice, and exact `deploy-production`
+  confirmation. It deploys only the dispatch event SHA through the restricted
+  SSH forced command and performs only one public HTTPS `GET /` after the
+  server-side deployment succeeds.
+- Adding or rotating `SRV1_DEPLOY_KEY`, changing the tracked SRV1 host key,
+  altering the forced command or its authorized key, dispatching production,
+  probing the public route, or using the rollback tag requires fresh approval
+  for that exact credential, deployment, probe, or recovery effect.

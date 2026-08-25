@@ -226,6 +226,70 @@ only the application service with:
 
 The local verification sequence is optional when the deployment host only builds through Docker, because the image build runs the production Next/PWA build again. Running it before deployment provides earlier feedback for lint, application and test type errors, unit tests, and generated PWA artifacts.
 
+## Forgejo CI
+
+Pushes to `main`, pull requests, and manual non-production runs share the
+user-scoped `srv1-ci` pool. Two persistent runners provide one job each. The
+runner processes are confined to separate read-only containers with dedicated
+writable state, and each runner reaches only its own rootless BuildKit v0.25.1
+sidecar. Neither runner has the host Docker socket, a production filesystem
+mount, privileged mode, or a production credential.
+
+All workflows use one tracked gate:
+
+```bash
+./scripts/verify-ci.sh
+```
+
+The gate requires Node 24 and pnpm 10.33.4, derives `APP_VERSION` and the full
+40-character checked-out commit, validates Compose interpolation, runs frozen
+installation, lint, `tsc --noEmit`, tests, and the Next/PWA build, then uses
+rootless BuildKit to create one local OCI archive. The archive is deleted after
+the build and is never published.
+
+`pull_request` is intentionally retained. Approved PR jobs execute arbitrary
+PR code using the host executor inside a runner container. That code can read
+the persistent runner token and could impersonate the runner. The accepted
+scope is the `astrazds/*` user runner pool; deployment secrets are not made
+available to the PR workflow.
+
+## Manual production workflow
+
+`.forgejo/workflows/deploy-production.yml` has only a `workflow_dispatch`
+trigger. The operator must dispatch the `main` ref, select `main`, and enter
+the exact confirmation `deploy-production`. The workflow checks out the event's
+`${{ github.sha }}` and reruns `scripts/verify-ci.sh`; there is no arbitrary SHA
+input and verification must succeed before deployment.
+
+The deployment step uses repository secret `SRV1_DEPLOY_KEY` with the host key
+tracked in `.forgejo/srv1_known_hosts`. The matching public key is restricted
+in the SRV1 `astrazds` account to the root-owned forced command
+`/usr/local/sbin/thedailyfeed-ci-deploy`. The key cannot open a shell, forward
+ports or agents, allocate a TTY, or invoke another service.
+
+The forced command accepts only `deploy <40-hex-sha>`. It serializes deployment
+with `flock`, requires the authoritative checkout to be clean, on `main`, and
+using the expected origin, then freshly fetches `origin/main`. The requested
+commit must equal that fetched tip and be a fast-forward from the current
+checkout. Before activation it validates Compose, verifies `.env.production`
+mode `0600` without reading values, and tags the current healthy image as
+`thedailyfeed:rollback`. It invokes:
+
+```bash
+./scripts/deploy-compose.sh --wait --wait-timeout 180 thedailyfeed
+```
+
+After activation, the forced command requires exact commit/version metadata,
+healthy state, no host port bindings, only the `traefik_proxy` network, and the
+fixed router rule ``Host(`dailyfeed.astrazds.net`)``. The workflow then performs
+one TLS-validated `GET /` and requires final HTTP `200`; it does not call feed,
+validation, metrics, or browser routes.
+
+A build failure leaves the running container untouched. Activation, health,
+or route failure stops without automatic rollback. Using the preserved
+rollback image is a separate recovery action requiring fresh approval. The
+workflow must not be dispatched as part of CI or runner setup.
+
 After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. Browser feed preferences remain client-local, so this release requires no server-side data migration.
 
 ## Security Notes

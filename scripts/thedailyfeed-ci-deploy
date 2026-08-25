@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly REPOSITORY=/home/astrazds/docker/thedailyfeed
+readonly EXPECTED_ORIGIN=https://repos.astrazds.net/astrazds/thedailyfeed.git
+readonly ENV_FILE=.env.production
+readonly COMPOSE_FILE=compose.yml
+readonly ROLLBACK_TAG=thedailyfeed:rollback
+
+phase=authorize
+deploy_log=
+
+cleanup() {
+  if [[ -n "$deploy_log" ]]; then
+    rm -f "$deploy_log"
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+fail() {
+  printf 'phase=%s status=failed reason=%s\n' "$phase" "$1" >&2
+  exit 1
+}
+
+original_command="${SSH_ORIGINAL_COMMAND:-}"
+if [[ "$original_command" =~ ^deploy\ ([0-9a-f]{40})$ ]]; then
+  target_commit="${BASH_REMATCH[1]}"
+else
+  fail invalid-command
+fi
+readonly target_commit
+
+cd "$REPOSITORY" || fail repository-unavailable
+exec 9>"$REPOSITORY/.git/thedailyfeed-ci-deploy.lock"
+flock -n 9 || fail deployment-locked
+
+phase=preflight
+printf 'phase=%s status=started\n' "$phase"
+[[ "$(git branch --show-current)" == main ]] || fail branch-mismatch
+[[ "$(git remote get-url origin)" == "$EXPECTED_ORIGIN" ]] || fail origin-mismatch
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail dirty-worktree
+
+phase=fetch
+printf 'phase=%s status=started commit=%s\n' "$phase" "$target_commit"
+git fetch --quiet --prune origin refs/heads/main:refs/remotes/origin/main || fail fetch-failed
+origin_main="$(git rev-parse --verify refs/remotes/origin/main)"
+[[ "$target_commit" == "$origin_main" ]] || fail stale-or-arbitrary-commit
+git merge-base --is-ancestor HEAD "$target_commit" || fail non-fast-forward
+git merge --ff-only --quiet "$target_commit" || fail fast-forward-failed
+[[ "$(git rev-parse --verify HEAD)" == "$target_commit" ]] || fail checkout-mismatch
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail dirty-after-fast-forward
+
+phase=validate
+printf 'phase=%s status=started\n' "$phase"
+[[ -f "$ENV_FILE" ]] || fail environment-file-missing
+[[ "$(stat -c '%a' "$ENV_FILE")" == 600 ]] || fail environment-file-mode
+APP_VERSION="$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' package.json | head -n 1)"
+[[ -n "$APP_VERSION" ]] || fail version-read-failed
+export APP_VERSION APP_COMMIT="$target_commit"
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" config --quiet || fail compose-invalid
+
+current_health="$(docker inspect --format '{{.State.Health.Status}}' thedailyfeed 2>/dev/null)" || fail current-container-missing
+[[ "$current_health" == healthy ]] || fail current-container-unhealthy
+current_image="$(docker inspect --format '{{.Image}}' thedailyfeed 2>/dev/null)" || fail current-image-missing
+docker image inspect "$current_image" >/dev/null 2>&1 || fail current-image-missing
+docker image tag "$current_image" "$ROLLBACK_TAG" || fail rollback-tag-failed
+printf 'phase=%s rollback_image=%s status=ready\n' "$phase" "${current_image:7:12}"
+
+phase=activate
+printf 'phase=%s status=started commit=%s\n' "$phase" "$target_commit"
+deploy_log="$(mktemp "$REPOSITORY/.git/thedailyfeed-ci-deploy.XXXXXX.log")"
+chmod 600 "$deploy_log"
+if ! ./scripts/deploy-compose.sh --wait --wait-timeout 180 thedailyfeed >"$deploy_log" 2>&1; then
+  fail activation-failed
+fi
+
+phase=acceptance
+printf 'phase=%s status=started\n' "$phase"
+health="$(docker inspect --format '{{.State.Health.Status}}' thedailyfeed 2>/dev/null)" || fail container-missing
+[[ "$health" == healthy ]] || fail container-unhealthy
+image="$(docker inspect --format '{{.Image}}' thedailyfeed 2>/dev/null)" || fail image-missing
+
+TARGET_COMMIT="$target_commit" TARGET_VERSION="$APP_VERSION" docker inspect thedailyfeed | python3 -c '
+import json
+import os
+import sys
+
+container = json.load(sys.stdin)[0]
+environment = set(container["Config"].get("Env") or [])
+expected = {
+    "APP_COMMIT=" + os.environ["TARGET_COMMIT"],
+    "APP_VERSION=" + os.environ["TARGET_VERSION"],
+}
+if not expected.issubset(environment):
+    raise SystemExit(1)
+if container["HostConfig"].get("PortBindings"):
+    raise SystemExit(1)
+if set(container["NetworkSettings"].get("Networks") or {}) != {"traefik_proxy"}:
+    raise SystemExit(1)
+labels = container["Config"].get("Labels") or {}
+if labels.get("traefik.http.routers.dailyfeed.rule") != "Host(`dailyfeed.astrazds.net`)":
+    raise SystemExit(1)
+' || fail runtime-invariant-mismatch
+
+printf 'phase=complete commit=%s image=%s health=%s status=success\n' \
+  "$target_commit" "${image:7:12}" "$health"

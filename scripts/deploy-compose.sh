@@ -14,7 +14,7 @@ read_package_version() {
 }
 
 APP_VERSION="${APP_VERSION:-$(read_package_version)}"
-APP_COMMIT="${APP_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+APP_COMMIT="${APP_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
 
 export APP_VERSION
 export APP_COMMIT
