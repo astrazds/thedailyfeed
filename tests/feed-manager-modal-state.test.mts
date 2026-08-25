@@ -66,6 +66,6 @@ test('modal adapter maps operation mutation facts to local reset and status stat
 
   assert.deepEqual(mapFeedManagerResultToModalState(importResult), {
     feeds: [addedFeed],
-    importStatus: 'Imported 1 feeds, skipped 1 duplicate, 2 invalid',
+    importStatus: 'Imported 1 feed, skipped 1 duplicate, 2 invalid',
   });
 });

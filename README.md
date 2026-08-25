@@ -2,7 +2,7 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.1.0`.
+Current release: `1.1.1`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 

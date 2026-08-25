@@ -29,6 +29,8 @@ interface UseFeedStreamResult {
   loading: boolean;
   error: string | null;
   isCached: boolean;
+  configuredFeedCount: number;
+  enabledFeedCount: number;
   completedFeeds: number;
   totalFeeds: number;
   feedStatuses: FeedSetLifecycleStatusItem[];
@@ -89,7 +91,8 @@ export function useFeedStream(): UseFeedStreamResult {
     };
 
     try {
-      const enabledFeeds = getFeeds().filter((feed) => feed.enabled);
+      const configuredFeeds = getFeeds();
+      const enabledFeeds = configuredFeeds.filter((feed) => feed.enabled);
       const feedUrls = enabledFeeds.map((feed) => feed.url);
       fallbackFeedUrls = feedUrls;
       const snapshot = loadOfflineFeedSnapshot(feedUrls, clientTimeZone);
@@ -99,6 +102,7 @@ export function useFeedStream(): UseFeedStreamResult {
             url: feed.url,
             name: feed.name,
           })),
+          configuredFeedCount: configuredFeeds.length,
           timeZone: clientTimeZone,
           snapshot,
         })
@@ -222,6 +226,8 @@ export function useFeedStream(): UseFeedStreamResult {
     loading: feedReadModel.loading,
     error: feedReadModel.error,
     isCached: feedReadModel.isCached,
+    configuredFeedCount: feedReadModel.configuredFeedCount,
+    enabledFeedCount: feedReadModel.enabledFeedCount,
     completedFeeds: feedReadModel.completedFeeds,
     totalFeeds: feedReadModel.totalFeeds,
     feedStatuses: feedReadModel.feedStatuses,

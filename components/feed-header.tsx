@@ -24,9 +24,9 @@ export function FeedHeader({
       <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
         The Daily Feed
       </h1>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>
-          {today} · {loading ? `${countLabel} (loading more...)` : countLabel}
+          {today} · {loading ? `${countLabel} (loading more…)` : countLabel}
         </p>
         <div className="flex items-center gap-2">
           {showProgress && (

@@ -26,7 +26,7 @@ export const FeedItemComponent = memo(function FeedItemComponent({ item }: FeedI
             {item.title}
           </a>
         ) : (
-          <span className="article-link">{item.title}</span>
+          <span>{item.title}</span>
         )}
       </h2>
       

@@ -18,7 +18,8 @@ test('keeps the feed loading effect visible while more items are streaming', () 
   );
 
   assert.match(markup, /A loaded item/);
-  assert.match(markup, /aria-label="Loading more feed items"/);
+  assert.match(markup, /aria-hidden="true"/);
+  assert.doesNotMatch(markup, /role="status"/);
 });
 
 test('removes the feed loading effect when streaming completes', () => {
@@ -26,5 +27,5 @@ test('removes the feed loading effect when streaming completes', () => {
     React.createElement(FeedList, { items: [item], loading: false })
   );
 
-  assert.doesNotMatch(markup, /aria-label="Loading more feed items"/);
+  assert.doesNotMatch(markup, /animate-pulse/);
 });

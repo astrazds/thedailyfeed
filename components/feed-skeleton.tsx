@@ -6,14 +6,9 @@
 // Fixed widths to avoid hydration mismatch
 const SKELETON_WIDTHS = ['75%', '85%', '68%'];
 
-interface FeedSkeletonProps {
-  label?: string;
-}
-
-export function FeedSkeleton({ label = 'Loading feed items' }: FeedSkeletonProps) {
+export function FeedSkeleton() {
   return (
-    <div role="status" aria-label={label}>
-      <div className="space-y-12 animate-pulse" aria-hidden="true">
+    <div className="space-y-12 animate-pulse" aria-hidden="true">
         {[1, 2, 3].map((i) => (
           <article key={i} className="pb-12" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* Title skeleton */}
@@ -37,7 +32,6 @@ export function FeedSkeleton({ label = 'Loading feed items' }: FeedSkeletonProps
             <div className="h-3 rounded" style={{ backgroundColor: 'var(--code-bg)', width: '25%' }} />
           </article>
         ))}
-      </div>
     </div>
   );
 }

@@ -28,25 +28,23 @@ export function FeedDeleteActions({
   if (isConfirming) {
     return (
       <div
-        className="flex gap-2 flex-shrink-0"
+        className="flex gap-2 flex-wrap flex-shrink-0"
         role="group"
         aria-label={`Confirm deletion of ${feed.name}`}
       >
         <button
+          type="button"
           ref={focusDeleteCancelAction}
           onClick={onCancel}
-          className="px-3 py-1 rounded text-sm"
-          style={{
-            backgroundColor: 'var(--code-bg)',
-            color: 'var(--foreground)',
-          }}
+          className="neutral-action px-3 py-2 rounded text-sm"
         >
           Cancel
         </button>
         <button
+          type="button"
           onClick={onConfirm}
           aria-label={`Delete “${feed.name}”`}
-          className="destructive-button px-3 py-1 rounded text-sm"
+          className="destructive-button px-3 py-2 rounded text-sm"
         >
           Delete feed
         </button>
@@ -55,34 +53,25 @@ export function FeedDeleteActions({
   }
 
   return (
-    <div className="flex gap-2 flex-shrink-0">
+    <div className="flex gap-2 flex-wrap flex-shrink-0">
       <button
+        type="button"
         onClick={onToggle}
-        className="px-3 py-1 rounded text-sm transition-colors button-hover-fade"
-        style={{
-          backgroundColor: feed.enabled ? 'var(--code-bg)' : 'var(--accent-primary)',
-          color: feed.enabled ? 'var(--foreground)' : 'var(--background)',
-        }}
+        className="neutral-action px-3 py-2 rounded text-sm button-hover-fade"
       >
         {feed.enabled ? 'Disable' : 'Enable'}
       </button>
       <button
+        type="button"
         onClick={onEdit}
-        className="px-3 py-1 rounded text-sm"
-        style={{
-          backgroundColor: 'var(--code-bg)',
-          color: 'var(--foreground)',
-        }}
+        className="neutral-action px-3 py-2 rounded text-sm"
       >
         Edit
       </button>
       <button
+        type="button"
         onClick={onDeleteRequest}
-        className="px-3 py-1 rounded text-sm"
-        style={{
-          backgroundColor: 'var(--code-bg)',
-          color: 'var(--accent-primary)',
-        }}
+        className="danger-text-action px-3 py-2 rounded text-sm"
       >
         Delete
       </button>

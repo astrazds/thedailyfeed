@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useId, useState, useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { CONTENT_TRUNCATE_LENGTH } from '@/lib/constants';
 import { FEED_CONTENT_SANITIZER_CONFIG } from '@/lib/feed-content-sanitizer-policy';
@@ -75,7 +75,7 @@ function truncateHtmlSafely(html: string, maxLength: number): TruncatedHtmlResul
       const safeText = clipped || text.slice(0, remaining).trimEnd();
       remaining = 0;
       truncated = true;
-      return safeText ? document.createTextNode(`${safeText}...`) : null;
+      return safeText ? document.createTextNode(`${safeText}…`) : null;
     }
 
     if (node.nodeType === Node.ELEMENT_NODE) {
@@ -115,8 +115,46 @@ function truncateHtmlSafely(html: string, maxLength: number): TruncatedHtmlResul
   };
 }
 
+interface DisclosureButtonProps {
+  controlsId: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+export function DisclosureButton({
+  controlsId,
+  isExpanded,
+  onToggle,
+}: DisclosureButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isExpanded}
+      aria-controls={controlsId}
+      className="mt-3 text-sm font-medium button-hover-fade inline-flex items-center gap-1"
+      style={{ color: 'var(--accent-text)' }}
+    >
+      <span>{isExpanded ? 'Show less' : 'Continue reading'}</span>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d={isExpanded ? 'M3 7.5L6 4.5L9 7.5' : 'M3 4.5L6 7.5L9 4.5'} />
+      </svg>
+    </button>
+  );
+}
+
 export function ExpandableContent({ content, maxLength = CONTENT_TRUNCATE_LENGTH }: ExpandableContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const contentId = useId();
   
   // Sanitize HTML content to prevent XSS attacks
   const sanitizedContent = useMemo(() => {
@@ -139,34 +177,19 @@ export function ExpandableContent({ content, maxLength = CONTENT_TRUNCATE_LENGTH
 
   return (
     <div>
-      <div 
+      <div
+        id={contentId}
         className="prose prose-sm max-w-none"
         style={{ color: 'var(--foreground)' }}
         dangerouslySetInnerHTML={{ __html: displayContent }}
       />
       
       {truncatedContent.truncated && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="mt-3 text-sm font-medium transition-colors button-hover-fade inline-flex items-center gap-1"
-          style={{ color: 'var(--accent-primary)' }}
-        >
-          {isExpanded ? (
-            <>
-              <span>Show less</span>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 7.5L6 4.5L9 7.5" />
-              </svg>
-            </>
-          ) : (
-            <>
-              <span>Continue reading</span>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 4.5L6 7.5L9 4.5" />
-              </svg>
-            </>
-          )}
-        </button>
+        <DisclosureButton
+          controlsId={contentId}
+          isExpanded={isExpanded}
+          onToggle={() => setIsExpanded((expanded) => !expanded)}
+        />
       )}
     </div>
   );

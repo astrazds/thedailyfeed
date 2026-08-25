@@ -53,23 +53,22 @@ export function OfflineIndicator() {
 
   return (
     <div 
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-lg z-50 transition-all animate-slide-up"
+      className="offline-indicator fixed -translate-x-1/2 px-6 py-3 rounded-full shadow-lg z-50 animate-slide-up"
       style={{ 
-        backgroundColor: isOnline ? 'var(--accent-primary)' : 'var(--code-bg)',
-        color: isOnline ? 'var(--background)' : 'var(--foreground)',
+        backgroundColor: isOnline ? 'var(--accent-solid)' : 'var(--code-bg)',
+        color: isOnline ? 'var(--accent-foreground)' : 'var(--foreground)',
         border: isOnline ? 'none' : '1px solid var(--border-color)',
       }}
-      role="alert"
-      aria-live="polite"
+      role="status"
     >
       {isOnline ? (
         <>
-          <span className="mr-2">✓</span>
+          <span className="mr-2" aria-hidden="true">✓</span>
           Back online
         </>
       ) : (
         <>
-          <span className="mr-2">📡</span>
+          <span className="mr-2" aria-hidden="true">📡</span>
           You are offline. New feed updates are unavailable.
         </>
       )}

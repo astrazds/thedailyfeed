@@ -30,6 +30,8 @@ export interface FeedSetLifecycleReadModel {
   loading: boolean;
   error: string | null;
   isCached: boolean;
+  configuredFeedCount: number;
+  enabledFeedCount: number;
   completedFeeds: number;
   totalFeeds: number;
   feedStatuses: FeedSetLifecycleStatusItem[];
@@ -47,6 +49,8 @@ interface FeedSetLifecycleImplementationState extends FeedSetLifecycleState {
   loading: boolean;
   error: string | null;
   isCached: boolean;
+  configuredFeedCount: number;
+  enabledFeedCount: number;
   completedFeeds: number;
   totalFeeds: number;
   feedStatuses: FeedSetLifecycleStatusItem[];
@@ -78,6 +82,8 @@ function readModelFromState(
     loading: state.loading,
     error: state.error,
     isCached: state.isCached,
+    configuredFeedCount: state.configuredFeedCount,
+    enabledFeedCount: state.enabledFeedCount,
     completedFeeds: state.completedFeeds,
     totalFeeds: state.totalFeeds,
     feedStatuses: state.feedStatuses,
@@ -104,11 +110,14 @@ function implementationStateOf(
 
 export function beginFeedSetLifecycle(input: {
   feeds: FeedSetLifecycleFeed[];
+  configuredFeedCount?: number;
   timeZone: string;
   now?: Date;
   snapshot: FeedSetLifecycleSnapshot | null;
 }): FeedSetLifecycleTransition {
   const feedUrls = input.feeds.map((feed) => feed.url);
+  const configuredFeedCount = input.configuredFeedCount ?? input.feeds.length;
+  const enabledFeedCount = input.feeds.length;
   const normalizedTimeZone = normalizeTimeZone(input.timeZone);
 
   if (feedUrls.length === 0) {
@@ -119,6 +128,8 @@ export function beginFeedSetLifecycle(input: {
         loading: false,
         error: 'no-feeds',
         isCached: false,
+        configuredFeedCount,
+        enabledFeedCount,
         completedFeeds: 0,
         totalFeeds: 0,
         feedStatuses: [],
@@ -141,6 +152,8 @@ export function beginFeedSetLifecycle(input: {
       loading: true,
       error: null,
       isCached: snapshot !== null,
+      configuredFeedCount,
+      enabledFeedCount,
       completedFeeds: 0,
       totalFeeds: feedUrls.length,
       feedStatuses: input.feeds.map((feed) => ({

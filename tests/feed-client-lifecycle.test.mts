@@ -357,6 +357,7 @@ test('applies a terminal non-stream API response and records snapshot persistenc
 test('starts without loading when there are no enabled feeds', () => {
   const started = beginFeedSetLifecycle({
     feeds: [],
+    configuredFeedCount: 2,
     timeZone: 'UTC',
     now: new Date('2026-06-02T12:00:00.000Z'),
     snapshot: null,
@@ -366,8 +367,40 @@ test('starts without loading when there are no enabled feeds', () => {
   assert.equal(started.readModel.loading, false);
   assert.equal(started.readModel.error, 'no-feeds');
   assert.equal(started.readModel.isCached, false);
+  assert.equal(started.readModel.configuredFeedCount, 2);
+  assert.equal(started.readModel.enabledFeedCount, 0);
   assert.deepEqual(started.readModel.feedStatuses, []);
   assert.deepEqual(started.effects, []);
+});
+
+test('keeps configured and enabled feed counts through loading, completion, and failure', () => {
+  const started = beginFeedSetLifecycle({
+    feeds: [
+      { url: 'https://example.com/one.xml', name: 'One' },
+      { url: 'https://example.com/two.xml', name: 'Two' },
+    ],
+    configuredFeedCount: 3,
+    timeZone: 'UTC',
+    snapshot: null,
+  });
+
+  assert.equal(started.readModel.configuredFeedCount, 3);
+  assert.equal(started.readModel.enabledFeedCount, 2);
+
+  const completed = applyFeedSetApiResponse(started.state, {
+    cached: false,
+    items: [],
+    timeZone: 'UTC',
+  });
+  assert.equal(completed.readModel.configuredFeedCount, 3);
+  assert.equal(completed.readModel.enabledFeedCount, 2);
+
+  const failed = failFeedSetLifecycle(started.state, {
+    error: new Error('network failed'),
+    fallbackSnapshot: null,
+  });
+  assert.equal(failed.readModel.configuredFeedCount, 3);
+  assert.equal(failed.readModel.enabledFeedCount, 2);
 });
 
 test('finishes an ended stream without persisting when no done chunk arrived', () => {

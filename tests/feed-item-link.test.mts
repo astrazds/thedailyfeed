@@ -24,6 +24,7 @@ test('unsafe article links render as non-clickable text', () => {
 
   assert.equal(html.includes('href='), false);
   assert.match(html, /Unsafe link item/);
+  assert.doesNotMatch(html, /class="article-link"/);
 });
 
 test('http and https article links remain clickable', () => {
@@ -35,4 +36,5 @@ test('http and https article links remain clickable', () => {
 
   assert.match(html, /href="https:\/\/example\.com\/article"/);
   assert.match(html, /rel="noopener noreferrer"/);
+  assert.match(html, /class="article-link"/);
 });

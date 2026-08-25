@@ -5,12 +5,17 @@
   --background: #faf8f5;
   --foreground: #2d2d2d;
   --foreground-muted: #5a5a5a;
-  --foreground-subtle: #8a8a8a;
+  --foreground-subtle: #6d6d6d;
   
-  /* Accent colors - Warm, inviting */
-  --accent-primary: #c17767;
-  --accent-primary-hover: #a86555;
-  --accent-secondary: #8b7355;
+  /* Accent roles */
+  --accent-text: #9f574a;
+  --accent-solid: #c17767;
+  --accent-solid-hover: #b86f60;
+  --accent-foreground: #1a1816;
+
+  /* Status roles */
+  --status-success: #2b7444;
+  --status-error: #b04b4b;
 
   /* Destructive actions - Warm red that stays within the paper-toned palette */
   --danger-background: #b34f4f;
@@ -20,6 +25,7 @@
   /* Borders - Soft, barely visible */
   --border-color: #e8e3dc;
   --border-color-subtle: #f0ebe4;
+  --control-border: #8f8a84;
   
   /* Code and highlights */
   --code-bg: #f5f1ea;
@@ -38,12 +44,17 @@
     --background: #1a1816;
     --foreground: #e4ddd4;
     --foreground-muted: #b8b0a8;
-    --foreground-subtle: #8a8278;
+    --foreground-subtle: #948c82;
     
-    /* Accent colors - Warm, muted */
-    --accent-primary: #d4a89a;
-    --accent-primary-hover: #e5bfb3;
-    --accent-secondary: #b89d88;
+    /* Accent roles */
+    --accent-text: #d4a89a;
+    --accent-solid: #d4a89a;
+    --accent-solid-hover: #e5bfb3;
+    --accent-foreground: #1a1816;
+
+    /* Status roles */
+    --status-success: #55b979;
+    --status-error: #d97878;
 
     /* Destructive actions - Softer coral red for dark surfaces */
     --danger-background: #d97878;
@@ -53,6 +64,7 @@
     /* Borders - Subtle, warm */
     --border-color: #2d2926;
     --border-color-subtle: #252220;
+    --control-border: #6c655e;
     
     /* Code and highlights */
     --code-bg: #242220;
@@ -66,7 +78,10 @@ body {
   font-family: var(--font-roboto-serif), Georgia, "Times New Roman", serif;
   font-size: 16px;
   line-height: 1.6;
-  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:focus-visible {
+  outline-offset: 2px;
 }
 
 /* Optimal line length: 50-75 characters per line */
@@ -159,18 +174,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .prose a {
-  color: var(--accent-primary);
+  color: var(--accent-text);
   text-decoration: underline;
-  text-decoration-color: var(--accent-primary);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  text-decoration-color: var(--accent-text);
+  text-decoration-thickness: from-font;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: auto;
   display: inline; /* Ensure links don't break spacing */
 }
 
-.prose a:hover {
-  color: var(--accent-primary-hover);
-  text-decoration-color: var(--accent-primary-hover);
+@media (hover: hover) {
+  .prose a:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 /* Standalone links (like "Continue Reading" or "Discuss") */
@@ -298,58 +314,124 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Article title links */
 .article-link {
-  color: var(--accent-primary);
-  text-decoration: none;
-  transition: color 0.2s ease;
+  color: var(--accent-text);
+  text-decoration-line: underline;
+  text-decoration-color: var(--accent-text);
+  text-decoration-thickness: from-font;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: auto;
 }
 
-.article-link:hover {
-  color: var(--accent-primary-hover);
+@media (hover: hover) {
+  .article-link:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 /* Button hover utility */
-.button-hover-fade:hover {
-  opacity: 0.8;
+@media (hover: hover) {
+  .button-hover-fade:hover {
+    opacity: 0.8;
+  }
+}
+
+.primary-action {
+  background-color: var(--accent-solid);
+  color: var(--accent-foreground);
+}
+
+.neutral-action {
+  background-color: var(--code-bg);
+  color: var(--foreground);
+  border: 1px solid var(--control-border);
+}
+
+.danger-text-action {
+  background-color: var(--code-bg);
+  color: var(--status-error);
+  border: 1px solid var(--control-border);
+}
+
+@media (hover: hover) {
+  .primary-action:hover {
+    background-color: var(--accent-solid-hover);
+  }
 }
 
 .destructive-button {
   background-color: var(--danger-background);
   color: var(--danger-foreground);
-  transition: background-color 0.2s ease;
 }
 
-.destructive-button:hover {
-  background-color: var(--danger-background-hover);
-}
-
-/* Smooth expand/collapse animation */
-.prose {
-  transition: max-height 0.3s ease;
+@media (hover: hover) {
+  .destructive-button:hover {
+    background-color: var(--danger-background-hover);
+  }
 }
 
 /* Selection color - warm and inviting */
 ::selection {
-  background-color: var(--accent-primary);
-  color: var(--background);
+  background-color: var(--accent-solid);
+  color: var(--accent-foreground);
 }
 
 ::-moz-selection {
-  background-color: var(--accent-primary);
-  color: var(--background);
+  background-color: var(--accent-solid);
+  color: var(--accent-foreground);
 }
 
-/* Animations */
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+/* Native feed manager modal */
+.feed-manager-dialog {
+  inline-size: min(42rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  max-block-size: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: auto;
+  padding: 0;
+  border: 0;
+  overscroll-behavior: contain;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
+.feed-manager-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.feed-manager-dialog::backdrop {
+  background-color: rgb(0 0 0 / 0.5);
+}
+
+/* Safe-area-aware floating UI */
+.feed-manager-trigger {
+  inset-block-start: calc(1.5rem + env(safe-area-inset-top));
+  inset-inline-end: calc(1.5rem + env(safe-area-inset-right));
+}
+
+.offline-indicator {
+  inset-block-end: calc(1rem + env(safe-area-inset-bottom));
+  inset-inline-start: 50%;
+  max-inline-size: calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+}
+
+.install-prompt {
+  inset-block-end: calc(1rem + env(safe-area-inset-bottom));
+  inset-inline-end: calc(1rem + env(safe-area-inset-right));
+  max-inline-size: min(24rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
 }

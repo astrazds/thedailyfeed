@@ -26,7 +26,7 @@ test('feed manager footer shows the package version before the Done action', () 
   assert.ok(markup.indexOf(versionLabel) < markup.indexOf('>Done</button>'));
 });
 
-test('feed manager shows a green accessible tick beside a successfully loaded feed title', () => {
+test('feed manager shows a semantic success tick beside a successfully loaded feed title', () => {
   const markup = renderToStaticMarkup(
     createElement(FeedManagerModal, {
       feeds: [
@@ -54,11 +54,11 @@ test('feed manager shows a green accessible tick beside a successfully loaded fe
 
   assert.match(
     markup,
-    /Example Feed<\/h4><svg(?=[^>]+aria-label="Loaded successfully")(?=[^>]+style="color:green")/
+    /Example Feed<\/h4><svg(?=[^>]+aria-label="Loaded successfully")(?=[^>]+style="color:var\(--status-success\)")/
   );
 });
 
-test('feed manager shows a red accessible cross beside a feed that failed to load', () => {
+test('feed manager shows a semantic error cross beside a feed that failed to load', () => {
   const markup = renderToStaticMarkup(
     createElement(FeedManagerModal, {
       feeds: [
@@ -86,7 +86,7 @@ test('feed manager shows a red accessible cross beside a feed that failed to loa
 
   assert.match(
     markup,
-    /Broken Feed<\/h4><svg(?=[^>]+aria-label="Failed to load")(?=[^>]+style="color:red")/
+    /Broken Feed<\/h4><svg(?=[^>]+aria-label="Failed to load")(?=[^>]+style="color:var\(--status-error\)")/
   );
 });
 

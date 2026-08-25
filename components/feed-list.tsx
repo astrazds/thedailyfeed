@@ -9,13 +9,7 @@ interface FeedListProps {
 
 export function FeedList({ items, loading = false }: FeedListProps) {
   if (items.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg" style={{ color: 'var(--foreground-muted)' }}>
-          Add feeds to see daily content
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -26,7 +20,7 @@ export function FeedList({ items, loading = false }: FeedListProps) {
           item={item} 
         />
       ))}
-      {loading && <FeedSkeleton label="Loading more feed items" />}
+      {loading && <FeedSkeleton />}
     </div>
   );
 }

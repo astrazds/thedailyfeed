@@ -19,7 +19,8 @@ export function formatImportSummary(summary: OPMLImportSummary): string {
     summary.overLimit > 0 ? `${summary.overLimit} over limit` : null,
   ].filter((detail): detail is string => detail !== null);
 
-  return `Imported ${summary.added} feeds${details.length > 0 ? `, skipped ${details.join(', ')}` : ''}`;
+  const feedLabel = summary.added === 1 ? 'feed' : 'feeds';
+  return `Imported ${summary.added} ${feedLabel}${details.length > 0 ? `, skipped ${details.join(', ')}` : ''}`;
 }
 
 export function mapFeedManagerResultToModalState(

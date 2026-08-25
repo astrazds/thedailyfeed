@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.0 implementation as of August 25, 2026.
+This document reflects the 1.1.1 implementation as of August 25, 2026.
 
 ## System Overview
 
@@ -54,7 +54,8 @@ dispatch CI, or deploy.
 - `app/page.tsx`
   - `ErrorBoundary`
   - `FeedContent`
-    - `FeedManagerButton` (lazy-loads modal)
+    - `FeedManagerButton` (stateless floating trigger)
+    - `FeedManagerModal` (lazy-loaded native dialog)
     - `FeedHeader`
     - progressive feed list and loading skeleton
   - `OfflineIndicator`
@@ -240,6 +241,8 @@ Chunk types:
   - `loading`
   - `error`
   - `isCached`
+  - `configuredFeedCount`
+  - `enabledFeedCount`
   - `completedFeeds`
   - `totalFeeds`
   - `feedStatuses`
@@ -247,6 +250,9 @@ Chunk types:
 - Parses NDJSON stream incrementally via `ReadableStream` + `TextDecoderStream`
 - Displays the pulsing `FeedSkeleton` until initial results arrive and beneath progressively loaded items while more feeds remain pending
 - Keeps per-feed lifecycle status out of the reading view while passing terminal results to the feed manager
+- Keeps configured and enabled feed inventory counts across loading, completion, and failure so the reader can distinguish no configured feeds, no enabled feeds, and no items today
+- Owns the manager open state, current feed inventory, and exact opening trigger; both the floating control and inline empty-state action use the same opener
+- Keeps one stable polite reader status region, marks results busy during streaming, and announces progressive and terminal item counts while skeletons remain decorative
 - Persists snapshots on successful completion
 - Uses snapshot fallback on fetch failure when available
 - Listens for:
@@ -256,11 +262,12 @@ Chunk types:
 
 ### Feed Manager
 
-- `FeedManagerButton` lazy-loads `FeedManagerModal` via `next/dynamic`
-- `FeedContent` passes its authoritative per-feed lifecycle statuses through `FeedManagerButton` to the modal for load-result icons
-- `FeedManagerButton` owns the current feed list and refreshes it from browser storage when the manager opens
+- `FeedContent` lazy-loads `FeedManagerModal` via `next/dynamic` and passes its authoritative per-feed lifecycle statuses directly to the modal for load-result icons
+- `FeedManagerButton` is a neutral, stateless trigger; `FeedContent` refreshes the current feed list from browser storage when either manager opener is used
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
-- Modal handles CRUD and OPML import/export
+- `FeedManagerModal` uses native `<dialog>.showModal()`: the platform owns Escape dismissal, focus containment, and inert background behavior; backdrop clicks dismiss, internal scrolling is contained, and `FeedContent` restores focus to the exact opener
+- Add and edit are labelled native forms with required trimmed-field validation, linked inline errors, persistent form-level recovery messages, and one typed pending operation; progress and success use one stable polite status region
+- Modal handles CRUD and client-side OPML import/export
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
 - `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes
@@ -271,7 +278,7 @@ Chunk types:
 - `FeedProgressEvent<Item>` is the canonical progress interface for server `FeedItem` values and serialized client values; the response adapter owns Date-to-ISO serialization
 - `useFeedStream` creates its initial feed-set lifecycle transition with a memoized pure initializer
 - React state exposes the current read model, while refs retain transition state needed by asynchronous stream processing
-- Lifecycle transitions, rather than component-local branching, own progressive results, offline fallback, completion, and persistence effects
+- Lifecycle transitions, rather than component-local branching, own progressive results, offline fallback, completion, persistence effects, and persistent configured/enabled inventory counts
 
 ## Security
 
