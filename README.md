@@ -101,7 +101,7 @@ The app intentionally keeps feed preferences and offline snapshots browser-local
 ### Core Modules
 
 - Feed management and browser persistence live in `lib/feed-storage.ts`.
-- Server Feed set execution lives in `lib/feed-request.ts`; response serialization and untrusted stream validation remain separate adapters.
+- Server feed-set execution lives in `lib/feed-request.ts`; response serialization and untrusted stream validation remain separate adapters.
 - `FeedProgressEvent<Item>` is shared by server progress and serialized client progress events. Transport-error chunks remain a separate wire variant.
 - Client progressive state and offline fallback live in `lib/feed-set-lifecycle.ts`.
 
@@ -161,12 +161,15 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 - Production SSRF protection blocks localhost, private and special-use IPv4 ranges, local/private/special-use IPv6 ranges, and IPv4-mapped non-global addresses unless `ALLOW_PRIVATE_NETWORKS=true`.
 - Production deployments must run behind Traefik or another trusted reverse proxy. The proxy owns TLS, public client IP access logs, ingress rate limits, request body limits, and edge timeouts; direct internet exposure of the app container is unsupported.
 - The app does not log raw client IPs by default. Structured logs redact configured secret fields and remove credentials, query strings, and fragments from URL values.
-- The app keeps controls that the proxy cannot provide: outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` responses, service-worker `NetworkOnly` policy for feed APIs, and metrics authentication.
+- The app keeps controls that the proxy cannot provide: outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` responses, the service worker's exact-path feed-set policy, and metrics authentication.
 - Feed validation and parsing use one aggregate `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delays, and retries. Per-attempt `FEED_TIMEOUT_MS` remains a narrower socket/fetch safeguard and is not renewed by redirects.
 - Feed HTML is sanitized with DOMPurify before rendering.
 - Long article HTML is truncated with DOM-aware logic so tags remain balanced.
 - API responses use `Cache-Control: no-store`.
-- The service worker runtime route for `/api/feeds` is pinned to `NetworkOnly`.
+- The service-worker runtime URL pattern matches only the feed-set pathname
+  `/api/feeds` and uses `NetworkOnly`, with no cache options or network-timeout
+  fallback. It does not match `/api/feeds/validate`; browser-local same-day
+  snapshots, not a PWA response cache, provide offline fallback.
 - Production metrics require bearer authentication and always use `Cache-Control: no-store`.
 
 ## Deployment
@@ -174,9 +177,13 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 The repository includes a multi-stage `Dockerfile` and a Traefik-ready `compose.yml`. Production deployments should put the app behind Traefik or an equivalent reverse proxy.
 
 ```bash
-docker compose -f compose.yml up -d
+./scripts/deploy-compose.sh
 docker compose -f compose.yml logs -f thedailyfeed
 ```
+
+The wrapper derives `APP_VERSION` from `package.json` and `APP_COMMIT` from the
+current Git commit before running Compose, so deployed logs retain source
+metadata.
 
 For production:
 

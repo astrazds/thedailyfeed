@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.0.6 implementation as of July 14, 2026.
+This document reflects the 1.0.6 implementation as of August 25, 2026.
 
 ## System Overview
 
@@ -15,12 +15,17 @@ The Daily Feed is a Next.js App Router project with:
 - Client offline snapshot fallback in `localStorage`
 - Structured logging and in-memory metrics
 
+Feed subscriptions, including imported OPML entries, and offline snapshots
+belong to the browser profile; OPML import/export runs client-side. The server
+has no account or subscription database, and its feed cache and metrics are
+process-local and disposable.
+
 ## Runtime Architecture
 
 ### Module Seams
 
 - Feed manager: `runFeedManagerOperation` in `lib/feed-storage.ts` owns one complete browser storage mutation. `lib/feed-manager-operations.ts` is a compatibility re-export, not a second implementation.
-- Feed set execution: `lib/feed-request.ts` owns cached and missing Feed orchestration and emits `FeedProgressEvent<FeedItem>` values.
+- Feed-set execution: `lib/feed-request.ts` owns cached and missing feed orchestration and emits `FeedProgressEvent<FeedItem>` values.
 - Stream serialization: `lib/feed-response-adapter.ts` converts server `FeedItem` dates to the serialized `FeedProgressEvent<SerializedFeedItem>` wire representation.
 - Stream validation: `lib/feed-stream-parser.ts` validates the untrusted JSON/NDJSON representation before it crosses into client lifecycle state.
 - Client lifecycle: `lib/feed-set-lifecycle.ts` owns offline preview/fallback, progressive merging, terminal state, and persistence effects.
@@ -155,9 +160,9 @@ Configured through the platform policy adapter in `next.config.ts` with runtime 
 - Fonts
 - Images
 - Static JS/CSS
-- `/api/feeds` (NetworkOnly, sourced from `lib/platform-policy.ts` and preserving the Feed set route `Cache-Control: no-store` policy)
+- Exact-path `/api/feeds` runtime URL pattern (`NetworkOnly`, with no cache options or network-timeout fallback, sourced from `lib/platform-policy.ts` and preserving the feed-set route's `Cache-Control: no-store` policy)
 
-Verification note: `pnpm build` runs production compilation, then runs `scripts/verify-pwa-build.mts`. The contract requires `public/sw.js`, its referenced Workbox runtime assets, and an emitted runtime route that preserves the declared Feed set `/api/feeds` `NetworkOnly` policy from `lib/platform-policy.ts`.
+Verification note: `pnpm build` runs production compilation, then runs `scripts/verify-pwa-build.mts`. The contract requires `public/sw.js`, its referenced Workbox runtime assets, and an emitted runtime route that preserves the declared feed-set `/api/feeds` `NetworkOnly` policy from `lib/platform-policy.ts`.
 
 PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by `next.config.ts`: `/sw.js` and Workbox scripts are served as JavaScript with `no-cache, no-store, must-revalidate` and a worker-only CSP. `/manifest.webmanifest` is served as a web manifest with bounded revalidation, while `/_next/static/*` and `/_next/static/media/*` keep MIME sniffing disabled without changing Next's immutable asset caching.
 
@@ -234,18 +239,18 @@ Chunk types:
 
 - `FeedManagerButton` lazy-loads `FeedManagerModal` via `next/dynamic`
 - `FeedContent` passes its authoritative per-feed lifecycle statuses through `FeedManagerButton` to the modal for load-result icons
-- `FeedManagerButton` owns the current Feed list and refreshes it from browser storage when the manager opens
+- `FeedManagerButton` owns the current feed list and refreshes it from browser storage when the manager opens
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - Modal handles CRUD and OPML import/export
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
-- `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled Feed set changes
+- `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes
 - `lib/feed-manager-operations.ts` preserves the former import interface as a compatibility re-export
 
 ### Feed Stream Lifecycle
 
 - `FeedProgressEvent<Item>` is the canonical progress interface for server `FeedItem` values and serialized client values; the response adapter owns Date-to-ISO serialization
-- `useFeedStream` creates its initial Feed set lifecycle transition with a memoized pure initializer
+- `useFeedStream` creates its initial feed-set lifecycle transition with a memoized pure initializer
 - React state exposes the current read model, while refs retain transition state needed by asynchronous stream processing
 - Lifecycle transitions, rather than component-local branching, own progressive results, offline fallback, completion, and persistence effects
 
@@ -272,7 +277,7 @@ Chunk types:
 - Production deployments must run behind Traefik or an equivalent trusted reverse proxy
 - The reverse proxy owns public client IP access logs, ingress rate limits, request body limits, TLS, and ingress timeouts
 - Direct public internet exposure of the Next.js app container is unsupported
-- The app retains outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` behavior, PWA feed API `NetworkOnly` behavior, and production metrics auth
+- The app retains outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` behavior, the PWA's exact-path feed-set `NetworkOnly` policy, and production metrics auth
 - The unauthenticated validation route shares one cancellation signal across DNS, redirects, body streaming, retry delay, and retries; caller abort closes the active outbound request and prevents later attempts
 - In non-production, the app keeps an in-process fallback feed API limiter for local abuse testing
 
@@ -307,6 +312,8 @@ Chunk types:
   - `TRAEFIK_RATE_LIMIT_BURST`
   - `TRAEFIK_MAX_REQUEST_BODY_BYTES`
 - Reverse proxies should avoid buffering the feed stream route so `POST /api/feeds?stream=1` can deliver per-feed progress as chunks are produced
+- Compose publishes no host port and joins the existing external `traefik_proxy` network; Traefik owns ingress and is not part of this application's lifecycle
+- Offline checks do not activate production. Deployment uses `scripts/deploy-compose.sh` and affects only the `thedailyfeed` service; network, Traefik, and project-wide shutdown or pruning are separate operational boundaries
 
 ### Environment
 
@@ -316,6 +323,7 @@ See `env.template` for supported variables. Key groups:
 - Feed fetching/retry/timeout/cache TTL/cache size
 - Logging (`LOG_*`) and build metadata (`APP_*`)
 - SSRF private-network toggle
+- Metrics bearer authentication
 - Traefik deployment parameters
 
 ## Testing
@@ -340,7 +348,7 @@ This mode starts a local Next.js dev server and exercises API endpoints (`/api/f
 
 - Cache and metrics are in-memory and per-process
 - Optimized for single-container deployments
-- Feed preferences and offline snapshots are browser-local (not cross-device synced)
+- Feed preferences, imported OPML subscriptions, and offline snapshots are browser-local (not cross-device synced or server-backed)
 - Metrics are in-memory and reset on process restart
 - `/api/feeds/validate` is unauthenticated and depends on the production reverse proxy for ingress admission controls; admitted validation work is independently bounded by `FEED_OVERALL_TIMEOUT_MS` and inbound cancellation. `/api/metrics` requires bearer auth in production
 - Some upstream feeds can intermittently return malformed XML; retry logic reduces impact but cannot eliminate source-side errors

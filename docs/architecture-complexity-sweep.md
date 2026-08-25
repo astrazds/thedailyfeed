@@ -53,4 +53,6 @@ No external request or response fields, storage schema, user-visible copy, route
 - [`README.md`](../README.md): product overview, setup, public routes, security model, and core module map.
 - [`TECHNICAL.md`](../TECHNICAL.md): detailed runtime architecture and contracts.
 - [`DEPLOYMENT.md`](../DEPLOYMENT.md): production configuration, reverse proxy, operations, and update workflow.
-- [`AGENTS.md`](../AGENTS.md): repository-local agent instructions and vendored Next.js documentation index; it is operational metadata rather than product documentation.
+- [`AGENTS.md`](../AGENTS.md): repository-local guidance for scope,
+  authorization, safety invariants, validation, deployment, and recovery; it is
+  agent-facing operational metadata rather than product documentation.

@@ -38,12 +38,32 @@ docker compose -f compose.yml logs -f thedailyfeed
 
 `scripts/deploy-compose.sh` exports `APP_VERSION` from `package.json` and `APP_COMMIT` from the current git commit before running `docker compose up -d --build`. Override `COMPOSE_FILE`, `ENV_FILE`, `APP_VERSION`, or `APP_COMMIT` when needed.
 
+Running the wrapper is production activation, not validation. Obtain approval
+for that lifecycle change before invoking it. A routine deployment affects
+only `thedailyfeed`; preserve the external `traefik_proxy` network and do not
+use project-wide `down`, remove networks or volumes, prune images, or restart
+the proxy.
+
 Check container health:
 
 ```bash
 docker inspect --format='{{.State.Health.Status}}' thedailyfeed
-curl http://localhost:3000
 ```
+
+Compose deliberately publishes no host port, so `curl http://localhost:3000`
+does not test this topology. Docker's health check probes the container-local
+listener. Any route-level check through Traefik is a separate active production
+probe and should be explicitly approved with its hostname, route, and
+authentication effects.
+
+To validate configuration without activating or recreating the service:
+
+```bash
+docker compose -f compose.yml config --quiet
+```
+
+This checks Compose structure and interpolation only. It does not establish
+image buildability, container health, routing, or production acceptance.
 
 ## Runtime Configuration
 
@@ -97,7 +117,9 @@ labels:
   - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
 ```
 
-The service joins an external network named `traefik_proxy`. Change the network name in `compose.yml` if your Traefik stack uses a different network.
+The service joins an existing external network named `traefik_proxy`. Compose
+does not create or own that network. Changing its name or lifecycle is an
+adjacent infrastructure change, not a routine application deployment.
 
 Traefik owns production ingress controls:
 
@@ -119,7 +141,7 @@ server {
     server_name dailyfeed.example.com;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://thedailyfeed:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -138,9 +160,13 @@ server {
 
 ```caddy
 dailyfeed.example.com {
-    reverse_proxy localhost:3000
+    reverse_proxy thedailyfeed:3000
 }
 ```
+
+These examples assume the proxy shares a private Docker network with the
+application and can resolve the `thedailyfeed` service. The supplied Compose
+file has no host binding for a host-installed proxy.
 
 ## Metrics
 
@@ -155,10 +181,11 @@ Production behavior:
 Example:
 
 ```bash
-curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" http://localhost:3000/api/metrics
+curl -H "Authorization: Bearer $METRICS_AUTH_TOKEN" "https://${TRAEFIK_DOMAIN}/api/metrics"
 ```
 
-The response includes `X-Request-Id`.
+This is an authenticated production probe and requires separate action-time
+approval. The response includes `X-Request-Id`.
 
 ## Logs
 
@@ -177,20 +204,29 @@ Server logs include request IDs, feed/cache lifecycle events, validation failure
 
 ## Updates
 
+Prepare and review the exact source update before activation. If local
+dependency checks are needed from a CIFS checkout, run them in a fresh `/tmp`
+copy rather than installing into the mounted tree. On the native SRV1 checkout,
+the optional pre-deployment verification sequence is:
+
 ```bash
-git pull
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm exec tsc --noEmit
 pnpm test
 pnpm build
+```
+
+After the source revision and deployment are separately approved, activate
+only the application service with:
+
+```bash
 ./scripts/deploy-compose.sh
-docker image prune -f
 ```
 
 The local verification sequence is optional when the deployment host only builds through Docker, because the image build runs the production Next/PWA build again. Running it before deployment provides earlier feedback for lint, application and test type errors, unit tests, and generated PWA artifacts.
 
-After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. Browser Feed preferences remain client-local, so this release requires no server-side data migration.
+After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. Browser feed preferences remain client-local, so this release requires no server-side data migration.
 
 ## Security Notes
 
@@ -198,7 +234,8 @@ After updating, compare `env.template` and the runtime configuration table above
 - Compose runs the container with a read-only root filesystem, all Linux capabilities dropped, `no-new-privileges`, process and resource limits, and tmpfs mounts only for runtime scratch/cache paths.
 - Security headers are declared in `lib/platform-policy.ts` and adapted by `next.config.ts`.
 - API routes use `Cache-Control: no-store`.
-- `/api/feeds` is pinned to the service worker `NetworkOnly` runtime policy.
+- The service-worker runtime URL pattern matches only `/api/feeds` and uses
+  `NetworkOnly`, with no cache options or network-timeout fallback.
 - Feed URL validation blocks non-HTTP(S) URLs.
 - Production SSRF protection blocks private, local, and special-use IP ranges unless `ALLOW_PRIVATE_NETWORKS=true`.
 - Each feed validation request has one `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delay, and retries.
