@@ -19,8 +19,6 @@ export const FeedItemComponent = memo(function FeedItemComponent({ item }: FeedI
         {safeArticleLink ? (
           <a 
             href={safeArticleLink}
-            target="_blank"
-            rel="noopener noreferrer"
             className="article-link"
           >
             {item.title}

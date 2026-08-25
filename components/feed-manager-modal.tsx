@@ -20,7 +20,11 @@ import {
   type FeedManagerOperationResult,
 } from '@/lib/feed-storage';
 import { mapFeedManagerResultToModalState } from '@/components/feed-manager-modal-state';
-import { FeedDeleteActions } from '@/components/feed-delete-actions';
+import {
+  FeedDeleteActions,
+  focusAfterUpdate,
+  focusPendingTarget,
+} from '@/components/feed-delete-actions';
 import { logger } from '@/lib/logger';
 import type { FeedSetLifecycleStatusItem } from '@/lib/feed-set-lifecycle';
 import packageMetadata from '@/package.json';
@@ -29,11 +33,13 @@ interface FeedManagerModalProps {
   feeds: Feed[];
   feedStatuses?: FeedSetLifecycleStatusItem[];
   isOpen: boolean;
+  isRefreshing: boolean;
+  onRefreshFeeds: () => Promise<void>;
   onFeedsChange: (feeds: Feed[]) => void;
   onClose: () => void;
 }
 
-type PendingOperation =
+export type PendingOperation =
   | { type: 'add' }
   | { type: 'edit'; feedId: string }
   | { type: 'import' };
@@ -91,10 +97,81 @@ export function getFeedManagerSubmitTone(
   return action === 'save' || !isEditing ? 'primary-action' : 'neutral-action';
 }
 
+export function getFeedManagerPendingState(
+  pendingOperation: PendingOperation | null,
+  editingId: string | null
+): { addPending: boolean; editPending: boolean } {
+  return {
+    addPending: pendingOperation?.type === 'add',
+    editPending:
+      pendingOperation?.type === 'edit' && pendingOperation.feedId === editingId,
+  };
+}
+
+function FeedLoadStatusIndicator({
+  enabled,
+  status,
+}: {
+  enabled: boolean;
+  status: FeedSetLifecycleStatusItem['status'] | undefined;
+}) {
+  if (!enabled) {
+    return null;
+  }
+
+  if (status === 'success' || status === 'cached') {
+    return (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ color: 'var(--status-success)' }}
+        aria-label="Loaded successfully"
+        role="img"
+      >
+        <path d="M3 8.5 6.5 12 13 4" />
+      </svg>
+    );
+  }
+
+  if (status !== 'error' && status !== 'timeout') {
+    return null;
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs font-medium"
+      style={{ color: 'var(--status-error)' }}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M4 4 12 12M12 4 4 12" />
+      </svg>
+      <span>{status === 'timeout' ? 'Timed out' : 'Failed to load'}</span>
+    </span>
+  );
+}
+
 export function FeedManagerModal({
   feeds,
   feedStatuses = [],
   isOpen,
+  isRefreshing,
+  onRefreshFeeds,
   onFeedsChange,
   onClose,
 }: FeedManagerModalProps) {
@@ -107,6 +184,7 @@ export function FeedManagerModal({
   const [statusMessage, setStatusMessage] = useState('');
   const [operationFailure, setOperationFailure] = useState<OperationFailure | null>(null);
   const [pendingOperation, setPendingOperation] = useState<PendingOperation | null>(null);
+  const [refreshRecoveryPending, setRefreshRecoveryPending] = useState(false);
   const [addErrors, setAddErrors] = useState<FieldErrors>(EMPTY_FIELD_ERRORS);
   const [editErrors, setEditErrors] = useState<FieldErrors>(EMPTY_FIELD_ERRORS);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +194,8 @@ export function FeedManagerModal({
   const newFeedUrlRef = useRef<HTMLInputElement>(null);
   const editNameRef = useRef<HTMLInputElement>(null);
   const editUrlRef = useRef<HTMLInputElement>(null);
+  const feedListHeadingRef = useRef<HTMLHeadingElement>(null);
+  const pendingFeedListFocusRef = useRef(false);
 
   const validateFeedUrl = async (url: string): Promise<void> => {
     const response = await fetch('/api/feeds/validate', {
@@ -168,6 +248,10 @@ export function FeedManagerModal({
       dialog.close();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    focusPendingTarget(pendingFeedListFocusRef, feedListHeadingRef.current);
+  }, [feeds]);
 
   const handleDialogClose = () => {
     if (isOpen) {
@@ -262,6 +346,7 @@ export function FeedManagerModal({
       type: 'delete',
       id,
     });
+    pendingFeedListFocusRef.current = true;
     applyOperationResult(result);
     setDeletingId(null);
   };
@@ -386,10 +471,34 @@ export function FeedManagerModal({
     }
   };
 
-  const addPending = pendingOperation?.type === 'add';
-  const editPending =
-    pendingOperation?.type === 'edit' && pendingOperation.feedId === editingId;
+  const handleRefreshFeeds = async () => {
+    if (refreshRecoveryPending || isRefreshing) {
+      return;
+    }
+
+    setRefreshRecoveryPending(true);
+    setStatusMessage('Refreshing feeds…');
+    try {
+      await onRefreshFeeds();
+      setStatusMessage('Feed refresh complete.');
+    } catch {
+      setStatusMessage('Unable to refresh feeds. Try again.');
+    } finally {
+      setRefreshRecoveryPending(false);
+      focusAfterUpdate(() => feedListHeadingRef.current);
+    }
+  };
+
+  const { addPending, editPending } = getFeedManagerPendingState(
+    pendingOperation,
+    editingId
+  );
   const anyPending = pendingOperation !== null;
+  const refreshBusy = refreshRecoveryPending || isRefreshing;
+  const hasFeedFailures = feedStatuses.some(
+    (item) => item.status === 'error' || item.status === 'timeout'
+  );
+  const showFeedRecovery = hasFeedFailures || refreshRecoveryPending;
 
   return (
     <dialog
@@ -463,7 +572,12 @@ export function FeedManagerModal({
           )}
         </section>
 
-        <form onSubmit={handleAddFeed} className="mb-6" noValidate>
+        <form
+          onSubmit={handleAddFeed}
+          className="mb-6"
+          aria-busy={addPending}
+          noValidate
+        >
           <h3 className="text-lg font-semibold mb-3">Add feed</h3>
           <div className="space-y-3">
             <div>
@@ -476,6 +590,7 @@ export function FeedManagerModal({
                 name="feed-name"
                 type="text"
                 required
+                readOnly={addPending}
                 placeholder="Example News"
                 value={newFeedName}
                 onChange={handleAddNameChange}
@@ -503,6 +618,7 @@ export function FeedManagerModal({
                 type="url"
                 inputMode="url"
                 required
+                readOnly={addPending}
                 placeholder="https://example.com/feed.xml"
                 value={newFeedUrl}
                 onChange={handleAddUrlChange}
@@ -535,9 +651,32 @@ export function FeedManagerModal({
         </form>
 
         <section aria-labelledby="feed-list-title">
-          <h3 id="feed-list-title" className="text-lg font-semibold mb-3">
+          <h3
+            ref={feedListHeadingRef}
+            id="feed-list-title"
+            tabIndex={-1}
+            className="text-lg font-semibold mb-3"
+          >
             Feeds ({feeds.length})
           </h3>
+          {showFeedRecovery && (
+            <div
+              className="mb-4 p-4 rounded"
+              style={{ backgroundColor: 'var(--code-bg)' }}
+            >
+              <p className="mb-3">
+                Some feeds did not load. Try all feeds again, or edit a feed if its URL changed.
+              </p>
+              <button
+                type="button"
+                onClick={handleRefreshFeeds}
+                disabled={refreshBusy}
+                className="neutral-action px-4 py-2 rounded text-sm font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {refreshBusy ? 'Refreshing feeds…' : 'Try all feeds again'}
+              </button>
+            </div>
+          )}
           <div className="space-y-3">
             {feeds.map((feed) => (
               <div
@@ -553,6 +692,7 @@ export function FeedManagerModal({
                     onSubmit={(event) => handleSaveEdit(event, feed.id)}
                     className="space-y-3"
                     aria-label={`Edit ${feed.name}`}
+                    aria-busy={editPending}
                     noValidate
                   >
                     <div>
@@ -565,6 +705,7 @@ export function FeedManagerModal({
                         name="edit-feed-name"
                         type="text"
                         required
+                        readOnly={editPending}
                         placeholder="Example News"
                         value={editName}
                         onChange={handleEditNameChange}
@@ -592,6 +733,7 @@ export function FeedManagerModal({
                         type="url"
                         inputMode="url"
                         required
+                        readOnly={editPending}
                         placeholder="https://example.com/feed.xml"
                         value={editUrl}
                         onChange={handleEditUrlChange}
@@ -636,43 +778,12 @@ export function FeedManagerModal({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-semibold">{feed.name}</h4>
-                        {feed.enabled &&
-                          (feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'success' ||
-                            feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'cached') && (
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              style={{ color: 'var(--status-success)' }}
-                              aria-label="Loaded successfully"
-                              role="img"
-                            >
-                              <path d="M3 8.5 6.5 12 13 4" />
-                            </svg>
-                          )}
-                        {feed.enabled &&
-                          (feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'error' ||
-                            feedStatuses.find((item) => item.feedUrl === feed.url)?.status === 'timeout') && (
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 16 16"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              style={{ color: 'var(--status-error)' }}
-                              aria-label="Failed to load"
-                              role="img"
-                            >
-                              <path d="M4 4 12 12M12 4 4 12" />
-                            </svg>
-                          )}
+                        <FeedLoadStatusIndicator
+                          enabled={feed.enabled}
+                          status={feedStatuses.find(
+                            (item) => item.feedUrl === feed.url
+                          )?.status}
+                        />
                         {!feed.enabled && (
                           <span
                             className="text-xs px-2 py-0.5 rounded"

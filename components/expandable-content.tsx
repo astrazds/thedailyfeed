@@ -1,9 +1,14 @@
 'use client';
 
 import { useId, useState, useMemo } from 'react';
-import DOMPurify from 'dompurify';
+import DOMPurify, { type UponSanitizeAttributeHook } from 'dompurify';
 import { CONTENT_TRUNCATE_LENGTH } from '@/lib/constants';
 import { FEED_CONTENT_SANITIZER_CONFIG } from '@/lib/feed-content-sanitizer-policy';
+import {
+  normalizeFeedContentDirection,
+  normalizeFeedContentLanguage,
+  normalizeSanitizedFeedContent,
+} from '@/lib/feed-content-normalization';
 
 interface ExpandableContentProps {
   content: string;
@@ -15,14 +20,33 @@ interface TruncatedHtmlResult {
   truncated: boolean;
 }
 
-function enforceSafeLinkAttributes(html: string): string {
+const preserveLanguageAndDirection: UponSanitizeAttributeHook = (
+  _element,
+  hookEvent
+) => {
+  const normalizedValue = hookEvent.attrName === 'lang'
+    ? normalizeFeedContentLanguage(hookEvent.attrValue)
+    : hookEvent.attrName === 'dir'
+      ? normalizeFeedContentDirection(hookEvent.attrValue)
+      : undefined;
+
+  if (normalizedValue === undefined) {
+    return;
+  }
+
+  if (normalizedValue === null) {
+    hookEvent.keepAttr = false;
+    return;
+  }
+
+  hookEvent.attrValue = normalizedValue;
+  hookEvent.forceKeepAttr = true;
+};
+
+function normalizeSanitizedHtml(html: string): string {
   const root = document.createElement('div');
   root.innerHTML = html;
-
-  for (const link of Array.from(root.querySelectorAll('a[href]'))) {
-    link.setAttribute('target', '_blank');
-    link.setAttribute('rel', 'noopener noreferrer nofollow');
-  }
+  normalizeSanitizedFeedContent(root);
 
   return root.innerHTML;
 }
@@ -160,11 +184,17 @@ export function ExpandableContent({ content, maxLength = CONTENT_TRUNCATE_LENGTH
   const sanitizedContent = useMemo(() => {
     if (typeof window === 'undefined') return content;
     
-    const cleanHtml = DOMPurify.sanitize(content, {
-      ...FEED_CONTENT_SANITIZER_CONFIG,
-    });
+    DOMPurify.addHook('uponSanitizeAttribute', preserveLanguageAndDirection);
+    let cleanHtml: string;
+    try {
+      cleanHtml = DOMPurify.sanitize(content, {
+        ...FEED_CONTENT_SANITIZER_CONFIG,
+      });
+    } finally {
+      DOMPurify.removeHook('uponSanitizeAttribute', preserveLanguageAndDirection);
+    }
 
-    return enforceSafeLinkAttributes(cleanHtml);
+    return normalizeSanitizedHtml(cleanHtml);
   }, [content]);
 
   const truncatedContent = useMemo(

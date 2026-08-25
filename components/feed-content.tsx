@@ -10,6 +10,7 @@ import { FeedManagerButton } from './feed-manager-button';
 import { useFeedStream } from './use-feed-stream';
 import { getFeeds, type Feed } from '@/lib/feed-storage';
 import type { FeedItem } from '@/lib/rss';
+import type { FeedSetLifecycleReadModel } from '@/lib/feed-set-lifecycle';
 
 const FeedManagerModal = dynamic(
   () => import('./feed-manager-modal').then((mod) => mod.FeedManagerModal),
@@ -102,9 +103,32 @@ export function ReaderEmptyState({
   );
 }
 
-function getReaderStatus(input: {
+interface RefreshNoticeProps {
+  onRefresh: () => Promise<void>;
+}
+
+export function RefreshNotice({ onRefresh }: RefreshNoticeProps) {
+  return (
+    <div
+      className="mb-8 p-4 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      style={{ backgroundColor: 'var(--code-bg)' }}
+    >
+      <p>Unable to refresh. Showing saved items from today.</p>
+      <button
+        type="button"
+        onClick={onRefresh}
+        className="neutral-action px-4 py-2 rounded font-medium shrink-0 button-hover-fade"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+export function getReaderStatus(input: {
   loading: boolean;
   error: string | null;
+  refreshNotice: FeedSetLifecycleReadModel['refreshNotice'];
   itemCount: number;
   completedFeeds: number;
   totalFeeds: number;
@@ -120,6 +144,10 @@ function getReaderStatus(input: {
     return 'Unable to load feeds.';
   }
 
+  if (input.refreshNotice === 'snapshot-fallback') {
+    return `Unable to refresh. Showing saved items from today. ${input.itemCount} ${input.itemCount === 1 ? 'item' : 'items'} loaded.`;
+  }
+
   return `${input.itemCount} ${input.itemCount === 1 ? 'item' : 'items'} loaded.`;
 }
 
@@ -129,6 +157,7 @@ export function FeedContent() {
     loading,
     error,
     isCached,
+    refreshNotice,
     configuredFeedCount,
     enabledFeedCount,
     completedFeeds,
@@ -188,6 +217,7 @@ export function FeedContent() {
   const readerStatus = getReaderStatus({
     loading,
     error,
+    refreshNotice,
     itemCount: items.length,
     completedFeeds,
     totalFeeds,
@@ -198,12 +228,15 @@ export function FeedContent() {
       <FeedContentContainer
         today={today}
         items={items}
-        isCached={isCached}
+        isCached={isCached && refreshNotice === null}
         loading={loading}
         completedFeeds={completedFeeds}
         totalFeeds={totalFeeds}
         readerStatus={readerStatus}
       >
+        {refreshNotice === 'snapshot-fallback' && (
+          <RefreshNotice onRefresh={refreshFeeds} />
+        )}
         {content}
       </FeedContentContainer>
       <FeedManagerButton isOpen={isManagerOpen} onOpen={openFeedManager} />
@@ -211,6 +244,8 @@ export function FeedContent() {
         feeds={feeds}
         feedStatuses={feedStatuses}
         isOpen={isManagerOpen}
+        isRefreshing={loading}
+        onRefreshFeeds={refreshFeeds}
         onFeedsChange={setFeeds}
         onClose={closeFeedManager}
       />

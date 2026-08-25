@@ -210,6 +210,7 @@ test('uses a fresh offline snapshot as the terminal fallback for network failure
   assert.equal(fallback.readModel.loading, false);
   assert.equal(fallback.readModel.error, null);
   assert.equal(fallback.readModel.isCached, true);
+  assert.equal(fallback.readModel.refreshNotice, 'snapshot-fallback');
   assert.equal(fallback.readModel.items[0].title, 'Fallback');
 
   const failed = failFeedSetLifecycle(started.state, {
@@ -221,6 +222,40 @@ test('uses a fresh offline snapshot as the terminal fallback for network failure
   assert.equal(failed.readModel.loading, false);
   assert.equal(failed.readModel.error, 'Failed to load feeds. Please try again.');
   assert.equal(failed.readModel.isCached, false);
+  assert.equal(failed.readModel.refreshNotice, null);
+});
+
+test('clears the snapshot fallback notice when network progress resumes', () => {
+  const started = beginFeedSetLifecycle({
+    feeds: [{ url: 'https://example.com/feed.xml', name: 'Example' }],
+    timeZone: 'UTC',
+    snapshot: null,
+  });
+  const fallback = failFeedSetLifecycle(started.state, {
+    error: new Error('network failed'),
+    now: new Date('2026-06-02T12:00:00.000Z'),
+    fallbackSnapshot: {
+      timeZone: 'UTC',
+      dayKey: '2026-06-02',
+      items: [serializedFeedItem({ title: 'Fallback' })],
+    },
+  });
+
+  const resumed = applyFeedSetStreamChunk(fallback.state, {
+    type: 'feed_result',
+    requestId: 'request-resumed',
+    cached: false,
+    timeZone: 'UTC',
+    totalFeeds: 1,
+    completedFeeds: 1,
+    feedUrl: 'https://example.com/feed.xml',
+    status: 'success',
+    itemCount: 1,
+    items: [serializedFeedItem({ title: 'Live' })],
+  });
+
+  assert.equal(resumed.readModel.refreshNotice, null);
+  assert.equal(resumed.readModel.items[0].title, 'Live');
 });
 
 test('rejects a stale offline snapshot as the terminal fallback for network failure', () => {

@@ -30,6 +30,7 @@ export interface FeedSetLifecycleReadModel {
   loading: boolean;
   error: string | null;
   isCached: boolean;
+  refreshNotice: 'snapshot-fallback' | null;
   configuredFeedCount: number;
   enabledFeedCount: number;
   completedFeeds: number;
@@ -49,6 +50,7 @@ interface FeedSetLifecycleImplementationState extends FeedSetLifecycleState {
   loading: boolean;
   error: string | null;
   isCached: boolean;
+  refreshNotice: 'snapshot-fallback' | null;
   configuredFeedCount: number;
   enabledFeedCount: number;
   completedFeeds: number;
@@ -82,6 +84,7 @@ function readModelFromState(
     loading: state.loading,
     error: state.error,
     isCached: state.isCached,
+    refreshNotice: state.refreshNotice,
     configuredFeedCount: state.configuredFeedCount,
     enabledFeedCount: state.enabledFeedCount,
     completedFeeds: state.completedFeeds,
@@ -128,6 +131,7 @@ export function beginFeedSetLifecycle(input: {
         loading: false,
         error: 'no-feeds',
         isCached: false,
+        refreshNotice: null,
         configuredFeedCount,
         enabledFeedCount,
         completedFeeds: 0,
@@ -152,6 +156,7 @@ export function beginFeedSetLifecycle(input: {
       loading: true,
       error: null,
       isCached: snapshot !== null,
+      refreshNotice: null,
       configuredFeedCount,
       enabledFeedCount,
       completedFeeds: 0,
@@ -208,6 +213,7 @@ export function applyFeedSetStreamChunk(
         ...currentState,
         requestId: chunk.requestId,
         isCached: chunk.cached,
+        refreshNotice: null,
         completedFeeds: chunk.completedFeeds,
         totalFeeds: chunk.totalFeeds,
       },
@@ -235,6 +241,7 @@ export function applyFeedSetStreamChunk(
         requestId: chunk.requestId,
         items: nextItems,
         isCached: chunk.cached,
+        refreshNotice: null,
         completedFeeds: chunk.completedFeeds,
         totalFeeds: chunk.totalFeeds,
         hasAppliedNetworkResults: true,
@@ -254,6 +261,7 @@ export function applyFeedSetStreamChunk(
       requestId: chunk.requestId,
       loading: false,
       isCached: chunk.cached,
+      refreshNotice: null,
       completedFeeds: 0,
       totalFeeds: 0,
     };
@@ -287,6 +295,7 @@ export function applyFeedSetApiResponse(
     loading: false,
     error: null,
     isCached: response.cached,
+    refreshNotice: null,
     completedFeeds: 0,
     totalFeeds: 0,
     hasAppliedNetworkResults: true,
@@ -333,6 +342,7 @@ export function failFeedSetLifecycle(
         loading: false,
         error: null,
         isCached: true,
+        refreshNotice: 'snapshot-fallback',
         completedFeeds: 0,
         totalFeeds: 0,
       },
@@ -346,6 +356,7 @@ export function failFeedSetLifecycle(
       loading: false,
       error: formatFeedSetFailureMessage(currentState.requestId),
       isCached: false,
+      refreshNotice: null,
       completedFeeds: 0,
       totalFeeds: 0,
     },
@@ -362,6 +373,7 @@ export function finishFeedSetLifecycle(
     {
       ...currentState,
       loading: false,
+      refreshNotice: null,
       completedFeeds: 0,
       totalFeeds: 0,
     },

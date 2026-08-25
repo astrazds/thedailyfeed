@@ -30,6 +30,7 @@
   /* Code and highlights */
   --code-bg: #f5f1ea;
   --blockquote-border: #d4c5b0;
+  --image-outline: oklch(0 0 0 / 0.1);
 }
 
 @theme inline {
@@ -69,6 +70,7 @@
     /* Code and highlights */
     --code-bg: #242220;
     --blockquote-border: #3d3530;
+    --image-outline: oklch(1 0 0 / 0.1);
   }
 }
 
@@ -212,10 +214,10 @@ h1, h2, h3, h4, h5, h6 {
 
 .prose ul,
 .prose ol {
-  margin-left: 1.5em;
+  margin-inline-start: 1.5em;
   margin-top: 1.5em;
   margin-bottom: 1.5em;
-  padding-left: 0;
+  padding-inline-start: 0;
 }
 
 .prose ul {
@@ -232,9 +234,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .prose blockquote {
-  border-left: 3px solid var(--blockquote-border);
-  padding-left: 1em;
-  margin-left: 0;
+  border-inline-start: 3px solid var(--blockquote-border);
+  padding-inline-start: 1em;
+  margin-inline-start: 0;
   margin-top: 1.5em;
   margin-bottom: 1.5em;
   font-style: italic;
@@ -280,6 +282,8 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 2em !important;
   margin-bottom: 2em !important;
   display: block;
+  outline: 1px solid var(--image-outline);
+  outline-offset: -1px;
 }
 
 /* Ensure spacing around images even with inline text */
@@ -301,6 +305,21 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 1.5em;
   margin-bottom: 0.75em;
   line-height: 1.3;
+}
+
+.prose h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.prose h4 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.prose h5 {
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .prose h1:first-child,

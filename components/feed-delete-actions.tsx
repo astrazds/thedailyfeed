@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { Feed } from '@/lib/feed-storage';
 
 interface FeedDeleteActionsProps {
@@ -11,9 +12,29 @@ interface FeedDeleteActionsProps {
 }
 
 type FocusTarget = Pick<HTMLButtonElement, 'focus'>;
+type FocusScheduler = (callback: () => void) => void;
 
 export function focusDeleteCancelAction(element: FocusTarget | null): void {
   element?.focus();
+}
+
+export function focusAfterUpdate(
+  getTarget: () => FocusTarget | null,
+  schedule: FocusScheduler = (callback) => requestAnimationFrame(callback)
+): void {
+  schedule(() => getTarget()?.focus());
+}
+
+export function focusPendingTarget(
+  pending: { current: boolean },
+  target: FocusTarget | null
+): void {
+  if (!pending.current || !target) {
+    return;
+  }
+
+  pending.current = false;
+  target.focus();
 }
 
 export function FeedDeleteActions({
@@ -25,6 +46,8 @@ export function FeedDeleteActions({
   onEdit,
   onToggle,
 }: FeedDeleteActionsProps) {
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+
   if (isConfirming) {
     return (
       <div
@@ -35,7 +58,10 @@ export function FeedDeleteActions({
         <button
           type="button"
           ref={focusDeleteCancelAction}
-          onClick={onCancel}
+          onClick={() => {
+            onCancel();
+            focusAfterUpdate(() => deleteButtonRef.current);
+          }}
           className="neutral-action px-3 py-2 rounded text-sm"
         >
           Cancel
@@ -69,6 +95,7 @@ export function FeedDeleteActions({
         Edit
       </button>
       <button
+        ref={deleteButtonRef}
         type="button"
         onClick={onDeleteRequest}
         className="danger-text-action px-3 py-2 rounded text-sm"

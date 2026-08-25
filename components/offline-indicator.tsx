@@ -49,29 +49,40 @@ export function OfflineIndicator() {
     };
   }, []);
 
-  if (!showIndicator) return null;
+  const statusMessage = showIndicator
+    ? isOnline
+      ? 'Back online'
+      : 'You are offline. New feed updates are unavailable.'
+    : '';
 
   return (
-    <div 
-      className="offline-indicator fixed -translate-x-1/2 px-6 py-3 rounded-full shadow-lg z-50 animate-slide-up"
-      style={{ 
-        backgroundColor: isOnline ? 'var(--accent-solid)' : 'var(--code-bg)',
-        color: isOnline ? 'var(--accent-foreground)' : 'var(--foreground)',
-        border: isOnline ? 'none' : '1px solid var(--border-color)',
-      }}
-      role="status"
-    >
-      {isOnline ? (
-        <>
-          <span className="mr-2" aria-hidden="true">✓</span>
-          Back online
-        </>
-      ) : (
-        <>
-          <span className="mr-2" aria-hidden="true">📡</span>
-          You are offline. New feed updates are unavailable.
-        </>
+    <>
+      <div role="status" className="sr-only">
+        {statusMessage}
+      </div>
+      {showIndicator && (
+        <div
+          className="offline-indicator fixed -translate-x-1/2 px-6 py-3 rounded-full shadow-lg z-50 animate-slide-up"
+          style={{
+            backgroundColor: isOnline ? 'var(--accent-solid)' : 'var(--code-bg)',
+            color: isOnline ? 'var(--accent-foreground)' : 'var(--foreground)',
+            border: isOnline ? 'none' : '1px solid var(--border-color)',
+          }}
+          aria-hidden="true"
+        >
+          {isOnline ? (
+            <>
+              <span className="mr-2">✓</span>
+              Back online
+            </>
+          ) : (
+            <>
+              <span className="mr-2">📡</span>
+              You are offline. New feed updates are unavailable.
+            </>
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }

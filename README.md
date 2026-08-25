@@ -2,7 +2,7 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.1.1`.
+Current release: `1.1.2`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 
@@ -12,10 +12,11 @@ The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, kee
 - Progressive NDJSON streaming from `POST /api/feeds?stream=1`, so fast feeds render before slower ones finish.
 - Pulsing feed-item placeholders remain visible while additional feeds are still loading.
 - Feed management in the browser with add, edit, delete, enable/disable, and OPML import/export. Deletion uses an accessible in-row confirmation with a theme-aware destructive action instead of a native browser dialog.
-- Feed load results are shown in the feed manager without adding per-feed status badges to the reading view.
+- Feed load results are shown in the feed manager with visible failure and timeout labels plus one aggregate retry action, without adding per-feed status badges or a second fetch path to the reading view.
 - Server-side feed validation before new feeds are saved locally.
 - Per-feed in-memory cache with TTL and max-entry controls.
-- Browser-local offline snapshots for same-day fallback.
+- Browser-local offline snapshots for same-day fallback, with an explicit refresh-failure notice and retry action instead of an ambiguous cache label.
+- Article titles and sanitized article-body links use normal same-tab navigation.
 - Installable PWA behavior when served over HTTPS and browser installability criteria are met.
 - Structured server logs, request correlation, and bearer-protected production metrics.
 - Defense-in-depth around untrusted feeds: SSRF guards, URL normalization, HTML sanitization, strict response headers, and proxy-owned production ingress controls.
@@ -189,7 +190,7 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 - The app does not log raw client IPs by default. Structured logs redact configured secret fields and remove credentials, query strings, and fragments from URL values.
 - The app keeps controls that the proxy cannot provide: outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` responses, the service worker's exact-path feed-set policy, and metrics authentication.
 - Feed validation and parsing use one aggregate `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delays, and retries. Per-attempt `FEED_TIMEOUT_MS` remains a narrower socket/fetch safeguard and is not renewed by redirects.
-- Feed HTML is sanitized with DOMPurify before rendering.
+- Feed HTML is sanitized with DOMPurify before rendering. Safe language and text-direction metadata is preserved and validated, while embedded headings are normalized beneath each article title.
 - Long article HTML is truncated with DOM-aware logic so tags remain balanced.
 - API responses use `Cache-Control: no-store`.
 - The service-worker runtime URL pattern matches only the feed-set pathname

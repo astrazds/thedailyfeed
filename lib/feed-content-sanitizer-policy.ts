@@ -27,7 +27,7 @@ export const FEED_CONTENT_SANITIZER_CONFIG = {
     'span',
     'div',
   ],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'target', 'rel'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'rel', 'lang', 'dir'],
   ALLOW_DATA_ATTR: false,
   ALLOWED_URI_REGEXP: ALLOWED_FEED_CONTENT_URI_REGEXP,
 } satisfies DomPurifyConfig;

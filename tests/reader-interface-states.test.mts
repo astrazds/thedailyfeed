@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ReaderEmptyState } from '../components/feed-content';
+import {
+  ReaderEmptyState,
+  RefreshNotice,
+  getReaderStatus,
+} from '../components/feed-content';
 
 const noOp = () => undefined;
 
@@ -31,4 +35,25 @@ test('reader distinguishes no configured feeds from disabled feeds and no new it
   assert.match(noNewItems, /No new items today/);
   assert.match(noNewItems, /enabled feeds have no items dated today/);
   assert.match(noNewItems, />Manage feeds<\/button>/);
+});
+
+test('snapshot fallback explains the stale refresh and offers the aggregate retry action', () => {
+  const markup = renderToStaticMarkup(
+    React.createElement(RefreshNotice, { onRefresh: async () => undefined })
+  );
+
+  assert.match(markup, /Unable to refresh\. Showing saved items from today\./);
+  assert.match(markup, />Try again<\/button>/);
+  assert.match(markup, /class="neutral-action/);
+  assert.equal(
+    getReaderStatus({
+      loading: false,
+      error: null,
+      refreshNotice: 'snapshot-fallback',
+      itemCount: 2,
+      completedFeeds: 0,
+      totalFeeds: 0,
+    }),
+    'Unable to refresh. Showing saved items from today. 2 items loaded.'
+  );
 });

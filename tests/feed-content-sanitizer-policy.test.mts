@@ -17,6 +17,9 @@ test('feed content sanitizer policy forbids scriptable attributes and data attri
   assert.equal(FEED_CONTENT_SANITIZER_CONFIG.ALLOW_DATA_ATTR, false);
   assert.ok(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('href'));
   assert.ok(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('rel'));
+  assert.ok(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('lang'));
+  assert.ok(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('dir'));
+  assert.equal(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('target'), false);
   assert.equal(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('onerror'), false);
   assert.equal(FEED_CONTENT_SANITIZER_CONFIG.ALLOWED_ATTR?.includes('onclick'), false);
 });

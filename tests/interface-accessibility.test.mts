@@ -6,16 +6,21 @@ import { DisclosureButton } from '../components/expandable-content';
 import { FatalFallback } from '../components/error-boundary';
 import {
   FeedManagerModal,
+  getFeedManagerPendingState,
   getFeedManagerSubmitTone,
 } from '../components/feed-manager-modal';
+import { OfflineIndicator } from '../components/offline-indicator';
 
 const noOp = () => undefined;
+const asyncNoOp = async () => undefined;
 
 test('feed manager uses a native labelled dialog and real labelled forms', () => {
   const markup = renderToStaticMarkup(
     React.createElement(FeedManagerModal, {
       feeds: [],
       isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,
     })
@@ -35,6 +40,29 @@ test('feed manager uses a native labelled dialog and real labelled forms', () =>
   assert.match(markup, />Manage feeds</);
   assert.doesNotMatch(markup, />Manage Feeds</);
   assert.doesNotMatch(markup, /\.\.\./);
+});
+
+test('only the validating add or edit form becomes busy and read-only', () => {
+  assert.deepEqual(getFeedManagerPendingState({ type: 'add' }, null), {
+    addPending: true,
+    editPending: false,
+  });
+  assert.deepEqual(
+    getFeedManagerPendingState({ type: 'edit', feedId: 'feed-1' }, 'feed-1'),
+    { addPending: false, editPending: true }
+  );
+  assert.deepEqual(
+    getFeedManagerPendingState({ type: 'edit', feedId: 'feed-2' }, 'feed-1'),
+    { addPending: false, editPending: false }
+  );
+});
+
+test('offline announcements keep a stable polite region mounted', () => {
+  const markup = renderToStaticMarkup(React.createElement(OfflineIndicator));
+
+  assert.match(markup, /role="status"/);
+  assert.match(markup, /class="sr-only"/);
+  assert.doesNotMatch(markup, /offline-indicator/);
 });
 
 test('feed manager moves primary emphasis from Add feed to Save changes while editing', () => {

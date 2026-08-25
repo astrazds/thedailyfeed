@@ -6,12 +6,15 @@ import { FeedManagerModal } from '../components/feed-manager-modal';
 import packageMetadata from '../package.json';
 
 const noOp = () => undefined;
+const asyncNoOp = async () => undefined;
 
 function renderEmptyFeedManager(): string {
   return renderToStaticMarkup(
     createElement(FeedManagerModal, {
       feeds: [],
       isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,
     })
@@ -47,6 +50,8 @@ test('feed manager shows a semantic success tick beside a successfully loaded fe
         },
       ],
       isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
       onFeedsChange: () => undefined,
       onClose: () => undefined,
     })
@@ -79,15 +84,52 @@ test('feed manager shows a semantic error cross beside a feed that failed to loa
         },
       ],
       isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
       onFeedsChange: () => undefined,
       onClose: () => undefined,
     })
   );
 
+  assert.match(markup, /Broken Feed<\/h4>[\s\S]*Failed to load/);
   assert.match(
     markup,
-    /Broken Feed<\/h4><svg(?=[^>]+aria-label="Failed to load")(?=[^>]+style="color:var\(--status-error\)")/
+    /Some feeds did not load\. Try all feeds again, or edit a feed if its URL changed\./
   );
+  assert.match(markup, />Try all feeds again<\/button>/);
+  assert.match(markup, /id="feed-list-title"[^>]+tabindex="-1"/);
+});
+
+test('feed manager distinguishes timed out feeds from other failures', () => {
+  const markup = renderToStaticMarkup(
+    createElement(FeedManagerModal, {
+      feeds: [
+        {
+          id: 'feed-1',
+          name: 'Slow Feed',
+          url: 'https://example.com/slow.xml',
+          enabled: true,
+          addedAt: new Date('2026-07-14T00:00:00.000Z'),
+        },
+      ],
+      feedStatuses: [
+        {
+          feedUrl: 'https://example.com/slow.xml',
+          feedName: 'Slow Feed',
+          status: 'timeout',
+          itemCount: 0,
+        },
+      ],
+      isOpen: true,
+      isRefreshing: true,
+      onRefreshFeeds: asyncNoOp,
+      onFeedsChange: noOp,
+      onClose: noOp,
+    })
+  );
+
+  assert.match(markup, /Slow Feed<\/h4>[\s\S]*Timed out/);
+  assert.match(markup, />Refreshing feeds…<\/button>/);
 });
 
 test('feed manager leaves disabled, pending, and unrequested feeds unmarked', () => {
@@ -131,6 +173,8 @@ test('feed manager leaves disabled, pending, and unrequested feeds unmarked', ()
         },
       ],
       isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
       onFeedsChange: () => undefined,
       onClose: () => undefined,
     })

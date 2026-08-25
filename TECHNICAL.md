@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.1 implementation as of August 25, 2026.
+This document reflects the 1.1.2 implementation as of August 25, 2026.
 
 ## System Overview
 
@@ -96,7 +96,7 @@ dispatch CI, or deploy.
    - Parses missing feeds progressively and emits `feed_result` chunks (`status: success|timeout|error`)
    - Emits `done`
 6. Client incrementally merges/sorts items, keeps the loading skeleton visible until the stream completes, updates feed-manager result state, and persists the snapshot
-7. On request failures, client attempts same-day snapshot fallback from `localStorage`
+7. On request failures, client attempts same-day snapshot fallback from `localStorage` and marks that terminal state with a distinct refresh notice and aggregate retry action
 
 ## Observability and Logging
 
@@ -241,6 +241,7 @@ Chunk types:
   - `loading`
   - `error`
   - `isCached`
+  - `refreshNotice` (`snapshot-fallback` only when a failed refresh uses a same-day snapshot)
   - `configuredFeedCount`
   - `enabledFeedCount`
   - `completedFeeds`
@@ -255,6 +256,7 @@ Chunk types:
 - Keeps one stable polite reader status region, marks results busy during streaming, and announces progressive and terminal item counts while skeletons remain decorative
 - Persists snapshots on successful completion
 - Uses snapshot fallback on fetch failure when available
+- Suppresses the generic cached badge for snapshot fallback, renders an explicit refresh-failure notice, and includes that notice in the stable reader announcement
 - Listens for:
   - browser `storage` event
   - custom `feedsUpdated` event
@@ -267,8 +269,10 @@ Chunk types:
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - `FeedManagerModal` uses native `<dialog>.showModal()`: the platform owns Escape dismissal, focus containment, and inert background behavior; backdrop clicks dismiss, internal scrolling is contained, and `FeedContent` restores focus to the exact opener
 - Add and edit are labelled native forms with required trimmed-field validation, linked inline errors, persistent form-level recovery messages, and one typed pending operation; progress and success use one stable polite status region
+- A validating add or edit form remains mounted and becomes `aria-busy`, with its fields read-only until that operation completes so a late keystroke cannot be lost
+- Failed and timed-out feed rows include visible labels; one recovery banner calls the existing aggregate feed refresh, stays mounted while busy, announces progress through the stable status region, and returns focus to the feed-list heading
 - Modal handles CRUD and client-side OPML import/export
-- `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, and the destructive action uses light/dark theme danger tokens
+- `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, cancellation restores the originating Delete button, confirmed deletion moves focus to the feed-list heading, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
 - `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes
 - `lib/feed-manager-operations.ts` preserves the former import interface as a compatibility re-export
@@ -297,6 +301,9 @@ Chunk types:
 
 - Feed HTML is sanitized before rendering (`DOMPurify`)
 - Long feed HTML is truncated with DOM-aware logic to preserve valid markup
+- Sanitized body links retain only `rel="nofollow"` and use normal same-tab navigation; article-title links use the same navigation behavior
+- Sanitized `lang` values are canonicalized with `Intl.Locale`, `dir` is limited to `ltr`, `rtl`, or `auto`, and invalid values are discarded
+- Embedded feed headings are normalized to `h3`–`h5` beneath each article title while preserving bounded source-relative depth
 
 ### Request Protection
 

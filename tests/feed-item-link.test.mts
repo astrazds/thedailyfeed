@@ -35,6 +35,7 @@ test('http and https article links remain clickable', () => {
   );
 
   assert.match(html, /href="https:\/\/example\.com\/article"/);
-  assert.match(html, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(html, /target=/);
+  assert.doesNotMatch(html, /rel=/);
   assert.match(html, /class="article-link"/);
 });

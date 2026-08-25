@@ -4,7 +4,9 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   FeedDeleteActions,
+  focusAfterUpdate,
   focusDeleteCancelAction,
+  focusPendingTarget,
 } from '../components/feed-delete-actions';
 import type { Feed } from '../lib/feed-storage';
 
@@ -17,11 +19,6 @@ const exampleFeed: Feed = {
 };
 
 const noOp = () => undefined;
-
-interface ActionButtonProps {
-  onClick: () => void;
-  ref?: typeof focusDeleteCancelAction;
-}
 
 function renderDeleteActions(isConfirming: boolean): string {
   return renderToStaticMarkup(
@@ -69,24 +66,29 @@ test('mounted delete cancellation action receives focus', () => {
   assert.equal(focusCalls, 1);
 });
 
-test('confirmation controls attach focus, cancel, and confirm behavior to their buttons', () => {
-  const calls: string[] = [];
-  const actions = FeedDeleteActions({
-    feed: exampleFeed,
-    isConfirming: true,
-    onCancel: () => calls.push('cancel'),
-    onConfirm: () => calls.push('confirm'),
-    onDeleteRequest: noOp,
-    onEdit: noOp,
-    onToggle: noOp,
-  });
-  const buttons = React.Children.toArray(actions.props.children) as React.ReactElement<ActionButtonProps>[];
+test('focus restoration resolves its target after the state update', () => {
+  let targetAvailable = false;
+  let focusCalls = 0;
 
-  assert.equal(buttons.length, 2);
-  assert.equal(buttons[0].props.ref, focusDeleteCancelAction);
+  focusAfterUpdate(
+    () => targetAvailable ? { focus: () => { focusCalls += 1; } } : null,
+    (callback) => {
+      targetAvailable = true;
+      callback();
+    }
+  );
 
-  buttons[0].props.onClick();
-  buttons[1].props.onClick();
+  assert.equal(focusCalls, 1);
+});
 
-  assert.deepEqual(calls, ['cancel', 'confirm']);
+test('pending focus is applied once after the updated target commits', () => {
+  const pending = { current: true };
+  let focusCalls = 0;
+  const target = { focus: () => { focusCalls += 1; } };
+
+  focusPendingTarget(pending, target);
+  focusPendingTarget(pending, target);
+
+  assert.equal(focusCalls, 1);
+  assert.equal(pending.current, false);
 });

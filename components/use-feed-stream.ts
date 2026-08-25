@@ -29,6 +29,7 @@ interface UseFeedStreamResult {
   loading: boolean;
   error: string | null;
   isCached: boolean;
+  refreshNotice: FeedSetLifecycleReadModel['refreshNotice'];
   configuredFeedCount: number;
   enabledFeedCount: number;
   completedFeeds: number;
@@ -226,6 +227,7 @@ export function useFeedStream(): UseFeedStreamResult {
     loading: feedReadModel.loading,
     error: feedReadModel.error,
     isCached: feedReadModel.isCached,
+    refreshNotice: feedReadModel.refreshNotice,
     configuredFeedCount: feedReadModel.configuredFeedCount,
     enabledFeedCount: feedReadModel.enabledFeedCount,
     completedFeeds: feedReadModel.completedFeeds,
