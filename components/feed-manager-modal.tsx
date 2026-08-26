@@ -533,7 +533,126 @@ export function FeedManagerModal({
       </div>
 
       <div className="overflow-y-auto overscroll-contain min-h-0 flex-1 px-4 sm:px-6 py-4">
-        <section aria-labelledby="feed-list-title">
+        <details open={feeds.length === 0 ? true : undefined}>
+          <summary className="neutral-action cursor-pointer px-4 py-3 rounded font-semibold">
+            Add feed
+          </summary>
+          <form
+            onSubmit={handleAddFeed}
+            className="mt-4"
+            aria-busy={addPending}
+            noValidate
+          >
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="new-feed-name" className="block text-sm font-medium mb-1">
+                  Feed name
+                </label>
+                <input
+                  ref={newFeedNameRef}
+                  id="new-feed-name"
+                  name="feed-name"
+                  type="text"
+                  required
+                  readOnly={addPending}
+                  placeholder="Example News"
+                  value={newFeedName}
+                  onChange={handleAddNameChange}
+                  aria-invalid={addErrors.name !== null}
+                  aria-describedby="new-feed-name-error"
+                  className="w-full px-4 py-2 rounded border text-base sm:text-sm"
+                  style={{
+                    backgroundColor: 'var(--background)',
+                    borderColor: 'var(--control-border)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+                <p id="new-feed-name-error" className="mt-1 text-sm" style={{ color: 'var(--status-error)' }}>
+                  {addErrors.name}
+                </p>
+              </div>
+              <div>
+                <label htmlFor="new-feed-url" className="block text-sm font-medium mb-1">
+                  Feed URL
+                </label>
+                <input
+                  ref={newFeedUrlRef}
+                  id="new-feed-url"
+                  name="feed-url"
+                  type="url"
+                  inputMode="url"
+                  required
+                  readOnly={addPending}
+                  placeholder="https://example.com/feed.xml"
+                  value={newFeedUrl}
+                  onChange={handleAddUrlChange}
+                  aria-invalid={addErrors.url !== null}
+                  aria-describedby="new-feed-url-error"
+                  className="w-full px-4 py-2 rounded border text-base sm:text-sm"
+                  style={{
+                    backgroundColor: 'var(--background)',
+                    borderColor: 'var(--control-border)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+                <p id="new-feed-url-error" className="mt-1 text-sm" style={{ color: 'var(--status-error)' }}>
+                  {addErrors.url}
+                </p>
+              </div>
+              {operationFailure?.type === 'add' && (
+                <p role="alert" className="text-sm" style={{ color: 'var(--status-error)' }}>
+                  {operationFailure.message}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={anyPending}
+                className={`${getFeedManagerSubmitTone('add', editingId !== null)} px-6 py-2 rounded font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {addPending ? 'Add feed…' : 'Add feed'}
+              </button>
+            </div>
+          </form>
+        </details>
+
+        <details className="mt-3">
+          <summary className="neutral-action cursor-pointer px-4 py-3 rounded font-semibold">
+            Import and export
+          </summary>
+          <div className="flex gap-3 flex-wrap mt-4">
+            <button
+              type="button"
+              onClick={handleImportClick}
+              disabled={anyPending}
+              className="neutral-action px-4 py-2 rounded font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Import OPML
+            </button>
+            <button
+              type="button"
+              onClick={handleExportOPML}
+              disabled={anyPending}
+              className="neutral-action px-4 py-2 rounded font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Export OPML
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".opml,.xml"
+            onChange={handleFileSelect}
+            className="hidden"
+            aria-label="Choose OPML file"
+          />
+          {operationFailure?.type === 'import' && (
+            <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--status-error)' }}>
+              {operationFailure.message}
+            </p>
+          )}
+        </details>
+
+        <section aria-labelledby="feed-list-title" className="mt-6">
           <h3
             ref={feedListHeadingRef}
             id="feed-list-title"
@@ -700,128 +819,6 @@ export function FeedManagerModal({
             ))}
           </div>
         </section>
-
-        <details
-          open={feeds.length === 0 ? true : undefined}
-          className="mt-6"
-        >
-          <summary className="neutral-action cursor-pointer px-4 py-3 rounded font-semibold">
-            Add feed
-          </summary>
-          <form
-            onSubmit={handleAddFeed}
-            className="mt-4"
-            aria-busy={addPending}
-            noValidate
-          >
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="new-feed-name" className="block text-sm font-medium mb-1">
-                  Feed name
-                </label>
-                <input
-                  ref={newFeedNameRef}
-                  id="new-feed-name"
-                  name="feed-name"
-                  type="text"
-                  required
-                  readOnly={addPending}
-                  placeholder="Example News"
-                  value={newFeedName}
-                  onChange={handleAddNameChange}
-                  aria-invalid={addErrors.name !== null}
-                  aria-describedby="new-feed-name-error"
-                  className="w-full px-4 py-2 rounded border text-base sm:text-sm"
-                  style={{
-                    backgroundColor: 'var(--background)',
-                    borderColor: 'var(--control-border)',
-                    color: 'var(--foreground)',
-                  }}
-                />
-                <p id="new-feed-name-error" className="mt-1 text-sm" style={{ color: 'var(--status-error)' }}>
-                  {addErrors.name}
-                </p>
-              </div>
-              <div>
-                <label htmlFor="new-feed-url" className="block text-sm font-medium mb-1">
-                  Feed URL
-                </label>
-                <input
-                  ref={newFeedUrlRef}
-                  id="new-feed-url"
-                  name="feed-url"
-                  type="url"
-                  inputMode="url"
-                  required
-                  readOnly={addPending}
-                  placeholder="https://example.com/feed.xml"
-                  value={newFeedUrl}
-                  onChange={handleAddUrlChange}
-                  aria-invalid={addErrors.url !== null}
-                  aria-describedby="new-feed-url-error"
-                  className="w-full px-4 py-2 rounded border text-base sm:text-sm"
-                  style={{
-                    backgroundColor: 'var(--background)',
-                    borderColor: 'var(--control-border)',
-                    color: 'var(--foreground)',
-                  }}
-                />
-                <p id="new-feed-url-error" className="mt-1 text-sm" style={{ color: 'var(--status-error)' }}>
-                  {addErrors.url}
-                </p>
-              </div>
-              {operationFailure?.type === 'add' && (
-                <p role="alert" className="text-sm" style={{ color: 'var(--status-error)' }}>
-                  {operationFailure.message}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={anyPending}
-                className={`${getFeedManagerSubmitTone('add', editingId !== null)} px-6 py-2 rounded font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {addPending ? 'Add feed…' : 'Add feed'}
-              </button>
-            </div>
-          </form>
-        </details>
-
-        <details className="mt-6">
-          <summary className="neutral-action cursor-pointer px-4 py-3 rounded font-semibold">
-            Import and export
-          </summary>
-          <div className="flex gap-3 flex-wrap mt-4">
-            <button
-              type="button"
-              onClick={handleImportClick}
-              disabled={anyPending}
-              className="neutral-action px-4 py-2 rounded font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Import OPML
-            </button>
-            <button
-              type="button"
-              onClick={handleExportOPML}
-              disabled={anyPending}
-              className="neutral-action px-4 py-2 rounded font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Export OPML
-            </button>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".opml,.xml"
-            onChange={handleFileSelect}
-            className="hidden"
-            aria-label="Choose OPML file"
-          />
-          {operationFailure?.type === 'import' && (
-            <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--status-error)' }}>
-              {operationFailure.message}
-            </p>
-          )}
-        </details>
       </div>
       <div role="status" className="sr-only">
         {statusMessage}

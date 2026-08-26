@@ -61,7 +61,7 @@ test('feed manager uses a native labelled dialog and real labelled forms', () =>
   assert.doesNotMatch(markup, /\.\.\./);
 });
 
-test('feed manager prioritizes feeds and progressively discloses secondary workflows', () => {
+test('feed manager prioritizes subscription workflows before the feed inventory', () => {
   const populatedMarkup = renderToStaticMarkup(
     React.createElement(FeedManagerModal, {
       feeds: [
@@ -86,8 +86,8 @@ test('feed manager prioritizes feeds and progressively discloses secondary workf
   const transferDisclosurePosition = populatedMarkup.indexOf('>Import and export</summary>');
 
   assert.ok(feedListPosition >= 0);
-  assert.ok(feedListPosition < addDisclosurePosition);
   assert.ok(addDisclosurePosition < transferDisclosurePosition);
+  assert.ok(transferDisclosurePosition < feedListPosition);
   assert.match(populatedMarkup, /<details[^>]*><summary[^>]*>Add feed<\/summary>/);
   assert.match(populatedMarkup, /<details[^>]*><summary[^>]*>Import and export<\/summary>/);
   assert.match(populatedMarkup, /class="[^"]*flex-1 min-w-0 w-full sm:w-auto[^"]*"/);
