@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.3 implementation as of August 26, 2026.
+This document reflects the 1.1.4 implementation as of August 26, 2026.
 
 ## System Overview
 
@@ -265,7 +265,7 @@ Chunk types:
 - `FeedContent` lazy-loads `FeedManagerModal` via `next/dynamic` and passes its authoritative per-feed lifecycle statuses directly to the modal for load-result icons
 - `FeedManagerButton` is a neutral, stateless trigger; `FeedContent` refreshes the current feed list from browser storage when either manager opener is used
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
-- `FeedManagerModal` uses native `<dialog>.showModal()`: the platform owns Escape dismissal, focus containment, and inert background behavior; backdrop clicks dismiss, internal scrolling is contained, and `FeedContent` restores focus to the exact opener
+- `FeedManagerModal` uses native `<dialog>.showModal()`: the platform owns Escape dismissal, focus containment, and inert background behavior; backdrop clicks dismiss, internal scrolling is contained, and `FeedContent` restores focus to the exact opener. The dialog has a definite safe-area-aware dynamic viewport block size so WebKit cannot collapse its column flex layout to the header's intrinsic height
 - The feed inventory is the manager's first section. Add-feed and OPML controls remain mounted behind native `<details>` disclosures; Add feed starts expanded only when no feeds are configured. Narrow layouts constrain each feed row to the dialog width, wrap otherwise unbroken names, and use the control-border token for visible card boundaries
 - Add and edit are labelled native forms with required trimmed-field validation, linked inline errors, persistent form-level recovery messages, and one typed pending operation; entering edit moves focus into the form, while cancellation and successful save return focus to the feed-list heading; progress and success use one stable polite status region
 - A validating add or edit form remains mounted and becomes `aria-busy`, with its fields read-only until that operation completes so a late keystroke cannot be lost

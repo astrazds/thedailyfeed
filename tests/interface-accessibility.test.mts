@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DisclosureButton } from '../components/expandable-content';
@@ -13,6 +14,24 @@ import { OfflineIndicator } from '../components/offline-indicator';
 
 const noOp = () => undefined;
 const asyncNoOp = async () => undefined;
+
+test('feed manager dialog has a definite safe-area-aware viewport block size', () => {
+  const globalStyles = readFileSync(
+    new URL('../app/globals.css', import.meta.url),
+    'utf8'
+  );
+  const dialogRule = globalStyles.match(/\.feed-manager-dialog\s*\{([\s\S]*?)\}/);
+
+  assert.ok(dialogRule);
+  assert.match(
+    dialogRule[1],
+    /(?:^|\n)\s*block-size:\s*calc\(100dvh - 2rem - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\)/
+  );
+  assert.match(
+    dialogRule[1],
+    /(?:^|\n)\s*max-block-size:\s*calc\(100dvh - 2rem - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\)/
+  );
+});
 
 test('feed manager uses a native labelled dialog and real labelled forms', () => {
   const markup = renderToStaticMarkup(
