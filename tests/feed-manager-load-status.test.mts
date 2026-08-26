@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 import { FeedManagerModal } from '../components/feed-manager-modal';
-import packageMetadata from '../package.json';
 
 const noOp = () => undefined;
 const asyncNoOp = async () => undefined;
@@ -21,12 +20,12 @@ function renderEmptyFeedManager(): string {
   );
 }
 
-test('feed manager footer shows the package version before the Done action', () => {
+test('feed manager keeps mobile height for feed tasks instead of duplicate footer chrome', () => {
   const markup = renderEmptyFeedManager();
-  const versionLabel = `Version ${packageMetadata.version}`;
 
-  assert.ok(markup.includes(versionLabel));
-  assert.ok(markup.indexOf(versionLabel) < markup.indexOf('>Done</button>'));
+  assert.doesNotMatch(markup, /Version \d+\.\d+\.\d+/);
+  assert.doesNotMatch(markup, />Done<\/button>/);
+  assert.match(markup, /aria-label="Close feed manager"/);
 });
 
 test('feed manager shows a semantic success tick beside a successfully loaded feed title', () => {

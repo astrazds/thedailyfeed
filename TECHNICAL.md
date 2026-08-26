@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.2 implementation as of August 25, 2026.
+This document reflects the 1.1.3 implementation as of August 26, 2026.
 
 ## System Overview
 
@@ -28,9 +28,7 @@ single expected marker in Compose, README, this document, and the deployment
 guide. `pnpm version:bump <patch|minor|major>` first rejects invalid metadata or
 existing drift, then increments `package.json` and synchronizes every marker.
 The technical-document date is deliberately independent and is not changed by
-the bump command. The feed-management interface imports the package metadata
-directly, so its displayed version is fixed at build time without another
-version marker.
+the bump command.
 
 Run the bump once after an eligible change set stabilizes and before the final
 repository gate. CI runs `version:check` before compilation and tests, but only
@@ -268,10 +266,11 @@ Chunk types:
 - `FeedManagerButton` is a neutral, stateless trigger; `FeedContent` refreshes the current feed list from browser storage when either manager opener is used
 - `FeedManagerModal` remains mounted while closed so draft add/edit fields survive reopening; Feed mutations flow back through `onFeedsChange`
 - `FeedManagerModal` uses native `<dialog>.showModal()`: the platform owns Escape dismissal, focus containment, and inert background behavior; backdrop clicks dismiss, internal scrolling is contained, and `FeedContent` restores focus to the exact opener
-- Add and edit are labelled native forms with required trimmed-field validation, linked inline errors, persistent form-level recovery messages, and one typed pending operation; progress and success use one stable polite status region
+- The feed inventory is the manager's first section. Add-feed and OPML controls remain mounted behind native `<details>` disclosures; Add feed starts expanded only when no feeds are configured. Narrow layouts constrain each feed row to the dialog width, wrap otherwise unbroken names, and use the control-border token for visible card boundaries
+- Add and edit are labelled native forms with required trimmed-field validation, linked inline errors, persistent form-level recovery messages, and one typed pending operation; entering edit moves focus into the form, while cancellation and successful save return focus to the feed-list heading; progress and success use one stable polite status region
 - A validating add or edit form remains mounted and becomes `aria-busy`, with its fields read-only until that operation completes so a late keystroke cannot be lost
 - Failed and timed-out feed rows include visible labels; one recovery banner calls the existing aggregate feed refresh, stays mounted while busy, announces progress through the stable status region, and returns focus to the feed-list heading
-- Modal handles CRUD and client-side OPML import/export
+- Modal handles CRUD and client-side OPML import/export without a duplicate footer action or build-version label consuming mobile height
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, cancellation restores the originating Delete button, confirmed deletion moves focus to the feed-list heading, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
 - `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes

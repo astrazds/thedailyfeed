@@ -42,6 +42,52 @@ test('feed manager uses a native labelled dialog and real labelled forms', () =>
   assert.doesNotMatch(markup, /\.\.\./);
 });
 
+test('feed manager prioritizes feeds and progressively discloses secondary workflows', () => {
+  const populatedMarkup = renderToStaticMarkup(
+    React.createElement(FeedManagerModal, {
+      feeds: [
+        {
+          id: 'long-name',
+          name: 'ExtremelyLongUnbrokenFeedNameDesignedToStressTheNarrowMobileManagementPanel',
+          url: 'https://example.com/rss.xml',
+          enabled: true,
+          addedAt: new Date('2026-08-26T00:00:00.000Z'),
+        },
+      ],
+      isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
+      onFeedsChange: noOp,
+      onClose: noOp,
+    })
+  );
+
+  const feedListPosition = populatedMarkup.indexOf('id="feed-list-title"');
+  const addDisclosurePosition = populatedMarkup.indexOf('>Add feed</summary>');
+  const transferDisclosurePosition = populatedMarkup.indexOf('>Import and export</summary>');
+
+  assert.ok(feedListPosition >= 0);
+  assert.ok(feedListPosition < addDisclosurePosition);
+  assert.ok(addDisclosurePosition < transferDisclosurePosition);
+  assert.match(populatedMarkup, /<details[^>]*><summary[^>]*>Add feed<\/summary>/);
+  assert.match(populatedMarkup, /<details[^>]*><summary[^>]*>Import and export<\/summary>/);
+  assert.match(populatedMarkup, /class="[^"]*flex-1 min-w-0 w-full sm:w-auto[^"]*"/);
+  assert.match(populatedMarkup, /<h4 class="[^"]*min-w-0[^"]*wrap-anywhere[^"]*"/);
+
+  const emptyMarkup = renderToStaticMarkup(
+    React.createElement(FeedManagerModal, {
+      feeds: [],
+      isOpen: true,
+      isRefreshing: false,
+      onRefreshFeeds: asyncNoOp,
+      onFeedsChange: noOp,
+      onClose: noOp,
+    })
+  );
+
+  assert.match(emptyMarkup, /<details[^>]*open=""[^>]*><summary[^>]*>Add feed<\/summary>/);
+});
+
 test('only the validating add or edit form becomes busy and read-only', () => {
   assert.deepEqual(getFeedManagerPendingState({ type: 'add' }, null), {
     addPending: true,

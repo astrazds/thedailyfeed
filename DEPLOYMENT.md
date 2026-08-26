@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.1.2 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.1.3 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
 
@@ -79,7 +79,7 @@ image buildability, container health, routing, or production acceptance.
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.1.2` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.3` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
@@ -295,7 +295,7 @@ or route failure stops without automatic rollback. Using the preserved
 rollback image is a separate recovery action requiring fresh approval. The
 workflow must not be dispatched as part of CI or runner setup.
 
-After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. Browser feed preferences remain client-local, so this release requires no server-side data migration.
+After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. Release 1.1.3 changes the browser-rendered feed-manager layout and focus behavior only: it adds no runtime variable, API or storage-schema change, and requires no server-side data migration. Browser feed preferences remain client-local.
 
 ## Security Notes
 
