@@ -12,6 +12,8 @@
   --accent-solid: #c17767;
   --accent-solid-hover: #b86f60;
   --accent-foreground: #1a1816;
+  --link-decoration-resting: color-mix(in srgb, var(--accent-text) 55%, transparent);
+  --link-decoration-active: var(--accent-text);
 
   /* Status roles */
   --status-success: #2b7444;
@@ -175,20 +177,30 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 1em;
 }
 
+.article-link,
 .prose a {
   color: var(--accent-text);
-  text-decoration: underline;
-  text-decoration-color: var(--accent-text);
-  text-decoration-thickness: from-font;
-  text-underline-position: from-font;
+  text-decoration-line: underline;
+  text-decoration-color: var(--link-decoration-resting);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   text-decoration-skip-ink: auto;
+}
+
+.prose a {
   display: inline; /* Ensure links don't break spacing */
 }
 
 @media (hover: hover) {
+  .article-link:hover,
   .prose a:hover {
-    text-decoration-thickness: 2px;
+    text-decoration-color: var(--link-decoration-active);
   }
+}
+
+.article-link:focus-visible,
+.prose a:focus-visible {
+  text-decoration-color: var(--link-decoration-active);
 }
 
 /* Standalone links (like "Continue Reading" or "Discuss") */
@@ -329,22 +341,6 @@ h1, h2, h3, h4, h5, h6 {
 .prose h5:first-child,
 .prose h6:first-child {
   margin-top: 0;
-}
-
-/* Article title links */
-.article-link {
-  color: var(--accent-text);
-  text-decoration-line: underline;
-  text-decoration-color: var(--accent-text);
-  text-decoration-thickness: from-font;
-  text-underline-position: from-font;
-  text-decoration-skip-ink: auto;
-}
-
-@media (hover: hover) {
-  .article-link:hover {
-    text-decoration-thickness: 2px;
-  }
 }
 
 /* Button hover utility */
