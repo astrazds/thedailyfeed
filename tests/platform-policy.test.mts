@@ -50,7 +50,8 @@ test('platform policy declares Feed set no-store and distinct route and asset he
   const serviceWorkerCsp = serviceWorkerHeaders.get('Content-Security-Policy') ?? '';
   assert.match(serviceWorkerCsp, /(?:^|; )default-src 'self'(?:;|$)/);
   assert.match(serviceWorkerCsp, /(?:^|; )script-src 'self'(?:;|$)/);
-  assert.match(serviceWorkerCsp, /(?:^|; )img-src https: http:(?:;|$)/);
+  assert.match(serviceWorkerCsp, /(?:^|; )connect-src https: http:(?:;|$)/);
+  assert.doesNotMatch(serviceWorkerCsp, /(?:^|; )img-src(?:\s|;|$)/);
   assert.match(serviceWorkerCsp, /(?:^|; )worker-src 'self'(?:;|$)/);
   assert.match(serviceWorkerCsp, /(?:^|; )object-src 'none'(?:;|$)/);
   assert.match(serviceWorkerCsp, /(?:^|; )base-uri 'none'(?:;|$)/);

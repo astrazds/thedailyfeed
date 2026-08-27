@@ -1,5 +1,9 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+
 interface FeedHeaderProps {
-  today: string;
   itemCount: number;
   isCached?: boolean;
   loading?: boolean;
@@ -8,13 +12,22 @@ interface FeedHeaderProps {
 }
 
 export function FeedHeader({
-  today,
   itemCount,
   isCached = false,
   loading = false,
   completedFeeds = 0,
   totalFeeds = 0,
 }: FeedHeaderProps) {
+  const [today, setToday] = useState('Today');
+
+  useEffect(() => {
+    const updateId = window.setTimeout(() => {
+      setToday(format(new Date(), 'EEEE, MMMM d, yyyy'));
+    }, 0);
+
+    return () => window.clearTimeout(updateId);
+  }, []);
+
   const countLabel = `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
   const showProgress = loading && totalFeeds > 0;
   const progressLabel = `${Math.min(completedFeeds, totalFeeds)}/${totalFeeds} feeds`;

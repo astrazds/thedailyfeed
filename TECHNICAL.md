@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.9 implementation as of August 27, 2026.
+This document reflects the 1.1.10 implementation as of August 28, 2026.
 
 ## System Overview
 
@@ -197,8 +197,9 @@ preserves the declared feed-set `/api/feeds` `NetworkOnly` policy from
 PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by
 `next.config.ts`: `/sw.js` is served as JavaScript with `no-cache, no-store,
 must-revalidate` and a worker-only CSP. That CSP keeps scripts and workers
-same-origin while allowing intercepted image destinations to load directly over
-HTTP(S). `/manifest.webmanifest` is served as a web manifest with bounded
+same-origin while allowing Serwist's intercepted image fetches to connect over
+HTTP(S) through `connect-src`; it does not add a redundant cross-origin worker
+`img-src`. `/manifest.webmanifest` is served as a web manifest with bounded
 revalidation, while `/_next/static/*` and `/_next/static/media/*` keep MIME
 sniffing disabled without changing Next's immutable asset caching.
 
@@ -278,6 +279,14 @@ Chunk types:
   - custom `feedsUpdated` event
 - Auto-refreshes every hour
 
+### FeedHeader (`components/feed-header.tsx`)
+
+- Server rendering and the first client render use the deterministic `Today`
+  label, so the UTC container and a browser in another timezone produce matching
+  hydration markup
+- A client effect replaces that label with the browser-local formatted date
+  after hydration
+
 ### Feed Manager
 
 - `FeedContent` lazy-loads `FeedManagerModal` via `next/dynamic` and passes its authoritative per-feed lifecycle statuses directly to the modal for load-result icons
@@ -344,6 +353,9 @@ Chunk types:
 - Browser-only app shell headers, including CSP, frame, referrer, and permissions policy, are scoped to the app shell
 - API routes have explicit `Cache-Control: no-store` header policy and do not inherit app-shell CSP
 - CSP image policy deliberately allows sanitized Feed article images via `img-src ... https: http:`
+- The separate worker CSP permits Serwist's HTTP(S) image fetches through
+  `connect-src`; it keeps worker scripts same-origin and does not widen the page
+  connection policy
 - CSP blocks rendered Feed article audio/video with `media-src 'none'`; the sanitizer does not allow audio or video tags
 
 ## Deployment and Operations

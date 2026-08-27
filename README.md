@@ -2,13 +2,14 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.1.9`.
+Current release: `1.1.10`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 
 ## Highlights
 
 - Today-only feed view based on the reader's browser timezone.
+- Hydration-safe date heading: server rendering and the first browser render use `Today`, then the browser replaces it with its local formatted date.
 - Progressive NDJSON streaming from `POST /api/feeds?stream=1`, so fast feeds render before slower ones finish.
 - Pulsing feed-item placeholders remain visible while additional feeds are still loading.
 - Feed management in the browser with add, edit, delete, enable/disable, and OPML import/export. The mobile-friendly manager uses a safe-area-aware viewport height, places the Add feed and OPML disclosures above the scrollable feed inventory, and opens Add feed automatically when the inventory is empty. Deletion uses an accessible in-row confirmation with a theme-aware destructive action instead of a native browser dialog.
@@ -200,7 +201,8 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
   bounded `StaleWhileRevalidate` route matches only cross-origin requests whose
   browser request destination is `image`; build assets remain precached and no
   other API, page, script, style, font, or same-origin asset runtime route is
-  registered.
+  registered. The worker-only CSP permits HTTP(S) fetch connections for this
+  route without widening the page CSP.
 - Production metrics require bearer authentication and always use `Cache-Control: no-store`.
 
 ## Deployment

@@ -75,7 +75,7 @@ const contentSecurityPolicy = [
 const serviceWorkerContentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self'",
-  'img-src https: http:',
+  'connect-src https: http:',
   "worker-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",

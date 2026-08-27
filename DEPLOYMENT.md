@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.1.9 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.1.10 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
 
@@ -87,7 +87,7 @@ image buildability, container health, routing, or production acceptance.
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.1.9` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.10` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
@@ -330,8 +330,11 @@ or weaken the forced-command restrictions during rotation.
 
 After updating, compare `env.template` and the runtime configuration table above
 for newly introduced variables before recreating the container. This release
-corrects the service-worker CSP so the existing bounded cross-origin image route
-can load HTTP(S) publisher images. It does not widen the page CSP, add a runtime
+contains two independent browser corrections: the service-worker CSP permits
+HTTP(S) `connect-src` requests so the existing bounded cross-origin image route
+can load and cache publisher images, and the feed header uses deterministic
+`Today` markup for server rendering and initial hydration before switching to
+the browser-local formatted date. It does not widen the page CSP, add a runtime
 variable, change an API or storage schema, or require a server-side data
 migration. Browser feed preferences and same-day offline snapshots remain
 client-local.

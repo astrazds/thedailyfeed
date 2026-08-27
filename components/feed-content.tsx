@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import { format } from 'date-fns';
 import { FeedList } from './feed-list';
 import { FeedHeader } from './feed-header';
 import { FeedSkeleton } from './feed-skeleton';
@@ -19,7 +18,6 @@ const FeedManagerModal = dynamic(
 
 interface FeedContentContainerProps {
   children: ReactNode;
-  today: string;
   items: FeedItem[];
   isCached: boolean;
   loading: boolean;
@@ -30,7 +28,6 @@ interface FeedContentContainerProps {
 
 function FeedContentContainer({
   children,
-  today,
   items,
   isCached,
   loading,
@@ -45,7 +42,6 @@ function FeedContentContainer({
       </div>
       <div className="max-w-[720px] mx-auto px-6 py-12">
         <FeedHeader
-          today={today}
           itemCount={items.length}
           isCached={isCached}
           loading={loading}
@@ -168,7 +164,6 @@ export function FeedContent() {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const managerTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const today = format(new Date(), 'EEEE, MMMM d, yyyy');
 
   const openFeedManager = useCallback((trigger: HTMLButtonElement) => {
     managerTriggerRef.current = trigger;
@@ -226,7 +221,6 @@ export function FeedContent() {
   return (
     <>
       <FeedContentContainer
-        today={today}
         items={items}
         isCached={isCached && refreshNotice === null}
         loading={loading}
