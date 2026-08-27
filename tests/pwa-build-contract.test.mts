@@ -21,41 +21,44 @@ function withPublicOutput(files: Record<string, string>, run: (publicDir: string
   }
 }
 
-function serviceWorkerWithFeedSetHandler(handler: 'NetworkOnly' | 'StaleWhileRevalidate'): string {
-  return `
-    define(["./workbox-test"], function(workbox) {
-      workbox.precacheAndRoute([]);
-      workbox.registerRoute(${platformPolicy.feedSet.runtimeCache.urlPattern.toString()}, new workbox.${handler}(), "GET");
-    });
-  `;
-}
-
-test('PWA build verifier accepts emitted service worker artifacts that preserve declared Feed set runtime cache intent', () => {
+test('PWA build verifier accepts a non-empty Serwist worker with the feed-set route', () => {
   withPublicOutput(
     {
-      'sw.js': serviceWorkerWithFeedSetHandler('NetworkOnly'),
-      'workbox-test.js': 'define(["exports"], function(exports) {});',
+      'sw.js': `const feedSetRoute = ${JSON.stringify(platformPolicy.feedSet.route)};`,
     },
     (publicDir) => {
       const result = verifyPwaBuildContract({ publicDir });
 
       assert.equal(result.serviceWorkerPath, join(publicDir, 'sw.js'));
-      assert.deepEqual(result.workboxAssets, [join(publicDir, 'workbox-test.js')]);
-      assert.equal(result.feedSetRuntimeCache.handler, platformPolicy.feedSet.runtimeCache.handler);
+      assert.deepEqual(result.workerAssets, [join(publicDir, 'sw.js')]);
+      assert.deepEqual(result.feedSetRuntimeCache, {
+        route: '/api/feeds',
+        handler: 'NetworkOnly',
+        method: 'GET',
+      });
     }
   );
 });
 
-test('PWA build verifier rejects emitted service worker artifacts that cache the Feed set route', () => {
+test('PWA build verifier rejects a worker that omits the feed-set route', () => {
+  withPublicOutput({ 'sw.js': 'self.addEventListener("fetch", () => undefined);' }, (publicDir) => {
+    assert.throws(
+      () => verifyPwaBuildContract({ publicDir }),
+      /Emitted Serwist worker must contain the \/api\/feeds runtime route/
+    );
+  });
+});
+
+test('PWA build verifier rejects stale next-pwa Workbox assets', () => {
   withPublicOutput(
     {
-      'sw.js': serviceWorkerWithFeedSetHandler('StaleWhileRevalidate'),
-      'workbox-test.js': 'define(["exports"], function(exports) {});',
+      'sw.js': `const feedSetRoute = ${JSON.stringify(platformPolicy.feedSet.route)};`,
+      'workbox-stale.js': 'define([], function() {});',
     },
     (publicDir) => {
       assert.throws(
         () => verifyPwaBuildContract({ publicDir }),
-        /Feed set runtime cache route must use NetworkOnly/
+        /must not retain next-pwa Workbox runtime assets/
       );
     }
   );

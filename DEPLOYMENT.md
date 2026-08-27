@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.1.5 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.1.7 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
 
@@ -9,7 +9,7 @@ For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL
 - Docker 20.10+
 - Docker Compose 2+
 - A DNS name for production HTTPS
-- Node.js 24 LTS or newer and pnpm 10.33.4+, when running local checks outside Docker
+- Node.js 24 LTS and pnpm 11.24.0 within the pnpm 11 release line, when running local checks outside Docker
 
 ## Build the Image
 
@@ -19,7 +19,12 @@ cd thedailyfeed
 docker build -t thedailyfeed:latest .
 ```
 
-The image builds and runs on Node.js 24 Alpine. The build runs `pnpm build`, which also verifies the PWA service worker contract, including `public/sw.js`, referenced Workbox runtime assets, and the declared `/api/feeds` `NetworkOnly` runtime route.
+The image builds and runs on the reviewed multi-architecture Node.js 24.19.0 /
+Alpine 3.24.1 image, pinned by OCI index digest. It installs pnpm 11.24.0
+explicitly. The build runs `pnpm build`,
+which also verifies the Serwist PWA contract: a non-empty `public/sw.js`, no
+stale `next-pwa` Workbox runtime asset, and the declared same-origin GET-only
+`/api/feeds` `NetworkOnly` runtime route.
 
 ## Run with Compose
 
@@ -79,7 +84,7 @@ image buildability, container health, routing, or production acceptance.
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.1.5` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.7` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
@@ -243,13 +248,17 @@ All workflows use one tracked gate:
 ./scripts/verify-ci.sh
 ```
 
-The gate requires Node 24 and pnpm 10.33.4, verifies stable synchronized version
+The gate requires Node 24 and pnpm 11.24.0, verifies stable synchronized version
 metadata, derives `APP_VERSION` and the full 40-character checked-out commit,
 validates Compose interpolation, runs frozen installation, lint,
 `tsc --noEmit`, tests, and the Next/PWA build, then uses rootless BuildKit to
 create one local OCI archive. The archive is deleted after the build and is
 never published. CI does not decide whether a change requires a release bump
 or create a version commit.
+
+Both workflows fetch the checkout action from Forgejo's action mirror at a
+reviewed full commit SHA and set `persist-credentials: false`; mutable action
+tags and post-checkout Git credentials are not used.
 
 `pull_request` is intentionally retained. Approved PR jobs execute arbitrary
 PR code using the host executor inside a runner container. That code can read
@@ -295,7 +304,12 @@ or route failure stops without automatic rollback. Using the preserved
 rollback image is a separate recovery action requiring fresh approval. The
 workflow must not be dispatched as part of CI or runner setup.
 
-After updating, compare `env.template` and the runtime configuration table above for newly introduced variables before recreating the container. This release moves the Add feed and OPML disclosures above the browser-rendered feed inventory: it adds no runtime variable, API or storage-schema change, and requires no server-side data migration. Browser feed preferences remain client-local.
+After updating, compare `env.template` and the runtime configuration table above
+for newly introduced variables before recreating the container. This release
+updates the application dependencies, service-worker tooling, package manager,
+container base, and CI checkout action. It adds no runtime variable, API or
+storage-schema change, and requires no server-side data migration. Browser feed
+preferences and same-day offline snapshots remain client-local.
 
 ## Security Notes
 

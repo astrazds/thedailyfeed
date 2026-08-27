@@ -8,7 +8,6 @@ export type PlatformHeaderSurfaceName =
   | 'app-shell'
   | 'api'
   | 'service-worker'
-  | 'workbox'
   | 'manifest'
   | 'next-static'
   | 'next-static-media';
@@ -43,12 +42,14 @@ export type NextHeaderRule = {
 export type PwaRuntimeCachingEntry = {
   readonly urlPattern: RegExp;
   readonly handler: 'CacheFirst' | 'StaleWhileRevalidate' | 'NetworkOnly';
-  readonly options?: {
-    readonly cacheName: string;
-    readonly expiration: {
-      readonly maxEntries: number;
-      readonly maxAgeSeconds: number;
-    };
+  readonly options?: PwaRuntimeCachingOptions;
+};
+
+export type PwaRuntimeCachingOptions = {
+  readonly cacheName: string;
+  readonly expiration: {
+    readonly maxEntries: number;
+    readonly maxAgeSeconds: number;
   };
 };
 
@@ -181,11 +182,6 @@ export const platformPolicy = {
     {
       name: 'service-worker',
       source: '/sw.js',
-      headers: serviceWorkerAssetHeaders,
-    },
-    {
-      name: 'workbox',
-      source: '/workbox-:hash.js',
       headers: serviceWorkerAssetHeaders,
     },
     {

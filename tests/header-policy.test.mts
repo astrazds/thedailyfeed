@@ -60,7 +60,7 @@ function requireSource(rules: HeaderRule[], source: string): Map<string, string>
   return headersFor(rule);
 }
 
-test('header policy is explicit by app, API, PWA, manifest, and static media surface', async () => {
+test('header policy is explicit by app, API, Serwist worker, manifest, and static media surface', async () => {
   const rules = await getHeaderRules();
 
   const baselineHeaders = requireSource(rules, '/:path*');
@@ -83,10 +83,6 @@ test('header policy is explicit by app, API, PWA, manifest, and static media sur
   assert.equal(serviceWorkerHeaders.get('Content-Type'), 'application/javascript; charset=utf-8');
   assert.equal(serviceWorkerHeaders.get('Cache-Control'), 'no-cache, no-store, must-revalidate');
   assert.match(serviceWorkerHeaders.get('Content-Security-Policy') ?? '', /script-src 'self'/);
-
-  const workboxHeaders = requireSource(rules, '/workbox-:hash.js');
-  assert.equal(workboxHeaders.get('Content-Type'), 'application/javascript; charset=utf-8');
-  assert.equal(workboxHeaders.get('Cache-Control'), 'no-cache, no-store, must-revalidate');
 
   const manifestHeaders = requireSource(rules, '/manifest.webmanifest');
   assert.equal(manifestHeaders.get('Content-Type'), 'application/manifest+json; charset=utf-8');

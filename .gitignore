@@ -73,8 +73,8 @@ next-env.d.ts
 # PWA files
 public/sw.js
 public/sw.js.map
-public/workbox-*.js
-public/workbox-*.js.map
+public/swe-worker-*.js
+public/swe-worker-*.js.map
 
 # next-agents-md
 .next-docs/

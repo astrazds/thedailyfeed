@@ -21,7 +21,6 @@ test('platform policy declares Feed set no-store and distinct route and asset he
     'app-shell',
     'api',
     'service-worker',
-    'workbox',
     'manifest',
     'next-static',
     'next-static-media',

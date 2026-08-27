@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
-import withPWA from 'next-pwa';
+import withSerwistInit from '@serwist/next';
 
-import { buildNextHeaderRules, buildPwaRuntimeCaching } from './lib/platform-policy';
+import { buildNextHeaderRules } from './lib/platform-policy';
 
 const nextConfig: NextConfig = {
   // Production optimizations
@@ -31,12 +31,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-const pwaConfig = withPWA({
-  dest: 'public',
+const withSerwist = withSerwistInit({
+  swSrc: 'app/sw.ts',
+  swDest: 'public/sw.js',
   disable: process.env.NODE_ENV === 'development',
   register: true,
-  skipWaiting: true,
-  runtimeCaching: buildPwaRuntimeCaching(),
+  cacheOnNavigation: false,
 });
 
-export default pwaConfig(nextConfig);
+export default withSerwist(nextConfig);

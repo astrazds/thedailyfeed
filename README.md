@@ -2,7 +2,7 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.1.5`.
+Current release: `1.1.7`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 
@@ -25,19 +25,19 @@ The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, kee
 
 - Next.js 16 App Router
 - React 19
-- Node.js 24 LTS or newer
+- Node.js 24 LTS
 - TypeScript strict mode
 - Tailwind CSS v4
 - `rss-parser`, `date-fns`, `dompurify`
-- `next-pwa`
+- Serwist service worker tooling
 - Docker standalone output for self-hosting
 
 ## Quick Start
 
 Requirements:
 
-- Node.js 24 LTS or newer
-- pnpm 10.33.4 or newer
+- Node.js 24 LTS
+- pnpm 11.24.0 or newer within the pnpm 11 release line
 
 ```bash
 git clone https://repos.astrazds.net/astrazds/thedailyfeed.git

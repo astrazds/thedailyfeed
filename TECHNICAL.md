@@ -1,14 +1,14 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.5 implementation as of August 26, 2026.
+This document reflects the 1.1.7 implementation as of August 27, 2026.
 
 ## System Overview
 
 The Daily Feed is a Next.js App Router project with:
 
-- Next.js 16.2.10 and React 19.2.7
+- Next.js 16.3.3 and React 19.2.8
 - A client-driven UI for feed rendering and management
-- Node.js 24 LTS or newer as the supported server runtime
+- Node.js 24 LTS as the supported server runtime
 - Streaming feed retrieval with progressive per-feed updates
 - User-timezone-aware "today" filtering on the server
 - Per-feed in-memory cache (TTL-based)
@@ -171,18 +171,32 @@ Per-feed cache allows partial cache hits when feed sets change (add/remove feeds
   - serialized items
 - Only same-day snapshots are reused
 
-### Service Worker Runtime Caching (`next-pwa`)
+### Service Worker Runtime Caching (Serwist)
 
-Configured through the platform policy adapter in `next.config.ts` with runtime strategies, including:
+Configured in the typed `app/sw.ts` worker through the platform policy adapter in
+`lib/serwist-runtime-caching.ts`, with runtime strategies including:
 
 - Fonts
 - Images
 - Static JS/CSS
 - Exact-path `/api/feeds` runtime URL pattern (`NetworkOnly`, with no cache options or network-timeout fallback, sourced from `lib/platform-policy.ts` and preserving the feed-set route's `Cache-Control: no-store` policy)
 
-Verification note: `pnpm build` runs production compilation, then runs `scripts/verify-pwa-build.mts`. The contract requires `public/sw.js`, its referenced Workbox runtime assets, and an emitted runtime route that preserves the declared feed-set `/api/feeds` `NetworkOnly` policy from `lib/platform-policy.ts`.
+The exact feed-set route is registered first, limited to same-origin GET requests,
+and cannot match `/api/feeds/validate`. Serwist navigation caching is disabled;
+browser-local same-day snapshots remain the only offline feed response path.
 
-PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by `next.config.ts`: `/sw.js` and Workbox scripts are served as JavaScript with `no-cache, no-store, must-revalidate` and a worker-only CSP. `/manifest.webmanifest` is served as a web manifest with bounded revalidation, while `/_next/static/*` and `/_next/static/media/*` keep MIME sniffing disabled without changing Next's immutable asset caching.
+Verification note: `pnpm build` runs production compilation, then runs
+`scripts/verify-pwa-build.mts`. The contract requires a non-empty `public/sw.js`,
+no stale `next-pwa` Workbox runtime asset, and an emitted runtime route that
+preserves the declared feed-set `/api/feeds` `NetworkOnly` policy from
+`lib/platform-policy.ts`.
+
+PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by
+`next.config.ts`: `/sw.js` is served as JavaScript with `no-cache, no-store,
+must-revalidate` and a worker-only CSP. `/manifest.webmanifest` is served as a
+web manifest with bounded revalidation, while `/_next/static/*` and
+`/_next/static/media/*` keep MIME sniffing disabled without changing Next's
+immutable asset caching.
 
 ## Feed Parsing Pipeline (`lib/rss.ts`)
 
@@ -326,16 +340,33 @@ Chunk types:
 ### Containerization
 
 - Multi-stage Docker build (`Dockerfile`)
-- Node.js 24 Alpine base image
+- Multi-architecture Node.js 24.19.0 / Alpine 3.24.1 base image pinned by OCI
+  index digest
+- pnpm 11.24.0 pinned across repository metadata, the Docker build, and CI
 - Standalone Next.js output used for runtime image
 - Runs as non-root user in final image
 - Compose hardens the runtime with a read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, process/resource limits, graceful shutdown, and tmpfs runtime scratch/cache paths
+
+### Dependency Toolchain Policy
+
+- pnpm 11's default one-day package maturity check, exotic-subdependency
+  blocking, and strict dependency-build behavior remain enabled.
+- `pnpm-workspace.yaml` uses `allowBuilds` to allow the Serwist CLI's required
+  `esbuild` binary setup while explicitly blocking `sharp` and `unrs-resolver`
+  lifecycle scripts. Patched compatible transitive overrides keep full and
+  production audits clear.
+- Node stays on the reviewed Node 24 LTS line. `@types/node` stays on 24,
+  TypeScript stays on 5.9, and ESLint stays on 9 until the corresponding Node
+  26, TypeScript 7, and ESLint 10 integrations are supported by this Next.js
+  toolchain.
 
 ### Compose / Traefik
 
 - Runtime config in `compose.yml`
 - `scripts/deploy-compose.sh` derives and exports `APP_VERSION` and `APP_COMMIT` before running Compose
-- Forgejo CI runs lint, tests, Next/PWA build, and a daemonless Docker image build
+- Forgejo workflows pin the checkout action by full SHA with credential
+  persistence disabled. CI runs lint, tests, Next/PWA build, and a daemonless
+  Docker image build.
 - Container log rotation configured via Docker `json-file` logging driver
 - Traefik labels parameterized via:
   - `TRAEFIK_DOMAIN`
@@ -398,8 +429,15 @@ pnpm test
 pnpm build
 ```
 
-`pnpm exec tsc --noEmit` checks both application code and `.mts` tests; `allowImportingTsExtensions` is enabled because this project is typechecked without emitting JavaScript. `pnpm build` performs Next.js production typechecking and includes the PWA artifact contract; a missing service worker, missing referenced Workbox runtime asset, or missing declared `/api/feeds` `NetworkOnly` runtime route fails the build.
+`pnpm exec tsc --noEmit` checks both application code and `.mts` tests;
+`allowImportingTsExtensions` is enabled because this project is typechecked
+without emitting JavaScript. `pnpm build` performs Next.js production
+typechecking and includes the PWA artifact contract; a missing or empty service
+worker, a stale Workbox runtime asset, or a missing declared `/api/feeds`
+`NetworkOnly` runtime route fails the build.
 
-Next.js 16 uses Turbopack by default for `pnpm dev`. Production builds intentionally pass `--webpack` because `next-pwa` injects webpack configuration.
+Next.js 16 uses Turbopack by default for `pnpm dev`. Production builds
+intentionally pass `--webpack` because `@serwist/next` injects the typed service
+worker through webpack.
 
 In restricted environments, `pnpm build` may require external network access for font fetch during build-time optimization.
