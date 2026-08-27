@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.1.8 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.1.9 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
 
@@ -87,7 +87,7 @@ image buildability, container health, routing, or production acceptance.
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.1.8` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.9` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
@@ -307,11 +307,32 @@ or route failure stops without automatic rollback. Using the preserved
 rollback image is a separate recovery action requiring fresh approval. The
 workflow must not be dispatched as part of CI or runner setup.
 
+### Deployment credential rotation
+
+`SRV1_DEPLOY_KEY` is a dedicated SSH deployment credential, not a signing key.
+Its unencrypted Ed25519 private key exists only as the Forgejo repository secret;
+SRV1 stores only the matching public key. Rotate both sides as one bounded
+operation:
+
+1. Generate a new key pair in a mode-0700 temporary directory without printing
+   either key body.
+2. Replace the repository Actions secret with the complete private key.
+3. Replace only this service's `authorized_keys` entry with the public key,
+   prefixed by `restrict,command="/usr/local/sbin/thedailyfeed-ci-deploy"`.
+4. Verify that `authorized_keys` remains mode 0600, exactly one matching entry
+   exists, and the root-owned forced command still matches the tracked script.
+5. Confirm an invalid command is rejected without changing Git or container
+   state, then run the normal manual production workflow and delete the
+   temporary key pair after it succeeds.
+
+Never retain the private key on SRV1, add it to runner state, print it in logs,
+or weaken the forced-command restrictions during rotation.
+
 After updating, compare `env.template` and the runtime configuration table above
 for newly introduced variables before recreating the container. This release
-repairs relative article-image URLs and narrows Serwist runtime caching to the
-exact feed-set route plus bounded cross-origin image requests. It adds no runtime
-variable, API or storage-schema change, and requires no server-side data
+corrects the service-worker CSP so the existing bounded cross-origin image route
+can load HTTP(S) publisher images. It does not widen the page CSP, add a runtime
+variable, change an API or storage schema, or require a server-side data
 migration. Browser feed preferences and same-day offline snapshots remain
 client-local.
 

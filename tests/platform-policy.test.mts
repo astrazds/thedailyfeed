@@ -47,6 +47,13 @@ test('platform policy declares Feed set no-store and distinct route and asset he
   const serviceWorkerHeaders = headersFor(surfaces.get('service-worker')?.headers ?? []);
   assert.equal(serviceWorkerHeaders.get('Content-Type'), 'application/javascript; charset=utf-8');
   assert.equal(serviceWorkerHeaders.get('Cache-Control'), 'no-cache, no-store, must-revalidate');
+  const serviceWorkerCsp = serviceWorkerHeaders.get('Content-Security-Policy') ?? '';
+  assert.match(serviceWorkerCsp, /(?:^|; )default-src 'self'(?:;|$)/);
+  assert.match(serviceWorkerCsp, /(?:^|; )script-src 'self'(?:;|$)/);
+  assert.match(serviceWorkerCsp, /(?:^|; )img-src https: http:(?:;|$)/);
+  assert.match(serviceWorkerCsp, /(?:^|; )worker-src 'self'(?:;|$)/);
+  assert.match(serviceWorkerCsp, /(?:^|; )object-src 'none'(?:;|$)/);
+  assert.match(serviceWorkerCsp, /(?:^|; )base-uri 'none'(?:;|$)/);
 
   const manifestHeaders = headersFor(surfaces.get('manifest')?.headers ?? []);
   assert.equal(manifestHeaders.get('Content-Type'), 'application/manifest+json; charset=utf-8');

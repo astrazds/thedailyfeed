@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.8 implementation as of August 27, 2026.
+This document reflects the 1.1.9 implementation as of August 27, 2026.
 
 ## System Overview
 
@@ -196,10 +196,11 @@ preserves the declared feed-set `/api/feeds` `NetworkOnly` policy from
 
 PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by
 `next.config.ts`: `/sw.js` is served as JavaScript with `no-cache, no-store,
-must-revalidate` and a worker-only CSP. `/manifest.webmanifest` is served as a
-web manifest with bounded revalidation, while `/_next/static/*` and
-`/_next/static/media/*` keep MIME sniffing disabled without changing Next's
-immutable asset caching.
+must-revalidate` and a worker-only CSP. That CSP keeps scripts and workers
+same-origin while allowing intercepted image destinations to load directly over
+HTTP(S). `/manifest.webmanifest` is served as a web manifest with bounded
+revalidation, while `/_next/static/*` and `/_next/static/media/*` keep MIME
+sniffing disabled without changing Next's immutable asset caching.
 
 ## Feed Parsing Pipeline (`lib/rss.ts`)
 
