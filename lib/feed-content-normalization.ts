@@ -1,6 +1,85 @@
 const EMBEDDED_HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 const SAFE_DIRECTIONS = new Set(['ltr', 'rtl', 'auto']);
 
+type FeedContentUrlKind = 'image' | 'link';
+type FeedContentAttributes = Readonly<Record<string, string>>;
+
+const IMAGE_PROTOCOLS = new Set(['http:', 'https:']);
+const LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
+function validatedBaseUrl(value: string | null): URL | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function normalizeFeedContentUrl(
+  value: string,
+  baseUrl: string | null,
+  kind: FeedContentUrlKind
+): string | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  try {
+    const normalizedUrl = new URL(trimmedValue, validatedBaseUrl(baseUrl));
+    const allowedProtocols = kind === 'image' ? IMAGE_PROTOCOLS : LINK_PROTOCOLS;
+
+    return allowedProtocols.has(normalizedUrl.protocol) ? normalizedUrl.href : null;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeFeedContentAttributes(
+  tagName: string,
+  attributes: FeedContentAttributes,
+  baseUrl: string | null
+): Record<string, string> | null {
+  const normalizedAttributes = Object.fromEntries(
+    Object.entries(attributes).filter(([name]) => (
+      !name.startsWith('on')
+      && name !== 'style'
+      && name !== 'srcset'
+      && name !== 'href'
+      && name !== 'src'
+      && name !== 'target'
+    ))
+  );
+  const normalizedTagName = tagName.toLowerCase();
+
+  if (normalizedTagName === 'a') {
+    const href = normalizeFeedContentUrl(attributes.href ?? '', baseUrl, 'link');
+    if (href) {
+      normalizedAttributes.href = href;
+      normalizedAttributes.rel = 'nofollow';
+    } else {
+      delete normalizedAttributes.rel;
+    }
+  }
+
+  if (normalizedTagName === 'img') {
+    const src = normalizeFeedContentUrl(attributes.src ?? '', baseUrl, 'image');
+    if (!src) {
+      return null;
+    }
+
+    normalizedAttributes.src = src;
+    normalizedAttributes.alt ??= '';
+  }
+
+  return normalizedAttributes;
+}
+
 export function normalizeEmbeddedHeadingLevels(sourceLevels: number[]): number[] {
   if (sourceLevels.length === 0) {
     return [];
@@ -39,10 +118,26 @@ export function normalizeFeedContentDirection(value: string): string | null {
   return SAFE_DIRECTIONS.has(normalizedValue) ? normalizedValue : null;
 }
 
-export function normalizeSanitizedFeedContent(root: Element): void {
-  for (const link of Array.from(root.querySelectorAll('a[href]'))) {
-    link.removeAttribute('target');
-    link.setAttribute('rel', 'nofollow');
+export function normalizeSanitizedFeedContent(root: Element, baseUrl: string | null): void {
+  for (const element of Array.from(root.querySelectorAll('*'))) {
+    const normalizedAttributes = normalizeFeedContentAttributes(
+      element.localName,
+      Object.fromEntries(
+        Array.from(element.attributes, (attribute) => [attribute.name, attribute.value])
+      ),
+      baseUrl
+    );
+    if (!normalizedAttributes) {
+      element.remove();
+      continue;
+    }
+
+    for (const attribute of Array.from(element.attributes)) {
+      element.removeAttribute(attribute.name);
+    }
+    for (const [name, value] of Object.entries(normalizedAttributes)) {
+      element.setAttribute(name, value);
+    }
   }
 
   for (const element of Array.from(root.querySelectorAll('[lang]'))) {

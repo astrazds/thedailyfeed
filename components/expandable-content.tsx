@@ -1,16 +1,13 @@
 'use client';
 
 import { useId, useState, useMemo } from 'react';
-import DOMPurify, { type UponSanitizeAttributeHook } from 'dompurify';
+import DOMPurify from 'dompurify';
 import { CONTENT_TRUNCATE_LENGTH } from '@/lib/constants';
 import { FEED_CONTENT_SANITIZER_CONFIG } from '@/lib/feed-content-sanitizer-policy';
-import {
-  normalizeFeedContentDirection,
-  normalizeFeedContentLanguage,
-  normalizeSanitizedFeedContent,
-} from '@/lib/feed-content-normalization';
+import { normalizeSanitizedFeedContent } from '@/lib/feed-content-normalization';
 
 interface ExpandableContentProps {
+  baseUrl?: string | null;
   content: string;
   maxLength?: number;
 }
@@ -18,37 +15,6 @@ interface ExpandableContentProps {
 interface TruncatedHtmlResult {
   html: string;
   truncated: boolean;
-}
-
-const preserveLanguageAndDirection: UponSanitizeAttributeHook = (
-  _element,
-  hookEvent
-) => {
-  const normalizedValue = hookEvent.attrName === 'lang'
-    ? normalizeFeedContentLanguage(hookEvent.attrValue)
-    : hookEvent.attrName === 'dir'
-      ? normalizeFeedContentDirection(hookEvent.attrValue)
-      : undefined;
-
-  if (normalizedValue === undefined) {
-    return;
-  }
-
-  if (normalizedValue === null) {
-    hookEvent.keepAttr = false;
-    return;
-  }
-
-  hookEvent.attrValue = normalizedValue;
-  hookEvent.forceKeepAttr = true;
-};
-
-function normalizeSanitizedHtml(html: string): string {
-  const root = document.createElement('div');
-  root.innerHTML = html;
-  normalizeSanitizedFeedContent(root);
-
-  return root.innerHTML;
 }
 
 function truncateAtWordBoundary(text: string, maxChars: number): string {
@@ -65,17 +31,11 @@ function truncateAtWordBoundary(text: string, maxChars: number): string {
   return slice.trimEnd();
 }
 
-function truncateHtmlSafely(html: string, maxLength: number): TruncatedHtmlResult {
-  if (typeof window === 'undefined') {
-    return { html, truncated: false };
-  }
-
+function truncateHtmlSafely(sourceRoot: Element, maxLength: number): TruncatedHtmlResult {
   if (!Number.isFinite(maxLength) || maxLength <= 0) {
-    return { html: '', truncated: html.trim().length > 0 };
+    return { html: '', truncated: sourceRoot.childNodes.length > 0 };
   }
 
-  const sourceRoot = document.createElement('div');
-  sourceRoot.innerHTML = html;
   let remaining = maxLength;
   let truncated = false;
 
@@ -176,34 +136,41 @@ export function DisclosureButton({
   );
 }
 
-export function ExpandableContent({ content, maxLength = CONTENT_TRUNCATE_LENGTH }: ExpandableContentProps) {
+export function ExpandableContent({
+  baseUrl = null,
+  content,
+  maxLength = CONTENT_TRUNCATE_LENGTH,
+}: ExpandableContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentId = useId();
   
   // Sanitize HTML content to prevent XSS attacks
-  const sanitizedContent = useMemo(() => {
-    if (typeof window === 'undefined') return content;
-    
-    DOMPurify.addHook('uponSanitizeAttribute', preserveLanguageAndDirection);
-    let cleanHtml: string;
-    try {
-      cleanHtml = DOMPurify.sanitize(content, {
-        ...FEED_CONTENT_SANITIZER_CONFIG,
-      });
-    } finally {
-      DOMPurify.removeHook('uponSanitizeAttribute', preserveLanguageAndDirection);
+  const processedContent = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return {
+        sanitized: content,
+        truncated: { html: content, truncated: false },
+      };
     }
 
-    return normalizeSanitizedHtml(cleanHtml);
-  }, [content]);
+    const fragment = DOMPurify.sanitize(content, {
+      ...FEED_CONTENT_SANITIZER_CONFIG,
+      RETURN_DOM_FRAGMENT: true,
+    });
+    const root = document.createElement('div');
+    root.append(fragment);
+    normalizeSanitizedFeedContent(root, baseUrl);
 
-  const truncatedContent = useMemo(
-    () => truncateHtmlSafely(sanitizedContent, maxLength),
-    [sanitizedContent, maxLength]
-  );
+    return {
+      sanitized: root.innerHTML,
+      truncated: truncateHtmlSafely(root, maxLength),
+    };
+  }, [baseUrl, content, maxLength]);
 
   const displayContent =
-    isExpanded || !truncatedContent.truncated ? sanitizedContent : truncatedContent.html;
+    isExpanded || !processedContent.truncated.truncated
+      ? processedContent.sanitized
+      : processedContent.truncated.html;
 
   return (
     <div>
@@ -214,7 +181,7 @@ export function ExpandableContent({ content, maxLength = CONTENT_TRUNCATE_LENGTH
         dangerouslySetInnerHTML={{ __html: displayContent }}
       />
       
-      {truncatedContent.truncated && (
+      {processedContent.truncated.truncated && (
         <DisclosureButton
           controlsId={contentId}
           isExpanded={isExpanded}

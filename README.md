@@ -2,7 +2,7 @@
 
 A focused RSS reader for today's articles.
 
-Current release: `1.1.7`.
+Current release: `1.1.8`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
 
@@ -190,13 +190,17 @@ The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
 - The app does not log raw client IPs by default. Structured logs redact configured secret fields and remove credentials, query strings, and fragments from URL values.
 - The app keeps controls that the proxy cannot provide: outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` responses, the service worker's exact-path feed-set policy, and metrics authentication.
 - Feed validation and parsing use one aggregate `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delays, and retries. Per-attempt `FEED_TIMEOUT_MS` remains a narrower socket/fetch safeguard and is not renewed by redirects.
-- Feed HTML is sanitized with DOMPurify before rendering. Safe language and text-direction metadata is preserved and validated, while embedded headings are normalized beneath each article title.
+- Feed HTML is sanitized with DOMPurify before rendering. Image and link URLs are resolved against the validated article URL and then restricted by element to safe protocols; images without a publisher-provided description receive `alt=""`. Safe language and text-direction metadata is preserved and validated, while embedded headings are normalized beneath each article title.
 - Long article HTML is truncated with DOM-aware logic so tags remain balanced.
 - API responses use `Cache-Control: no-store`.
 - The service-worker runtime URL pattern matches only the feed-set pathname
   `/api/feeds` and uses `NetworkOnly`, with no cache options or network-timeout
   fallback. It does not match `/api/feeds/validate`; browser-local same-day
-  snapshots, not a PWA response cache, provide offline fallback.
+  snapshots, not a PWA response cache, provide offline fallback. A separate
+  bounded `StaleWhileRevalidate` route matches only cross-origin requests whose
+  browser request destination is `image`; build assets remain precached and no
+  other API, page, script, style, font, or same-origin asset runtime route is
+  registered.
 - Production metrics require bearer authentication and always use `Cache-Control: no-store`.
 
 ## Deployment

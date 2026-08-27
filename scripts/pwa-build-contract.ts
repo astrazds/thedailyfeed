@@ -13,6 +13,13 @@ export type PwaBuildContractResult = {
     readonly handler: string;
     readonly method: string;
   };
+  readonly remoteImageRuntimeCache: {
+    readonly cacheName: string;
+    readonly handler: string;
+    readonly maxAgeSeconds: number;
+    readonly maxEntries: number;
+    readonly method: string;
+  };
 };
 
 type PwaBuildContractOptions = {
@@ -21,7 +28,7 @@ type PwaBuildContractOptions = {
 };
 
 type RecordedStrategy = {
-  readonly name: 'CacheFirst' | 'NetworkOnly' | 'StaleWhileRevalidate';
+  readonly name: 'NetworkOnly' | 'StaleWhileRevalidate';
   readonly options?: unknown;
 };
 
@@ -40,7 +47,6 @@ function assertFeedSetRuntimeCache(
 ): PwaBuildContractResult['feedSetRuntimeCache'] {
   const runtimeCaching = buildSerwistRuntimeCaching<RecordedStrategy>(
     {
-      cacheFirst: (options) => ({ name: 'CacheFirst', options }),
       networkOnly: () => ({ name: 'NetworkOnly' }),
       staleWhileRevalidate: (options) => ({ name: 'StaleWhileRevalidate', options }),
     },
@@ -49,7 +55,7 @@ function assertFeedSetRuntimeCache(
   const feedSetUrl = new URL(policy.feedSet.route, 'https://thedailyfeed.test');
   const validationUrl = new URL(`${policy.feedSet.route}/validate`, 'https://thedailyfeed.test');
   const matchingRoutes = runtimeCaching.filter((route) =>
-    route.matcher({ sameOrigin: true, url: feedSetUrl })
+    route.matcher({ request: { destination: '' }, sameOrigin: true, url: feedSetUrl })
   );
 
   assert.equal(policy.feedSet.cacheControl, 'no-store');
@@ -59,7 +65,11 @@ function assertFeedSetRuntimeCache(
   assert.equal(feedSetRoute.method, 'GET');
   assert.deepEqual(feedSetRoute.handler, { name: 'NetworkOnly' });
   assert.equal(
-    feedSetRoute.matcher({ sameOrigin: true, url: validationUrl }),
+    feedSetRoute.matcher({
+      request: { destination: '' },
+      sameOrigin: true,
+      url: validationUrl,
+    }),
     false,
     'Feed-set runtime route must not match feed validation'
   );
@@ -68,6 +78,50 @@ function assertFeedSetRuntimeCache(
     route: policy.feedSet.route,
     handler: feedSetRoute.handler.name,
     method: feedSetRoute.method,
+  };
+}
+
+function assertRemoteImageRuntimeCache(
+  policy: PlatformPolicy
+): PwaBuildContractResult['remoteImageRuntimeCache'] {
+  const runtimeCaching = buildSerwistRuntimeCaching<RecordedStrategy>(
+    {
+      networkOnly: () => ({ name: 'NetworkOnly' }),
+      staleWhileRevalidate: (options) => ({ name: 'StaleWhileRevalidate', options }),
+    },
+    policy
+  );
+  const [, imageRoute] = runtimeCaching;
+
+  assert.ok(imageRoute, 'Serwist must register the cross-origin image runtime route');
+  assert.equal(imageRoute.method, 'GET');
+  assert.equal(
+    imageRoute.matcher({
+      request: { destination: 'image' },
+      sameOrigin: false,
+      url: new URL('https://media.example/extensionless?id=1'),
+    }),
+    true
+  );
+  assert.equal(
+    imageRoute.matcher({
+      request: { destination: 'image' },
+      sameOrigin: true,
+      url: new URL('https://thedailyfeed.test/local.png'),
+    }),
+    false
+  );
+  assert.deepEqual(imageRoute.handler, {
+    name: 'StaleWhileRevalidate',
+    options: policy.remoteFeedImages.options,
+  });
+
+  return {
+    cacheName: policy.remoteFeedImages.options.cacheName,
+    handler: imageRoute.handler.name,
+    maxAgeSeconds: policy.remoteFeedImages.options.expiration.maxAgeSeconds,
+    maxEntries: policy.remoteFeedImages.options.expiration.maxEntries,
+    method: imageRoute.method,
   };
 }
 
@@ -84,10 +138,15 @@ export function verifyPwaBuildContract(options: PwaBuildContractOptions = {}): P
     serviceWorker.includes(policy.feedSet.route),
     `Emitted Serwist worker must contain the ${policy.feedSet.route} runtime route`
   );
+  assert.ok(
+    serviceWorker.includes(policy.remoteFeedImages.options.cacheName),
+    'Emitted Serwist worker must contain the bounded cross-origin image cache'
+  );
 
   return {
     serviceWorkerPath,
     workerAssets: [serviceWorkerPath],
     feedSetRuntimeCache: assertFeedSetRuntimeCache(policy),
+    remoteImageRuntimeCache: assertRemoteImageRuntimeCache(policy),
   };
 }

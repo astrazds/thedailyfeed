@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.7 implementation as of August 27, 2026.
+This document reflects the 1.1.8 implementation as of August 27, 2026.
 
 ## System Overview
 
@@ -174,22 +174,25 @@ Per-feed cache allows partial cache hits when feed sets change (add/remove feeds
 ### Service Worker Runtime Caching (Serwist)
 
 Configured in the typed `app/sw.ts` worker through the platform policy adapter in
-`lib/serwist-runtime-caching.ts`, with runtime strategies including:
+`lib/serwist-runtime-caching.ts`, with exactly two GET runtime routes:
 
-- Fonts
-- Images
-- Static JS/CSS
-- Exact-path `/api/feeds` runtime URL pattern (`NetworkOnly`, with no cache options or network-timeout fallback, sourced from `lib/platform-policy.ts` and preserving the feed-set route's `Cache-Control: no-store` policy)
+- Same-origin exact-path `/api/feeds` first (`NetworkOnly`, with no cache options
+  or network-timeout fallback, sourced from `lib/platform-policy.ts` and
+  preserving the feed-set route's `Cache-Control: no-store` policy)
+- Cross-origin requests whose browser request destination is `image`
+  (`StaleWhileRevalidate`, bounded to 64 entries and one day)
 
 The exact feed-set route is registered first, limited to same-origin GET requests,
 and cannot match `/api/feeds/validate`. Serwist navigation caching is disabled;
 browser-local same-day snapshots remain the only offline feed response path.
+Build assets remain precached. There are no generic font, extension-based image,
+JavaScript, CSS, Next image-optimizer, API, or page runtime routes.
 
 Verification note: `pnpm build` runs production compilation, then runs
 `scripts/verify-pwa-build.mts`. The contract requires a non-empty `public/sw.js`,
 no stale `next-pwa` Workbox runtime asset, and an emitted runtime route that
 preserves the declared feed-set `/api/feeds` `NetworkOnly` policy from
-`lib/platform-policy.ts`.
+`lib/platform-policy.ts`, plus the named bounded cross-origin image cache.
 
 PWA asset headers are explicit in `lib/platform-policy.ts` and adapted by
 `next.config.ts`: `/sw.js` is served as JavaScript with `no-cache, no-store,
@@ -314,6 +317,13 @@ Chunk types:
 
 - Feed HTML is sanitized before rendering (`DOMPurify`)
 - Long feed HTML is truncated with DOM-aware logic to preserve valid markup
+- Sanitized image `src` and link `href` values are resolved against the item's
+  validated HTTP(S) article URL. Images retain only HTTP(S), links additionally
+  allow `mailto:`, and relative URLs without a valid base plus scriptable or
+  unsupported schemes fail closed.
+- Images without publisher-provided alt text receive `alt=""`; provided alt text
+  is preserved. Images without a valid source are removed, along with event
+  handlers, inline styles, and `srcset`.
 - Sanitized body links retain only `rel="nofollow"` and use normal same-tab navigation; article-title links use the same navigation behavior
 - Sanitized `lang` values are canonicalized with `Intl.Locale`, `dir` is limited to `ltr`, `rtl`, or `auto`, and invalid values are discarded
 - Embedded feed headings are normalized to `h3`–`h5` beneath each article title while preserving bounded source-relative depth

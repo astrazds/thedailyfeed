@@ -13,6 +13,16 @@ test('platform policy declares Feed set no-store and distinct route and asset he
   assert.equal(platformPolicy.feedSet.runtimeCache.handler, 'NetworkOnly');
   assert.equal(platformPolicy.feedSet.runtimeCache.urlPattern.test('https://thedailyfeed.test/api/feeds'), true);
   assert.equal(platformPolicy.feedSet.runtimeCache.urlPattern.test('https://thedailyfeed.test/api/feeds/validate'), false);
+  assert.deepEqual(platformPolicy.remoteFeedImages, {
+    handler: 'StaleWhileRevalidate',
+    options: {
+      cacheName: 'cross-origin-feed-images',
+      expiration: {
+        maxEntries: 64,
+        maxAgeSeconds: 86_400,
+      },
+    },
+  });
 
   const surfaces = new Map(platformPolicy.headerSurfaces.map((surface) => [surface.name, surface]));
 

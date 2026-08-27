@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers running The Daily Feed 1.1.7 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
+This guide covers running The Daily Feed 1.1.8 in production with Docker, Docker Compose, and a required trusted reverse proxy such as Traefik. Direct public internet exposure of the app container is unsupported.
 
 For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL.md).
 
@@ -24,7 +24,10 @@ Alpine 3.24.1 image, pinned by OCI index digest. It installs pnpm 11.24.0
 explicitly. The build runs `pnpm build`,
 which also verifies the Serwist PWA contract: a non-empty `public/sw.js`, no
 stale `next-pwa` Workbox runtime asset, and the declared same-origin GET-only
-`/api/feeds` `NetworkOnly` runtime route.
+`/api/feeds` `NetworkOnly` runtime route plus the named bounded cross-origin
+image cache. The only other runtime route is bounded
+`StaleWhileRevalidate` caching for cross-origin requests whose browser request
+destination is `image`; build assets are precached.
 
 ## Run with Compose
 
@@ -84,7 +87,7 @@ image buildability, container health, routing, or production acceptance.
 | `LOG_FORMAT` | `json` | Use JSON logs in production. |
 | `LOG_SERVICE_NAME` | `thedailyfeed` | Included in structured logs. |
 | `LOG_REDACT_FIELDS` | `authorization,cookie,set-cookie,password,token` | Case-insensitive fields redacted from log objects. |
-| `APP_VERSION` | `1.1.7` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.8` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Commit metadata in logs. |
 | `FEED_TIMEOUT_MS` | `10000` | Per-attempt upstream budget spanning DNS, redirects, and response streaming. |
 | `FEED_RETRY_COUNT` | `3` | Retry attempts for transient feed failures. |
@@ -306,10 +309,11 @@ workflow must not be dispatched as part of CI or runner setup.
 
 After updating, compare `env.template` and the runtime configuration table above
 for newly introduced variables before recreating the container. This release
-updates the application dependencies, service-worker tooling, package manager,
-container base, and CI checkout action. It adds no runtime variable, API or
-storage-schema change, and requires no server-side data migration. Browser feed
-preferences and same-day offline snapshots remain client-local.
+repairs relative article-image URLs and narrows Serwist runtime caching to the
+exact feed-set route plus bounded cross-origin image requests. It adds no runtime
+variable, API or storage-schema change, and requires no server-side data
+migration. Browser feed preferences and same-day offline snapshots remain
+client-local.
 
 ## Security Notes
 
@@ -318,13 +322,17 @@ preferences and same-day offline snapshots remain client-local.
 - Security headers are declared in `lib/platform-policy.ts` and adapted by `next.config.ts`.
 - API routes use `Cache-Control: no-store`.
 - The service-worker runtime URL pattern matches only `/api/feeds` and uses
-  `NetworkOnly`, with no cache options or network-timeout fallback.
+  `NetworkOnly`, with no cache options or network-timeout fallback. A separate
+  bounded route caches only cross-origin image-destination requests; it does not
+  cache another API, page, script, style, font, or same-origin asset at runtime.
 - Feed URL validation blocks non-HTTP(S) URLs.
 - Production SSRF protection blocks private, local, and special-use IP ranges unless `ALLOW_PRIVATE_NETWORKS=true`.
 - Each feed validation request has one `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delay, and retries.
 - Aborting an inbound validation request cancels its active outbound request and prevents subsequent retries.
-- Feed HTML is sanitized before rendering.
-- Rendered feed media is blocked by CSP; remote article images are allowed for feed content.
+- Feed HTML is sanitized before rendering. Its image and link URLs are resolved
+  against the validated article URL and restricted to their supported schemes.
+- Active feed media is blocked by CSP; sanitized HTTP(S) article images are
+  loaded directly by the browser without an application image proxy.
 - Production feed ingress rate limiting, public IP access logs, request body limits, edge TLS, and ingress timeouts are proxy-owned.
 - Cache and metrics state are process-local and reset on restart.
 

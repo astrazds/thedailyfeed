@@ -30,7 +30,11 @@ export const FeedItemComponent = memo(function FeedItemComponent({ item }: FeedI
       
       {item.contentHtml ? (
         <div className="mb-4">
-          <ExpandableContent content={item.contentHtml} maxLength={CONTENT_MAX_LENGTH} />
+          <ExpandableContent
+            baseUrl={safeArticleLink}
+            content={item.contentHtml}
+            maxLength={CONTENT_MAX_LENGTH}
+          />
         </div>
       ) : item.description ? (
         <p className="mb-4" style={{ lineHeight: '1.8', color: 'var(--foreground)' }}>

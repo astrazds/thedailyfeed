@@ -6,7 +6,7 @@ function runCli(): void {
   const result = verifyPwaBuildContract();
 
   console.log(
-    `PWA build artifacts verified: sw.js and ${result.feedSetRuntimeCache.route} ${result.feedSetRuntimeCache.method} ${result.feedSetRuntimeCache.handler} runtime route`
+    `PWA build artifacts verified: sw.js, ${result.feedSetRuntimeCache.route} ${result.feedSetRuntimeCache.method} ${result.feedSetRuntimeCache.handler}, and bounded ${result.remoteImageRuntimeCache.handler} cross-origin image runtime routes`
   );
 }
 

@@ -29,20 +29,20 @@ export type FeedSetPlatformPolicy = {
   readonly runtimeCache: FeedSetRuntimeCachePolicy;
 };
 
+export type RemoteFeedImageRuntimeCachePolicy = {
+  readonly handler: 'StaleWhileRevalidate';
+  readonly options: PwaRuntimeCachingOptions;
+};
+
 export type PlatformPolicy = {
   readonly feedSet: FeedSetPlatformPolicy;
+  readonly remoteFeedImages: RemoteFeedImageRuntimeCachePolicy;
   readonly headerSurfaces: readonly PlatformHeaderSurfacePolicy[];
 };
 
 export type NextHeaderRule = {
   source: string;
   headers: PlatformHeader[];
-};
-
-export type PwaRuntimeCachingEntry = {
-  readonly urlPattern: RegExp;
-  readonly handler: 'CacheFirst' | 'StaleWhileRevalidate' | 'NetworkOnly';
-  readonly options?: PwaRuntimeCachingOptions;
 };
 
 export type PwaRuntimeCachingOptions = {
@@ -163,6 +163,16 @@ export const platformPolicy = {
       handler: 'NetworkOnly',
     },
   },
+  remoteFeedImages: {
+    handler: 'StaleWhileRevalidate',
+    options: {
+      cacheName: 'cross-origin-feed-images',
+      expiration: {
+        maxEntries: 64,
+        maxAgeSeconds: 24 * 60 * 60,
+      },
+    },
+  },
   headerSurfaces: [
     {
       name: 'baseline',
@@ -210,90 +220,4 @@ export function buildNextHeaderRules(policy: PlatformPolicy = platformPolicy): N
       value: header.value,
     })),
   }));
-}
-
-export function buildPwaRuntimeCaching(policy: PlatformPolicy = platformPolicy): PwaRuntimeCachingEntry[] {
-  return [
-    {
-      urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
-      handler: 'CacheFirst',
-      options: {
-        cacheName: 'google-fonts-webfonts',
-        expiration: {
-          maxEntries: 4,
-          maxAgeSeconds: 365 * 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: /^https:\/\/fonts\.(?:googleapis)\.com\/.*/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'google-fonts-stylesheets',
-        expiration: {
-          maxEntries: 4,
-          maxAgeSeconds: 7 * 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'static-font-assets',
-        expiration: {
-          maxEntries: 4,
-          maxAgeSeconds: 7 * 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp|avif)$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'static-image-assets',
-        expiration: {
-          maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: /\/_next\/image\?url=.+$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'next-image',
-        expiration: {
-          maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: /\.(?:js)$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'static-js-assets',
-        expiration: {
-          maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: /\.(?:css|less)$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'static-style-assets',
-        expiration: {
-          maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60,
-        },
-      },
-    },
-    {
-      urlPattern: policy.feedSet.runtimeCache.urlPattern,
-      handler: policy.feedSet.runtimeCache.handler,
-    },
-  ];
 }

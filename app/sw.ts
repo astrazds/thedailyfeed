@@ -1,6 +1,5 @@
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig, Strategy } from 'serwist';
 import {
-  CacheFirst,
   ExpirationPlugin,
   NetworkOnly,
   Serwist,
@@ -21,11 +20,6 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const strategies: SerwistStrategyFactory<Strategy> = {
-  cacheFirst: ({ cacheName, expiration }) =>
-    new CacheFirst({
-      cacheName,
-      plugins: [new ExpirationPlugin(expiration)],
-    }),
   networkOnly: () => new NetworkOnly(),
   staleWhileRevalidate: ({ cacheName, expiration }) =>
     new StaleWhileRevalidate({
