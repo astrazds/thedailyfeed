@@ -126,6 +126,8 @@ Match the proof to the change:
 
 Keep the testing architecture smaller than the behavior it protects:
 
+Tautological tests considered harmful.
+
 - Prefer extending an existing test or validator over creating another harness.
 - Assert observable outcomes and durable safety invariants, not exact source
   text, documentation wording, internal command sequences, or third-party
