@@ -41,7 +41,7 @@ Requirements:
 - pnpm 11.24.0 or newer within the pnpm 11 release line
 
 ```bash
-git clone https://repos.astrazds.net/astrazds/thedailyfeed.git
+git clone https://github.com/astrazds/thedailyfeed.git
 cd thedailyfeed
 pnpm install
 pnpm dev

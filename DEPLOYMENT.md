@@ -14,7 +14,7 @@ For application behavior and module architecture, see [`TECHNICAL.md`](TECHNICAL
 ## Build the Image
 
 ```bash
-git clone https://repos.astrazds.net/astrazds/thedailyfeed.git
+git clone https://github.com/astrazds/thedailyfeed.git
 cd thedailyfeed
 docker build -t thedailyfeed:latest .
 ```
