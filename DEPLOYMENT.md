@@ -236,7 +236,15 @@ only the application service with:
 
 The local verification sequence is optional when the deployment host only builds through Docker, because the image build runs the production Next/PWA build again. Running it before deployment provides earlier feedback for lint, application and test type errors, unit tests, and generated PWA artifacts.
 
-## Forgejo CI
+## Continuous Integration
+
+GitHub Actions runs `.github/workflows/ci.yml` for pushes to `main` and pull
+requests. It checks synchronized version metadata, installs from the frozen
+lockfile with Node.js 24 and pnpm 11.24.0, then runs lint, TypeScript, tests,
+and the Next/PWA build. The workflow has read-only repository permissions and
+does not publish an image or deploy the service.
+
+### Forgejo CI
 
 Pushes to `main`, pull requests, and manual non-production runs share the
 user-scoped `srv1-ci` pool. Two persistent runners provide one job each. The
@@ -245,7 +253,7 @@ writable state, and each runner reaches only its own rootless BuildKit v0.25.1
 sidecar. Neither runner has the host Docker socket, a production filesystem
 mount, privileged mode, or a production credential.
 
-All workflows use one tracked gate:
+Both Forgejo workflows use one tracked gate:
 
 ```bash
 ./scripts/verify-ci.sh
