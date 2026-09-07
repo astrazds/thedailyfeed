@@ -2,6 +2,10 @@
 
 A focused RSS reader for today's articles.
 
+[Live site](https://dailyfeed.astrazds.net) · [MIT license](LICENSE)
+
+[![CI](https://github.com/astrazds/thedailyfeed/actions/workflows/ci.yml/badge.svg)](https://github.com/astrazds/thedailyfeed/actions/workflows/ci.yml)
+
 Current release: `1.1.11`.
 
 The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
