@@ -19,7 +19,7 @@ Avoid tests that merely assert source text or duplicate the implementation.
 Release metadata is synchronized with `pnpm version:check`. Maintainers bump
 release-worthy changes once with `pnpm version:bump patch` (or the appropriate
 SemVer component) after implementation stabilizes. Do not bump for documentation
-or test-only changes. No script grants permission to publish or deploy.
+or test-only changes.
 
 In the pull request, describe what changed, why, and how it was verified.
 Keep unrelated formatting and dependency changes separate. Contributions remain

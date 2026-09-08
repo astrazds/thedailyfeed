@@ -20,10 +20,9 @@ There are no accounts, unread counts, or subscriptions to a service.
 </p>
 
 The screenshot shows the actual application with synthetic content.
-[Optional live demonstration](https://dailyfeed.astrazds.net/) ·
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.1.12`.
+Current release: `1.1.13`.
 
 ## Install and self-host
 
@@ -105,6 +104,6 @@ After `pnpm build` and `pnpm exec playwright install chromium`, run
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [TECHNICAL.md](TECHNICAL.md) for contribution guidance, private security reporting,
-and the public JSON/NDJSON contracts. Workstation SSH deployment is covered in
+and the public JSON/NDJSON contracts. Self-hosting and updates are covered in
 [DEPLOYMENT.md](DEPLOYMENT.md). Application code is [MIT licensed](LICENSE);
 Roboto Serif retains its [SIL Open Font License](public/fonts/OFL.txt).

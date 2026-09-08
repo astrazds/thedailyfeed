@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.12 implementation as of September 8, 2026.
+This document reflects the 1.1.13 implementation as of September 8, 2026.
 
 ## System Overview
 
@@ -33,9 +33,8 @@ the bump command.
 Run the bump once after an eligible change set stabilizes and before the final
 repository gate. CI runs `version:check` before compilation and tests, but only
 enforces valid synchronized metadata; deciding whether a change is
-release-worthy and which component it requires remains an agent/reviewer
-judgment. Neither command grants permission to stage, commit, tag, push,
-dispatch CI, or deploy.
+release-worthy and which component it requires remains a maintainer decision.
+The version commands only validate or update local release metadata.
 
 ## Runtime Architecture
 
@@ -300,7 +299,7 @@ Chunk types:
 - Modal handles CRUD and client-side OPML import/export without a duplicate footer action or build-version label consuming mobile height
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, cancellation restores the originating Delete button, confirmed deletion moves focus to the feed-list heading, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
-- `runFeedManagerOperation` in `lib/feed-storage.ts` loads once, applies and persists one mutation, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes
+- `runFeedManagerOperation` in `lib/feed-storage.ts` applies mutations to current storage after URL validation, persists the result, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes. Manual additions also check capacity before validation
 - `lib/feed-manager-operations.ts` preserves the former import interface as a compatibility re-export
 
 ### Feed Stream Lifecycle
@@ -340,7 +339,7 @@ Chunk types:
 
 ### Request Protection
 
-- Production deployments must run behind Traefik or an equivalent trusted reverse proxy
+- Production deployments must run behind a trusted reverse proxy
 - The reverse proxy owns public client IP access logs, ingress rate limits, request body limits, TLS, and ingress timeouts
 - Direct public internet exposure of the Next.js app container is unsupported
 - The app retains outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` behavior, the PWA's exact-path feed-set `NetworkOnly` policy, and production metrics auth
@@ -376,8 +375,8 @@ Chunk types:
   blocking, and strict dependency-build behavior remain enabled.
 - `pnpm-workspace.yaml` uses `allowBuilds` to allow the Serwist CLI's required
   `esbuild` binary setup while explicitly blocking `sharp` and `unrs-resolver`
-  lifecycle scripts. Patched compatible transitive overrides keep full and
-  production audits clear.
+  lifecycle scripts. Transitive overrides pin compatible fixes for selected
+  dependencies.
 - Node stays on the reviewed Node 24 LTS line. `@types/node` stays on 24,
   TypeScript stays on 5.9, and ESLint stays on 9 until the corresponding Node
   26, TypeScript 7, and ESLint 10 integrations are supported by this Next.js
@@ -393,18 +392,16 @@ Chunk types:
   tests, Next/PWA build, synthetic browser smoke tests, and an unpublished Docker build.
 - Actions are pinned by commit SHA with credential persistence disabled.
   CI has no production credentials and does not deploy.
-- An approved operator deploys over workstation SSH through the Compose wrapper,
-  using administrator-owned production Compose configuration and an explicit
-  project name. The operator verifies the exact GitHub main tip and its successful
-  CI run, preserves the prior image, and checks health, metadata and runtime
-  invariants as described in [DEPLOYMENT.md](DEPLOYMENT.md). The wrapper only
-  derives metadata and invokes Compose; it does not enforce these operator checks.
-  Failures retain private logs and never trigger automatic rollback.
+- Deployments use the Compose wrapper with the selected source revision and
+  installation configuration. The wrapper derives metadata and invokes Compose;
+  release selection, backups, health checks, and recovery are separate deployment
+  tasks. See [DEPLOYMENT.md](DEPLOYMENT.md).
 - Reverse proxies own TLS and ingress limits and must disable response buffering
   for progressive NDJSON. The portable host-installed Nginx example hides metrics
   at ingress while the application retains bearer authentication.
-- Host-specific topology belongs in external administrator-owned Compose files.
-  Production activation and recovery remain separate approval boundaries.
+- Custom Compose configuration can adapt the network and proxy topology while
+  preserving runtime hardening. Keep host-specific configuration out of version
+  control.
 
 ### Environment
 
@@ -458,9 +455,11 @@ This mode starts a local Next.js dev server and exercises API endpoints (`/api/f
 - `/api/feeds/validate` is unauthenticated and depends on the production reverse proxy for ingress admission controls; admitted validation work is independently bounded by `FEED_OVERALL_TIMEOUT_MS` and inbound cancellation. `/api/metrics` requires bearer auth in production
 - Some upstream feeds can intermittently return malformed XML; retry logic reduces impact but cannot eliminate source-side errors
 
-## Architecture Review
+## Architecture Decisions
 
-The repository-wide complexity review and its verification evidence are recorded in [`docs/architecture-complexity-sweep.md`](docs/architecture-complexity-sweep.md). It also lists candidates that were deliberately deferred because their current seams earn locality or because a safe change requires stronger security or React race coverage.
+[Architecture decisions](docs/architecture-decisions.md) explains the module
+boundaries for feed management, progress events, network validation, and client
+lifecycle state.
 
 ## Verification Commands
 

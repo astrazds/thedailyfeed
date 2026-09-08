@@ -8,8 +8,7 @@ it without posting vulnerability details in a public issue.
 Include the affected commit or release, expected behavior, impact, and a minimal
 reproduction using synthetic data. Never send working credentials, private feed
 URLs, complete environments, browser subscriptions, or captured article bodies.
-Do not test against the hosted demonstration or third-party publishers without
-permission. There is no guaranteed response time or paid bounty program.
+Only test instances and feed endpoints you own or have permission to assess. There is no guaranteed response time or paid bounty program.
 
 Security fixes target the latest release. Self-hosters should review updates and
 run behind a trusted HTTPS reverse proxy with rate and request-body limits.

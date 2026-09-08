@@ -59,6 +59,8 @@ next-env.d.ts
 *~
 
 # Repository metadata and local agent tooling
+.backpass
+.backpassrc.json
 .git
 .github
 .gitignore
@@ -75,6 +77,10 @@ CLAUDE.md
 GEMINI.md
 .cursorrules
 skills-lock.json
+
+# Python validation artifacts
+__pycache__
+*.pyc
 
 # Docker and deployment-only files
 Dockerfile

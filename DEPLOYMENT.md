@@ -1,6 +1,6 @@
 # Deployment
 
-This guide covers running The Daily Feed 1.1.12 in production with source-built containers and a trusted HTTPS reverse proxy.
+This guide covers running The Daily Feed 1.1.13 in production with source-built containers and a trusted HTTPS reverse proxy.
 
 ## Portable Compose hosting
 
@@ -15,8 +15,8 @@ The template contains no credentials or release overrides.
 The wrapper derives `APP_VERSION` from `package.json` and `APP_COMMIT` from Git,
 then builds and starts only `thedailyfeed`. Source archives without Git report
 `unknown` for the commit. Compose binds `127.0.0.1:${APP_PORT:-3000}:3000` and
-creates a private project network. It has no public host port, fixed container
-name, external network dependency, proxy labels, or host timezone mounts.
+creates a private project network. The default configuration is independent of
+any hosting provider or proxy network.
 
 The image runs as `nextjs` with a read-only root filesystem, dropped
 capabilities, no-new-privileges, CPU/memory/PID limits, tmpfs scratch and cache,
@@ -27,7 +27,7 @@ Configure DNS and provision an HTTPS certificate for your hostname using your
 chosen ACME client. Install [deploy/nginx.conf](deploy/nginx.conf) inside a
 host-installed Nginx `http {}` context, replace the example hostname and
 certificate paths, and adjust its loopback upstream if `APP_PORT` differs.
-Validate with `nginx -t` before your approved reload. Certificate issuance,
+Validate with `nginx -t` before reloading Nginx. Certificate issuance,
 renewal and proxy lifecycle belong to the host administrator.
 
 The example redirects HTTP to HTTPS, allows TLS 1.2/1.3, limits request bodies
@@ -45,7 +45,7 @@ proxy error logs, which can include request details, and configure log rotation.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `APP_PORT` | `3000` | Loopback host port; container port stays 3000. |
-| `APP_VERSION` | `1.1.12` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.1.13` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Set by the deployment wrapper from Git. |
 | `TZ` | `UTC` | Container timezone. |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` | Operational logging. |
@@ -64,231 +64,93 @@ and send it only in an `Authorization: Bearer` header from trusted tooling.
 Never use query-string tokens. Keep the ingress restriction as defense in depth.
 Local/development `RATE_LIMIT_*` settings do not replace production ingress limits.
 
-## GitHub CI
+## Updating an installation
 
-[CI](.github/workflows/ci.yml) is the only GitHub workflow. It uses GitHub-hosted
-Ubuntu runners, reviewed action commit SHAs, read-only repository permissions,
-and checkout credential persistence disabled. It receives no production
-credentials and never deploys. `scripts/verify-ci.sh` performs frozen installation,
-version validation, lint, TypeScript, unit tests, Next/PWA build, synthetic
-Chromium smoke tests, and one unpublished Docker build. No registry publishing
-is configured.
+Choose a release or commit that has passed the repository's
+[CI checks](.github/workflows/ci.yml). Keep a record of the currently deployed
+commit and image so you can return to that version if an update fails. Preserve
+local environment files and any custom proxy or Compose configuration.
 
-## Workstation SSH deployment
-
-Deploy from the operator's workstation through an existing SSH connection with
-an independently trusted host key. Keep strict host-key checking enabled; never
-use live `ssh-keyscan` as a trust source. If SSH cannot connect, stop. Changing
-ports, firewalls, runners or VPNs requires separate approval.
-
-Finish and review source changes locally, run the applicable repository gate,
-and obtain action-time approval before committing or pushing. The complete
-`scripts/verify-ci.sh` gate needs Node 24, pinned pnpm, dependency/browser
-installation and an unpublished container build; approve those effects before
-running it. Require a successful **CI** run for the exact reviewed 40-character
-SHA on `main`, and verify that SHA is still GitHub's current `main` tip. A green
-run for another SHA is insufficient. Keep the existing release for the deployment
-mechanism retirement; application code and release metadata are unchanged.
-
-Before any production action, review its exact scope and get approval. Record
-privately the target host, checkout, administrator-owned Compose file, environment
-file, project/container identity, prior image ID, expected runtime settings and
-approved SHA. Use one operator/session at a time; prevent overlapping activation
-and retired deployment jobs through the maintenance arrangement. Prepare all
-commands and acceptance comparisons before stopping the application.
-
-For routine updates, require a clean tracked/untracked checkout, expected GitHub
-origin, and `main` branch. Fetch main and fast-forward only to the approved SHA;
-stop on local changes, divergence, or a changed main tip. Preserve ignored files.
-Use the fresh-install procedure below only when checkout replacement is approved.
-
-Run the wrapper from the target checkout over workstation SSH. Set
-`production_compose` to the existing administrator-owned absolute Compose path
-outside the checkout. Use that file alone, preserving its topology; do not merge
-the portable loopback Compose default into an existing proxy-managed deployment.
-The production environment file must already exist with mode 600. Clear inherited
-release overrides so the wrapper derives metadata from the reviewed source:
+Update the source checkout to the chosen revision, review changes to
+`env.template` and `compose.yml`, then run from the checkout:
 
 ```bash
-set -eu
-: "${production_compose:?Set the reviewed absolute production Compose path}"
-case "$production_compose" in /*) ;; *) exit 1 ;; esac
-test -f "$production_compose"
-test -f .env.production
-test "$(stat -c %a .env.production)" = 600
-unset APP_VERSION APP_COMMIT
+./scripts/deploy-compose.sh --wait --wait-timeout 180 thedailyfeed
+```
+
+The wrapper builds the application and updates only its service, using
+`--no-deps`. It derives release metadata and invokes Compose; it does not select
+a release, check CI, back up configuration, or implement rollback. A container
+replacement can briefly interrupt active requests. The process-local cache and
+metrics reset on restart; browser subscriptions and snapshots are unaffected.
+
+### Custom Compose configuration
+
+The supplied `compose.yml` supports a reverse proxy on the same host through a
+loopback port. Other topologies can use a separate Compose file. Preserve the
+runtime hardening, restrict application access to the trusted proxy, and retain
+your installation's project name and network configuration during updates.
+
+The wrapper accepts a single Compose file through `COMPOSE_FILE` and an
+environment file through `ENV_FILE`. For example, with paths chosen for your
+installation:
+
+```bash
 COMPOSE_PROJECT_NAME=thedailyfeed \
-COMPOSE_FILE="$production_compose" \
-ENV_FILE="$PWD/.env.production" \
+COMPOSE_FILE=/etc/thedailyfeed/compose.yml \
+ENV_FILE=/etc/thedailyfeed/environment \
   ./scripts/deploy-compose.sh --wait --wait-timeout 180 thedailyfeed
 ```
 
-The explicit project name is passed through Compose's environment. The wrapper
-uses the checkout as the project directory, builds source and starts only the
-named service with `--no-deps`. Wait options are forwarded to Compose. The wrapper
-does not verify GitHub CI, preserve images, serialize operators, or compare
-runtime invariants; those are operator steps in this runbook.
+Run this from the source checkout. The wrapper sets that directory as Compose's
+project directory. Ensure the custom configuration uses the intended build
+context and environment variables. Keep credentials and host-specific files
+out of version control.
 
-## Fresh-install preparation and acceptance
+## Checking an installation
 
-This procedure deliberately introduces application downtime. Browser-local
-subscriptions and same-day snapshots remain in the browser; no server-side
-subscription migration is needed. Do not open the reader or request external
-feeds as part of acceptance.
+After an install or update:
 
-### Prepare before the maintenance window
+- Confirm the container becomes healthy and serves the homepage through your
+  HTTPS reverse proxy.
+- Verify that `APP_VERSION` and `APP_COMMIT` identify the intended source.
+- Confirm the application remains non-root, with a read-only filesystem,
+  dropped capabilities, resource limits, tmpfs scratch space, and bounded logs.
+- Check that only the intended proxy can reach the application and that request
+  limits and unbuffered streaming remain configured.
+- Keep `ALLOW_PRIVATE_NETWORKS=false`. Metrics should remain unavailable unless
+  you deliberately configure bearer authentication and restrict access.
 
-1. Complete local verification and approved publication, then record the exact
-   successful CI run and current main SHA. Confirm the release matches this guide's
-   version header and `package.json`. Do not start
-   downtime with publication, verification, or installation steps unresolved.
-2. With production-inspection approval, inspect the target through its own host.
-   Confirm the checkout is `/home/astrazds/docker/thedailyfeed`, is a real directory
-   rather than a symlink, and has no nested mounts. Confirm clean tracked state
-   and account for every untracked and ignored file before deletion. The planning
-   snapshot counted **60 ignored files**, including environment files and local
-   tooling; recount at action time instead of treating 60 as current evidence.
-   Do not print filenames that contain sensitive data or file contents.
-3. Record the administrator-owned production Compose path outside the checkout
-   and its protected ownership/mode. Preserve project `thedailyfeed`, the existing
-   container name, sole external network `traefik_proxy`, no host ports and
-   existing Traefik ingress labels/TLS ownership. Compare effective configuration
-   privately; use `docker compose config --quiet` for syntax validation and a
-   filtered comparison for invariants. Never print the full resolved Compose
-   configuration or container environment.
-4. Obtain approval for protected copies and image preservation. Create a new,
-   non-symlink server-side preservation directory outside the checkout with mode
-   700 and `umask 077`. Keep environment files, ignored tooling, other local files
-   and private deployment logs there as individual protected files, retaining
-   relative paths. Include logs under `.git`, which an ignored-file inventory
-   alone will miss. Preserve all local files rather than deciding some are
-   disposable. Do not create temporary archives or transfer secrets to the
-   workstation. Keep the preservation directory and its parents outside the
-   deletion target, inaccessible to other users.
-5. Verify the copies by private source/destination inventory and byte comparisons
-   (for example, silent `cmp` for regular files); compare link targets and file
-   types separately without following links outside the reviewed scope. Verify
-   counts, owner and permissions. Report only counts and pass/fail; never print
-   secret contents or hashes. Stop for missing files, special files, unexplained
-   changes or failed comparisons. Recheck immediately before deletion; if local
-   files changed, repeat preservation under approval before continuing.
-6. Record the running container's immutable image ID and protect it with a unique
-   local tag for separately approved recovery. Verify that tag resolves to the
-   same image ID. Preserve any older recovery tag/image. Keep private build and
-   failure logs outside the checkout with mode 600. Confirm the approved SSH and
-   GitHub clone access, Docker/Compose/Buildx availability, external Compose build
-   context and `.env.production` path, sufficient disk space, and an acceptance
-   deadline before downtime. Do not register credentials or pull/build images
-   merely to perform this preflight.
+Use the same Compose file, environment file, and project name for inspection
+that you used for deployment. Avoid sharing resolved environments, credentials,
+raw logs, or private feed content when reporting a problem.
 
-The maintenance approval must name the reviewed SHA, preservation directory,
-external Compose path, existing container name, image tag, checkout deletion and
-reclone path, environment restoration, source/container build, activation and
-acceptance probes. State that recovery is excluded unless separately approved.
+## Recovery and data
 
-### Execute during the approved window
+Before updating, retain the previous source revision and image along with a
+protected copy of local configuration. If an update fails, inspect the container
+health and relevant logs, then restore the previous application version using
+your deployment tooling. Check health and proxy access again after recovery.
+Do not weaken feed URL validation, metrics authentication, or container controls
+to make a failing version start.
 
-1. Recheck successful CI for the approved SHA and that it remains the current
-   GitHub main tip. Recheck protected copies, prior image preservation and target
-   identity. Stop before deletion if any prerequisite differs.
-2. Stop and remove only the recorded `thedailyfeed` container, using its verified
-   container identity. Do not use project-wide `down`, remove networks or volumes,
-   restart the proxy, or affect another service.
-3. From the checkout's parent directory, delete only the verified real directory
-   `/home/astrazds/docker/thedailyfeed`, after the final copy comparison. Clone
-   `https://github.com/astrazds/thedailyfeed.git` afresh into that exact path with
-   branch `main`. Require the cloned HEAD, fetched origin/main and current remote
-   main tip to equal the approved SHA, and recheck successful CI for that SHA.
-   Stop if main advanced; do not substitute a different release or reset to an
-   arbitrary commit. Keep clone output in the protected log.
-4. Restore only `.env.production` from its verified protected copy with mode 600
-   and the intended deployment-user ownership; verify bytes silently. Keep all
-   preserved local tooling and historical private logs outside the fresh checkout.
-   Require clean tracked/untracked Git state and the reviewed release version.
-5. Revalidate the external Compose configuration and reviewed invariants privately.
-   Confirm main has not moved, then run the wrapper command above with explicit
-   project `thedailyfeed`, the external production Compose file, and the restored
-   environment file. Build from the fresh source and retain its private log.
-   Require the bounded health wait to succeed.
-6. Compare the new container against the recorded acceptance criteria below.
-   Report only bounded metadata and pass/fail. Stop if any check fails.
-7. Make exactly one approved HTTPS `GET /`, require status 200, discard the body,
-   and use no redirects or retries. Set `homepage_url` privately to the existing
-   HTTPS origin with path `/` and no credentials, query or fragment. Disable curl
-   config files so local defaults cannot add retries, redirects or extra requests:
+Keep recovery scoped to this application. Removing shared networks, volumes,
+or proxy services can disrupt other applications on the same host.
 
-   ```bash
-   homepage_status="$(curl --disable --silent --output /dev/null \
-     --request GET --max-time 30 --connect-timeout 10 \
-     --proto '=https' --tlsv1.2 --write-out '%{http_code}' "$homepage_url")"
-   homepage_result=$?
-   [ "$homepage_result" -eq 0 ] && [ "$homepage_status" = 200 ] || exit 1
-   printf 'homepage_status=%s\n' "$homepage_status"
-   ```
+The server has no subscription database to migrate or back up. Readers can
+export OPML to preserve their subscriptions. Clearing browser site data removes
+subscriptions, snapshots, and PWA caches; replacing the server does not transfer
+that browser data to another device. See [PRIVACY.md](PRIVACY.md).
 
-### Container acceptance criteria
+## Build verification
 
-Compare values privately on the target host; do not emit raw `docker inspect`,
-resolved Compose output, labels, environments or logs. Only the release version,
-commit, bounded container/image identifiers, health and check results are needed.
+[scripts/verify-ci.sh](scripts/verify-ci.sh) is the portable verification entry
+point used by [GitHub Actions](.github/workflows/ci.yml). It requires Node 24,
+the pinned pnpm release, Python 3, Docker/Compose/Buildx, and Chromium system
+dependencies. It installs dependencies and Chromium, validates release metadata,
+runs lint, type checks and tests, builds Next/PWA output, runs synthetic browser
+checks, and builds a local Docker image.
 
-- Health is `healthy` within the approved deadline; runtime `APP_VERSION` matches
-  `package.json` and this guide's header, and `APP_COMMIT` is the exact approved
-  SHA. The source checkout still
-  matches that SHA, and the active image is the image built from this checkout.
-- Container name and Compose project/service identity match the recorded target.
-  The sole network is `traefik_proxy`; no host ports are published. Ingress labels
-  match the preserved administrator-owned configuration, including TLS ownership.
-- Runtime user remains non-root (`nextjs`); the root filesystem is read-only,
-  privileged mode is off, all capabilities are dropped with none added, and
-  no-new-privileges is enabled.
-- CPU, memory and PID limits, restart policy, health-check settings, tmpfs scratch
-  mounts and bounded log settings match the reviewed production configuration.
-  No writable non-tmpfs mounts have appeared.
-- `ALLOW_PRIVATE_NETWORKS` remains `false`. Check metrics-token presence privately
-  if production metrics are configured; never print it or make a metrics request.
-  Existing ingress restrictions and request/streaming controls remain intact.
-
-On any failure, retain the prior image, protected files, new checkout/container
-and private logs as they stand and stop. Do not retry the homepage check, roll
-back, reclone again, weaken controls or remove investigation evidence without
-fresh approval for the exact recovery effects.
-
-### Retire unused deployment access after acceptance
-
-Only after every acceptance check succeeds, prepare the exact cleanup set and
-obtain action-time approval. Verify resource identities by names/fingerprints
-without displaying credential material:
-
-- Remove the unused GitHub `production` environment and its six environment
-  secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT`,
-  `DEPLOY_KNOWN_HOSTS`, and `DEPLOY_HOMEPAGE_URL`.
-- Identify and revoke both retired deployment keys at their authorization points,
-  verifying they are dedicated to the removed mechanism. Preserve current
-  workstation SSH and clone access. Do not infer key identities from filenames.
-- Remove only their dedicated installed server commands and unused deployment
-  JSON configuration, after confirming no remaining consumer. Preserve the
-  administrator-owned production Compose file and its directory.
-
-Verify removal by presence/count/status without printing secrets. Confirm CI
-remains the only GitHub workflow at the accepted SHA. Preserve the prior image,
-protected local files and logs, historical Forgejo repository, shared runners and
-unrelated services. Repository file removal alone does not revoke installed keys
-or remove an existing GitHub environment.
-
-## Operations and recovery
-
-Keep the deployment checkout clean. Store host-specific Compose configuration
-outside it and set an explicit project name to preserve existing service identity
-and topology. An existing proxy-managed deployment retains its network and omits
-host ports; TLS ownership stays with its proxy.
-
-Inspect health and metadata through the target host before reporting production
-state. Offline builds do not establish production acceptance. Each commit, push,
-credential action, production probe, deployment, cleanup or recovery requires
-operator approval; this runbook and scripts do not grant it.
-
-On failure, preserve the previous image, logs, browser data and investigation
-state. Review an exact component-specific recovery before using the preserved
-image. Do not run project-wide down, remove volumes/networks, prune images,
-restart the proxy, weaken SSRF or metrics controls, or automatically roll back.
+The supplied CI workflow uses read-only repository permissions and performs
+verification only. Deployment and registry publishing are not configured by the
+repository.

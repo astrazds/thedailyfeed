@@ -1,206 +1,87 @@
-# AGENTS.md
+# The Daily Feed
 
-> **North Star:** Choose the simplest, smallest design that safely meets the requirement.
+A self-hosted Next.js RSS reader for today's articles, using the reader's
+timezone. Subscriptions and offline reading belong to the browser profile.
 
-## Mission and documentation
+## Project references
 
-Maintain The Daily Feed, a self-hosted Next.js RSS reader that streams today's
-items from browser-selected feeds. Keep the product small, local-first, and
-safe around untrusted feed URLs, XML, and article HTML.
+Read the sections relevant to the change rather than loading every document:
 
-`README.md` covers product use and public interfaces. `TECHNICAL.md` is the
-authority for application architecture and runtime contracts.
-`DEPLOYMENT.md` is the production runbook. Documents describe boundaries and
-procedures; they never grant permission for an external or production action.
+- [README.md](README.md): product behavior, development setup, and public interfaces.
+- [TECHNICAL.md](TECHNICAL.md): architecture, API contracts, security, and testing.
+- [DEPLOYMENT.md](DEPLOYMENT.md): production topology, deployment, and recovery.
 
-## Workspace
+## Where changes belong
 
-- Develop in a normal local GitHub checkout. Production checkouts are deployment
-  targets, not development workspaces. Inspect each target through its own host
-  when an approved operation requires authoritative runtime evidence.
-- Inspect Git before and after work. Preserve unrelated tracked, untracked,
-  ignored, secret, generated, and runtime state. Never stage files, add a
-  remote, commit, push, deploy, or activate production unless the user asks
-  for that exact action.
+- `app/api/feeds/`: feed-set and validation routes; keep route admission shared.
+- `lib/feed-request.ts`: cache/missing-feed orchestration. Fetching and parsing
+  live in `lib/feed-fetcher.ts` and `lib/rss.ts`; extend that pipeline.
+- `lib/feed-response-adapter.ts` and `lib/feed-stream-parser.ts`: server wire
+  serialization and client validation of untrusted JSON/NDJSON.
+- `lib/feed-set-lifecycle.ts`: progressive results, terminal states, and offline
+  persistence. `components/use-feed-stream.ts` connects this lifecycle to React.
+- `lib/feed-storage.ts`: subscriptions and complete feed-manager mutations.
+  `lib/feed-manager-operations.ts` is only a compatibility re-export.
+- `components/` and `app/globals.css`: reader UI and styling.
+- `app/sw.ts` and `lib/serwist-runtime-caching.ts`: service-worker behavior.
 
-## Authorization
+## Product and safety boundaries
 
-- Requests to review, diagnose, explain, or plan authorize inspection and
-  reporting only. Do not edit files or mutate local, external, or production
-  state.
-- Requests to change, build, or fix authorize only the requested repository
-  edits and relevant non-destructive offline validation.
-- Require fresh action-time approval naming the exact effects before every Git
-  commit or push; Docker or network lifecycle action; production probe,
-  deployment, or activation; external feed request or browser flow; secret,
-  token, or credential action; `ALLOW_PRIVATE_NETWORKS` change; destructive or
-  costly operation; or recovery action.
-- Historical evidence, a documented command, and prior approval are not
-  standing authorization. Stop and report when an external, production,
-  stateful, destructive, costly, or recovery effect was not approved exactly.
+- Keep subscriptions and same-day offline snapshots in browser `localStorage`,
+  and OPML import/export client-side. Server cache and metrics are disposable,
+  process-local state. Accounts, server persistence, and synchronization require
+  an explicit product scope change.
+- Preserve timezone-aware "today" filtering and distinct loading, partial,
+  completed, failed, and offline reader states.
+- Feed URLs, DNS answers, redirects, XML, article HTML, and transport chunks are
+  untrusted input. Preserve HTTP(S)-only fetching, destination and redirect
+  checks, production SSRF blocking, DOMPurify sanitization, and DOM-aware
+  truncation. Keep `ALLOW_PRIVATE_NETWORKS` false unless explicitly approved.
+- Preserve response-size limits, bounded concurrency and retries, cancellation,
+  and nested timeout budgets across DNS, redirects, streaming, and retry delays.
+- Preserve both `POST /api/feeds` JSON and progressive NDJSON contracts (`meta`,
+  `feed_result`, `done`, terminal `error`). Keep API responses `no-store`.
+  The service-worker feed route must match only `/api/feeds` and remain
+  `NetworkOnly`, without a timeout fallback or offline API response cache.
+- Real feed URLs, OPML, browser subscriptions, snapshots, captured content, and
+  logs can reveal reading habits or credentials. Use synthetic fixtures for
+  tests and screenshots; keep private material out of outputs and artifacts.
+- Production metrics require bearer authentication and stay disabled without
+  `METRICS_AUTH_TOKEN`. Trusted ingress owns TLS and admission controls;
+  preserve streaming and the hardened container defaults.
 
-## Sensitive data and local state
+## Validation
 
-- Treat `.env*`, metrics bearer credentials, feed URLs, OPML data,
-  browser-local subscriptions, offline snapshots, logs, and captured feed
-  content as sensitive. Keep real values out of source control, documentation,
-  image layers, temporary archives, and command output.
-- Inspect sensitive systems through the minimum metadata required: presence,
-  mode, owner, count, length, status, or bounded identifiers. Never print
-  credentials, complete environments, verbose headers, query strings, request
-  or response bodies, OPML bodies, subscription lists, snapshot contents, or
-  suspected leaked material.
-- `METRICS_AUTH_TOKEN` is required to expose production metrics. Never put it
-  in a URL, browser, source file, image layer, or log. Keep production metrics
-  behind trusted ingress as defense in depth.
-- `ALLOW_PRIVATE_NETWORKS` is a production SSRF escape hatch, not a routine
-  compatibility switch. Keep it false unless a separately reviewed and
-  explicitly approved private-feed requirement accepts the expanded boundary.
+The toolchain contract is in [package.json](package.json): Node 24 and the pinned
+pnpm release. Python 3 is also required for the independent XML tests.
 
-## Application and topology invariants
+- `pnpm test`: serial Node/tsx tests in `tests/`. Full API integration is opt-in
+  with `RUN_INTEGRATION_TESTS=true`; it starts a local Next.js server.
+- `pnpm lint` and `pnpm exec tsc --noEmit`: lint and application/test type checks.
+- `pnpm build`: production webpack build plus the PWA artifact check. Keep
+  webpack here because Serwist's service-worker injection depends on it.
+- `pnpm test:browser`: Playwright against production output, using the isolated
+  synthetic fixtures in `e2e/`. These block external requests and service workers,
+  so they do not prove live feed fetching or service-worker operation.
+- [scripts/verify-ci.sh](scripts/verify-ci.sh): complete gate before commit or
+  deployment. It installs dependencies and Chromium, runs the checks above,
+  and builds an unpublished Docker image.
+- Documentation-only changes need diff review, `git diff --check`, and checks
+  of referenced paths and claims; no application build or release bump.
 
-- Keep feed configuration, including subscriptions imported from OPML, and
-  same-day offline snapshots in browser `localStorage`; OPML import/export
-  remains client-side. Do not add an account, server-side subscription store,
-  or cross-device synchronization incidentally. Server cache and metrics
-  remain in-memory and process-local.
-- Treat feed URLs, DNS answers, redirects, XML, and article HTML as untrusted.
-  Preserve HTTP(S)-only validation, redirect revalidation, production SSRF
-  blocking for non-global destinations, credential-safe URL logging, DOMPurify
-  sanitization, DOM-aware truncation, and safe rendering.
-- Preserve bounded outbound work: one per-attempt timeout across DNS,
-  redirects, and response streaming; one aggregate feed or validation budget
-  across retry delays and retries; one request-wide missing-feed budget;
-  bounded concurrency; inbound cancellation; and bounded retry counts. Do not
-  add unbounded retries, silent fallback, or a second fetch path.
-- Preserve the `POST /api/feeds` JSON contract and progressive NDJSON stream
-  contract (`meta`, `feed_result`, `done`, and terminal `error` chunks).
-  Transport parsing remains a trust boundary, and stream responses must not be
-  buffered by production ingress.
-- Keep API responses `Cache-Control: no-store`. The service-worker runtime URL
-  pattern matches only the feed-set pathname `/api/feeds` and remains
-  `NetworkOnly`, with no cache options or network-timeout fallback; it must not
-  match `/api/feeds/validate` or create an offline API response cache.
-- Traefik or an equivalent trusted proxy owns public TLS, client-IP access
-  logs, ingress rate limits, request-body limits, and edge timeouts. Keep
-  metrics bearer authentication in the app. Do not expose the container
-  directly to the public internet or publish a host port incidentally.
-- Preserve the non-root runtime, read-only root filesystem, dropped
-  capabilities, no-new-privileges, resource/process limits, tmpfs scratch,
-  bounded logs, and health check. The public Compose default binds only
-  loopback and uses a Compose-managed network. Production-specific topology
-  belongs in administrator-owned configuration outside the checkout.
+## Releases and operations
 
-## Proportionate test-driven development
-
-Use red-green-refactor when a focused automated test is the clearest and
-cheapest proof of executable behavior. A failing regression test is required
-for defects in reusable code, authentication or security boundaries,
-request/response parsing, state transitions, retry or fallback behavior,
-secret handling, and other failures likely to recur.
-
-Match the proof to the change:
-
-- For documentation, declarative configuration, pinned values, and routine
-  operational changes, do not manufacture a unit test. Use exact diff review
-  and the existing parser, typecheck, Compose render, dry-run, preflight, or
-  focused runtime check that directly validates the change.
-- For new executable behavior, start with the smallest affected test, implement
-  the minimum change, and run only the impacted tests while iterating. Run the
-  complete repository gate once the change is ready for commit or deployment.
-- For exploratory provider behavior or failures visible only in production,
-  diagnose first with bounded evidence. Add the smallest offline regression
-  after the failure is understood; do not build speculative mocks beforehand.
-- For a refactor already covered by suitable tests, establish a green baseline
-  and preserve it. A new failing test is unnecessary unless behavior or
-  coverage changes.
-
-Keep the testing architecture smaller than the behavior it protects:
-
-Tautological tests considered harmful.
-
-- Prefer extending an existing test or validator over creating another harness.
-- Assert observable outcomes and durable safety invariants, not exact source
-  text, documentation wording, internal command sequences, or third-party
-  implementation details.
-- Test each rule once at the lowest stable boundary. Duplicate it across unit,
-  contract, rollout, and acceptance layers only when each layer catches a
-  distinct failure mode.
-- If the mocks, fixtures, or harness become larger or harder to understand than
-  the change, choose a smaller seam or a more direct validation method.
-- Do not create a permanent rollout framework for a one-time change.
-
-Production acceptance is separate from unit testing. Run live, paid, browser,
-network, authentication, or destructive checks only when the corresponding
-boundary changed, and retain each repository's existing authorization,
-fail-closed, and bounded-call requirements.
-
-## Versioning
-
-- Treat `package.json` as the sole release-version authority. Keep its stable
-  `MAJOR.MINOR.PATCH` version synchronized with Compose's `APP_VERSION`
-  fallback, README's current release, the technical-document version header,
-  and the deployment-guide header and runtime-default table.
-- Bump release-worthy user-visible behavior, runtime behavior, security fixes,
-  compatible operational changes, and deployable dependency updates. Skip
-  documentation-only, test-only, CI-only, agent-guidance, non-behavioral
-  refactor, and unchanged-redeployment work.
-- Use patch for fixes and compatible operational or dependency changes, minor
-  for backward-compatible features, and major only for intentionally breaking
-  changes with explicit approval. When several eligible changes ship together,
-  apply the highest required component once.
-- After implementation stabilizes but before the final repository gate, run
-  `pnpm version:bump <patch|minor|major>` and include its synchronized edits in
-  the same eventual commit. Run `pnpm version:check` to validate metadata
-  without changing it.
-- Stop on version drift instead of guessing or silently repairing it. CI
-  enforces valid synchronized metadata only; release eligibility and bump size
-  remain agent/reviewer judgments.
-- Version automation grants no permission to stage, commit, tag, push,
-  dispatch CI, deploy, or perform any other external or production action.
-
-## Validation, deployment, and recovery
-
-- Use Node 24 and the packageManager-pinned pnpm in a native checkout or a
-  fresh staging copy containing only source files, never local credentials.
-- Use focused tests while iterating. Before commit or deployment, run
-  `scripts/verify-ci.sh`: frozen install, version check, lint, TypeScript,
-  unit tests, Next/PWA build, isolated synthetic browser tests, and an
-  unpublished container build. Container validation requires explicit approval.
-- For documentation-only work, use exact allowlisted diff review,
-  `git diff --check`, relative-link validation, and static comparison with the
-  source/configuration it describes. Do not run pnpm, builds, Compose
-  lifecycle, external feed requests, browser flows, production probes, or
-  deployment merely to validate documentation.
-- Offline validation is not production activation. An approved deployment uses
-  `scripts/deploy-compose.sh` so `APP_VERSION` and `APP_COMMIT` are populated,
-  and recreates only `thedailyfeed`. Preserve the target's existing network and unrelated infrastructure. Do not use project-wide
-  `down`, remove networks or volumes, prune images, or restart Traefik as part
-  of a routine application deployment.
-- An approved deployment may perform only the component-specific rollback
-  named in its approval. Otherwise preserve the prior image, logs, browser
-  data, and investigation evidence; stop and report until exact manual
-  recovery effects are approved. Recovery must not weaken SSRF, metrics,
-  ingress, container, or network controls.
-
-## GitHub CI and workstation deployment
-
-- CI is the only GitHub workflow. It uses GitHub-hosted runners and the portable
-  verification script. Pin actions by reviewed SHA; disable checkout credential
-  persistence. CI never receives production credentials or deploys.
-- Deploy from the operator's workstation over SSH with an independently trusted
-  host key and the existing Compose wrapper. Never use live keyscan as a trust
-  source. Require the reviewed SHA to equal the current GitHub main tip and have
-  successful CI before activation; stop if the tip changes.
-- Use administrator-owned production Compose configuration outside the checkout
-  and an explicit project name. Serialize operations, preserve the prior image,
-  check health and runtime invariants, and retain private failure logs outside
-  the checkout. The wrapper does not enforce these operator checks.
-- Before an approved fresh installation deletes a checkout, preserve environment
-  files, ignored local tooling and private logs outside it with protected modes;
-  verify the copies without displaying contents. Restore only the production
-  environment file, with mode 600. Follow [DEPLOYMENT.md](DEPLOYMENT.md).
-- Credential changes, environment removal, publication, production inspection,
-  fresh installation, the single HTTPS homepage check, and recovery need
-  action-time approval. Failed SSH reachability never authorizes firewall, port,
-  runner, or VPN changes.
+- `package.json` owns the release version. After deployable changes stabilize,
+  run `pnpm version:bump <patch|minor|major>` before the final gate; this updates
+  the synchronized markers. Use patch for fixes and compatible dependency or
+  operational changes, minor for features, and major for approved breaking
+  changes. Documentation, tests, CI, agent guidance, and non-behavioral refactors
+  do not require a bump. `pnpm version:check` detects drift; do not repair it by
+  guessing. See [release versioning](TECHNICAL.md#release-versioning).
+- GitHub Actions verifies the source and has no production access. Deployment
+  uses `scripts/deploy-compose.sh`; [DEPLOYMENT.md](DEPLOYMENT.md) documents the
+  portable setup and custom Compose options. Preserve the installation's service
+  identity and unrelated services, networks, and volumes during updates.
+- Keep personal development procedures, hostnames, server paths, deployment
+  history, and credentials out of public documentation. Use example domains and
+  portable instructions; document application contracts and requirements.

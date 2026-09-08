@@ -19,6 +19,8 @@
 /.playwright-mcp/
 
 # AI agent local configuration and prompts
+/.backpass/
+/.backpassrc.json
 /.agents/
 /.codex/
 /.claude/
