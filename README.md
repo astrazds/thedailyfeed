@@ -79,7 +79,7 @@ appears. Private-network feeds are blocked in production by default.
 
 ## Development
 
-Use Node 24, pnpm 11.24.0, and Python 3 (the offline XML and deployment tests).
+Use Node 24, pnpm 11.24.0, and Python 3 (the offline XML tests).
 
 ```bash
 corepack enable
@@ -105,6 +105,6 @@ After `pnpm build` and `pnpm exec playwright install chromium`, run
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [TECHNICAL.md](TECHNICAL.md) for contribution guidance, private security reporting,
-and the public JSON/NDJSON contracts. Optional GitHub deployment setup is in
+and the public JSON/NDJSON contracts. Workstation SSH deployment is covered in
 [DEPLOYMENT.md](DEPLOYMENT.md). Application code is [MIT licensed](LICENSE);
 Roboto Serif retains its [SIL Open Font License](public/fonts/OFL.txt).

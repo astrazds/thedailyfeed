@@ -388,15 +388,17 @@ Chunk types:
 - `compose.yml` is a portable, hardened source-build default with loopback-only
   port publication and a normal Compose-managed network.
 - `scripts/deploy-compose.sh` derives source metadata and starts only the app.
-- GitHub-hosted CI and the manual deployment verification job share
+- GitHub-hosted CI is the sole Actions workflow and runs
   `scripts/verify-ci.sh`: frozen install, version check, lint, TypeScript, unit
   tests, Next/PWA build, synthetic browser smoke tests, and an unpublished Docker build.
 - Actions are pinned by commit SHA with credential persistence disabled.
-  PR verification has no production secrets. Only the separately approved
-  production-environment job receives the restricted SSH deployment credential.
-- The installed forced command reads administrator-owned configuration outside
-  the checkout, requires a clean fast-forward to the exact GitHub main tip,
-  preserves the prior image, and checks health, metadata and runtime invariants.
+  CI has no production credentials and does not deploy.
+- An approved operator deploys over workstation SSH through the Compose wrapper,
+  using administrator-owned production Compose configuration and an explicit
+  project name. The operator verifies the exact GitHub main tip and its successful
+  CI run, preserves the prior image, and checks health, metadata and runtime
+  invariants as described in [DEPLOYMENT.md](DEPLOYMENT.md). The wrapper only
+  derives metadata and invokes Compose; it does not enforce these operator checks.
   Failures retain private logs and never trigger automatic rollback.
 - Reverse proxies own TLS and ingress limits and must disable response buffering
   for progressive NDJSON. The portable host-installed Nginx example hides metrics
@@ -489,4 +491,4 @@ browser storage, blocked service workers, intercepted synthetic API responses,
 and blocked external requests. Desktop and narrow projects exercise reader
 rendering, hostile HTML sanitization, OPML round-tripping and manager recovery.
 The same fixtures generate README screenshots; there is no production demo API.
-Python 3 provides an independent XML parser and isolated deployment-command tests.
+Python 3 provides an independent XML parser for OPML round-trip checks.

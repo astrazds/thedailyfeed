@@ -183,22 +183,24 @@ fail-closed, and bounded-call requirements.
   recovery effects are approved. Recovery must not weaken SSRF, metrics,
   ingress, container, or network controls.
 
-## GitHub CI and optional deployment
+## GitHub CI and workstation deployment
 
-- CI and manual deployment use GitHub-hosted runners and the same portable
+- CI is the only GitHub workflow. It uses GitHub-hosted runners and the portable
   verification script. Pin actions by reviewed SHA; disable checkout credential
-  persistence. PR verification never receives production credentials.
-- Deployment is manual-only on main, requires the repository owner as both
-  initiating and rerunning actor, and exact `deploy-production` confirmation.
-- Verify the dispatch SHA in a credential-free job. Only the deployment job
-  uses the production environment, configured for main, required owner review,
-  permitted self-review, and disabled administrator bypass.
-- Keep deployment keys, connection details, and pinned known-host entries in
-  environment secrets. Never use live keyscan as a trust source.
-- Install the forced command and its configuration as administrator-owned
-  files. Accept only `deploy <40-character SHA>`, require the exact origin main
-  tip and a clean fast-forward, serialize activation, preserve the prior image,
-  check health and runtime invariants, and retain private failure logs.
-- Credential registration, environment changes, publication, dispatch, the
-  single HTTPS homepage check, and recovery need action-time approval. Failed
-  SSH reachability never authorizes firewall, port, runner, or VPN changes.
+  persistence. CI never receives production credentials or deploys.
+- Deploy from the operator's workstation over SSH with an independently trusted
+  host key and the existing Compose wrapper. Never use live keyscan as a trust
+  source. Require the reviewed SHA to equal the current GitHub main tip and have
+  successful CI before activation; stop if the tip changes.
+- Use administrator-owned production Compose configuration outside the checkout
+  and an explicit project name. Serialize operations, preserve the prior image,
+  check health and runtime invariants, and retain private failure logs outside
+  the checkout. The wrapper does not enforce these operator checks.
+- Before an approved fresh installation deletes a checkout, preserve environment
+  files, ignored local tooling and private logs outside it with protected modes;
+  verify the copies without displaying contents. Restore only the production
+  environment file, with mode 600. Follow [DEPLOYMENT.md](DEPLOYMENT.md).
+- Credential changes, environment removal, publication, production inspection,
+  fresh installation, the single HTTPS homepage check, and recovery need
+  action-time approval. Failed SSH reachability never authorizes firewall, port,
+  runner, or VPN changes.
