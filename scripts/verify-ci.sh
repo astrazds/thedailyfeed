@@ -48,8 +48,8 @@ else
 fi
 pnpm test:browser
 
-artifact_dir="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/thedailyfeed-image.XXXXXX")"
-trap 'rm -rf "$artifact_dir"' EXIT HUP INT TERM
-docker buildx build --output "type=docker,dest=$artifact_dir/image.tar" .
-[ -s "$artifact_dir/image.tar" ] || fail "Docker did not produce an image archive"
+# The default Docker driver builds into its local image store without a registry push.
+image_ref="thedailyfeed-ci:$APP_COMMIT"
+docker build --tag "$image_ref" .
+docker image inspect "$image_ref" >/dev/null
 printf 'verification status=success\n'
