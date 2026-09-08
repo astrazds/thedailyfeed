@@ -60,7 +60,7 @@ next-env.d.ts
 
 # Repository metadata and local agent tooling
 .git
-.forgejo
+.github
 .gitignore
 .agents
 .codex
@@ -83,10 +83,12 @@ compose*.yml
 compose*.yaml
 docker-compose*.yml
 docker-compose*.yaml
-docker-build.sh
 scripts/deploy-compose.sh
 
 # Documentation
 *.md
 docs
 .tmp/
+
+e2e
+playwright.config.ts

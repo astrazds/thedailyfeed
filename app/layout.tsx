@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { Roboto_Serif } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const robotoSerif = Roboto_Serif({
+const robotoSerif = localFont({
   variable: "--font-roboto-serif",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  src: [
+    { path: "../public/fonts/roboto-serif-400.ttf", weight: "400", style: "normal" },
+    { path: "../public/fonts/roboto-serif-500.ttf", weight: "500", style: "normal" },
+    { path: "../public/fonts/roboto-serif-600.ttf", weight: "600", style: "normal" },
+    { path: "../public/fonts/roboto-serif-700.ttf", weight: "700", style: "normal" },
+  ],
   display: 'swap', // Improve font loading performance
 });
 

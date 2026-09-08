@@ -78,3 +78,6 @@ public/swe-worker-*.js.map
 
 # next-agents-md
 .next-docs/
+
+# Python offline validation
+__pycache__/

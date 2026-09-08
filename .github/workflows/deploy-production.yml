@@ -1,0 +1,104 @@
+name: Deploy production
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Production branch
+        type: choice
+        options: [main]
+        required: true
+      confirmation:
+        description: Type deploy-production
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: >-
+      github.ref == 'refs/heads/main' && inputs.branch == 'main' &&
+      inputs.confirmation == 'deploy-production' &&
+      github.repository == 'astrazds/thedailyfeed' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: true
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - name: Check out exact commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Activate pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.24.0 --activate
+      - name: Run complete verification gate
+        run: ./scripts/verify-ci.sh
+  deploy:
+    needs: verify
+    if: >-
+      github.ref == 'refs/heads/main' && inputs.branch == 'main' &&
+      inputs.confirmation == 'deploy-production' &&
+      github.repository == 'astrazds/thedailyfeed' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment: production
+    steps:
+      - name: Deploy exact dispatched commit
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]]
+          [ -n "$DEPLOY_KEY" ] && [ -n "$DEPLOY_KNOWN_HOSTS" ]
+          umask 077
+          secret_dir="$(mktemp -d "$RUNNER_TEMP/deploy.XXXXXX")"
+          trap 'rm -rf "$secret_dir"' EXIT HUP INT TERM
+          printf '%s\n' "$DEPLOY_KEY" > "$secret_dir/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$secret_dir/known_hosts"
+          unset DEPLOY_KEY DEPLOY_KNOWN_HOSTS
+          ssh -4 -F /dev/null -i "$secret_dir/key" -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ClearAllForwardings=yes \
+            -o RequestTTY=no -o StrictHostKeyChecking=yes \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o UserKnownHostsFile="$secret_dir/known_hosts" \
+            -o ConnectTimeout=15 -o ConnectionAttempts=1 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "deploy $GITHUB_SHA"
+      - name: Verify public homepage once
+        env:
+          HOMEPAGE_URL: ${{ secrets.DEPLOY_HOMEPAGE_URL }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          import os, urllib.parse
+          u = urllib.parse.urlsplit(os.environ['HOMEPAGE_URL'])
+          assert u.scheme == 'https' and u.hostname and u.path == '/'
+          assert not (u.username or u.password or u.query or u.fragment)
+          PYTHON
+          status="$(curl --silent --output /dev/null --max-time 30 \
+            --connect-timeout 10 --proto '=https' --tlsv1.2 \
+            --write-out '%{http_code}' "$HOMEPAGE_URL")"
+          [ "$status" = 200 ]
+          printf 'homepage_status=%s\n' "$status"

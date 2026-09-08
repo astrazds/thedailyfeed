@@ -12,6 +12,11 @@ export interface OPMLFeedEntry {
 
 export type OPMLImportSummary = FeedImportSummary;
 
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /**
  * Export feeds to OPML format
  */
@@ -20,8 +25,8 @@ export function exportToOPML(feeds: Feed[]): string {
   
   const outlines = feeds
     .map(feed => {
-      const xmlUrl = feed.url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const title = feed.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const xmlUrl = escapeAttribute(feed.url);
+      const title = escapeAttribute(feed.name);
       
       return `    <outline type="rss" text="${title}" title="${title}" xmlUrl="${xmlUrl}" />`;
     })

@@ -198,7 +198,11 @@ export function getFeeds(): Feed[] {
     }
 
     if (Array.isArray(parsed) && feeds.length !== parsed.length) {
-      saveFeeds(feeds);
+      try {
+        saveFeeds(feeds);
+      } catch {
+        // Cleanup is best effort; retain the valid records we already read.
+      }
     }
 
     return feeds;
@@ -218,6 +222,24 @@ export function getEnabledFeedUrls(): string[] {
     .map((feed) => feed.url);
 }
 
+export class FeedStorageError extends Error {
+  constructor() {
+    super('Unable to save feeds in browser storage. Allow site storage or free up browser space, then try again.');
+    this.name = 'FeedStorageError';
+  }
+}
+
+export class FeedLimitError extends Error {
+  constructor() {
+    super(`You can save up to ${MAX_FEEDS_PER_REQUEST} feeds. Delete a feed before adding another.`);
+    this.name = 'FeedLimitError';
+  }
+}
+
+function assertFeedCapacity(feeds: Feed[]): void {
+  if (feeds.length >= MAX_FEEDS_PER_REQUEST) throw new FeedLimitError();
+}
+
 /**
  * Save feeds to storage
  */
@@ -228,8 +250,9 @@ export function saveFeeds(feeds: Feed[]): void {
     const validFeeds = parseFeeds(feeds) ?? [];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validFeeds));
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown localStorage write error');
-    logger.error('Failed to save feeds to localStorage', err);
+    // Do not expose storage exception text, which can contain sensitive values.
+    void error;
+    throw new FeedStorageError();
   }
 }
 
@@ -283,6 +306,7 @@ function addFeedTo(feeds: Feed[], url: string, name: string): { feeds: Feed[]; f
     throw new Error(`Feed already exists: ${existingFeed.name}`);
   }
 
+  assertFeedCapacity(feeds);
   const feed = createFeed(normalized.url, normalized.name);
   return { feeds: [...feeds, feed], feed };
 }
@@ -481,6 +505,7 @@ export function toggleFeed(id: string): void {
 export async function runFeedManagerOperation(
   operation: FeedManagerOperation
 ): Promise<FeedManagerOperationResult> {
+  if (operation.type === 'add') assertFeedCapacity(getFeeds());
   if (operation.type === 'add' || operation.type === 'edit') {
     await operation.validateFeedUrl(operation.url.trim());
   }

@@ -15,17 +15,9 @@ procedures; they never grant permission for an external or production action.
 
 ## Workspace
 
-- Edit `/mnt/srv1-astrazds/docker/thedailyfeed`, the CIFS mount of the SRV1
-  directory. Before editing, require
-  `findmnt -T /mnt/srv1-astrazds/docker/thedailyfeed` to show the underlying
-  `cifs` row; an `autofs` trigger row alone is insufficient.
-- Perform authoritative Git, permission, Docker, network, and runtime
-  inspection over IPv4 SSH (`ssh -4 srv1.astrazds.net`) from
-  `/home/astrazds/docker/thedailyfeed`. Do not treat another checkout or the
-  workstation Docker engine as authoritative.
-- The mount forces workstation ownership and modes. Do not repair apparent
-  mode drift with workstation `chmod` or `chown`; inspect server-side metadata
-  on SRV1 without displaying sensitive values.
+- Develop in a normal local GitHub checkout. Production checkouts are deployment
+  targets, not development workspaces. Inspect each target through its own host
+  when an approved operation requires authoritative runtime evidence.
 - Inspect Git before and after work. Preserve unrelated tracked, untracked,
   ignored, secret, generated, and runtime state. Never stage files, add a
   remote, commit, push, deploy, or activate production unless the user asks
@@ -93,12 +85,11 @@ procedures; they never grant permission for an external or production action.
   logs, ingress rate limits, request-body limits, and edge timeouts. Keep
   metrics bearer authentication in the app. Do not expose the container
   directly to the public internet or publish a host port incidentally.
-- On SRV1, keep the application router on `websecure` without router-level TLS
-  keys. That entrypoint owns the unnamespaced `default` TLS option, Route 53
-  ACME resolution, and the shared wildcard certificate.
 - Preserve the non-root runtime, read-only root filesystem, dropped
-  capabilities, `no-new-privileges`, resource/process limits, tmpfs scratch,
-  bounded logs, health check, and sole external `traefik_proxy` network.
+  capabilities, no-new-privileges, resource/process limits, tmpfs scratch,
+  bounded logs, and health check. The public Compose default binds only
+  loopback and uses a Compose-managed network. Production-specific topology
+  belongs in administrator-owned configuration outside the checkout.
 
 ## Proportionate test-driven development
 
@@ -170,14 +161,12 @@ fail-closed, and bounded-call requirements.
 
 ## Validation, deployment, and recovery
 
-- The CIFS mount cannot reliably create package-manager symlinks. When
-  dependencies are required for executable validation, copy the project to a
-  fresh `/tmp/thedailyfeed-test.XXXXXX` directory and run pnpm there. Copy back
-  only an explicitly requested, reviewed generated artifact.
-- Use the smallest affected tests while iterating. Before an approved commit or
-  deployment of executable work, run lint, TypeScript, tests, and the
-  Next.js/PWA build in the fresh staging copy unless the task documents a
-  narrower justified gate.
+- Use Node 24 and the packageManager-pinned pnpm in a native checkout or a
+  fresh staging copy containing only source files, never local credentials.
+- Use focused tests while iterating. Before commit or deployment, run
+  `scripts/verify-ci.sh`: frozen install, version check, lint, TypeScript,
+  unit tests, Next/PWA build, isolated synthetic browser tests, and an
+  unpublished container build. Container validation requires explicit approval.
 - For documentation-only work, use exact allowlisted diff review,
   `git diff --check`, relative-link validation, and static comparison with the
   source/configuration it describes. Do not run pnpm, builds, Compose
@@ -185,8 +174,7 @@ fail-closed, and bounded-call requirements.
   deployment merely to validate documentation.
 - Offline validation is not production activation. An approved deployment uses
   `scripts/deploy-compose.sh` so `APP_VERSION` and `APP_COMMIT` are populated,
-  and recreates only `thedailyfeed`. Preserve the existing external
-  `traefik_proxy` network and unrelated infrastructure. Do not use project-wide
+  and recreates only `thedailyfeed`. Preserve the target's existing network and unrelated infrastructure. Do not use project-wide
   `down`, remove networks or volumes, prune images, or restart Traefik as part
   of a routine application deployment.
 - An approved deployment may perform only the component-specific rollback
@@ -195,26 +183,22 @@ fail-closed, and bounded-call requirements.
   recovery effects are approved. Recovery must not weaken SSRF, metrics,
   ingress, container, or network controls.
 
-## Forgejo CI and production dispatch
+## GitHub CI and optional deployment
 
-- CI jobs use the user-scoped `srv1-ci` runner pool. Each persistent runner
-  executes one host-label job inside its own hardened runner container and
-  talks only to its paired rootless BuildKit sidecar. Other than the runner's
-  own read-only `token_url` credential file, jobs must never gain a host
-  filesystem mount, host Docker socket, privileged mode, or production
-  credential.
-- `pull_request` remains enabled. An approved PR workflow can read the
-  persistent host-executor runner token from inside its runner container; this
-  accepted impersonation risk does not grant access to deployment secrets.
-- Both CI and manual deployment call `scripts/verify-ci.sh` for the frozen
-  install, lint, TypeScript, tests, Next/PWA gates, and one unpublished OCI
-  artifact build through rootless BuildKit.
-- `.forgejo/workflows/deploy-production.yml` is manual-only. Dispatch requires
-  the `main` ref, the `main` choice, and exact `deploy-production`
-  confirmation. It deploys only the dispatch event SHA through the restricted
-  SSH forced command and performs only one public HTTPS `GET /` after the
-  server-side deployment succeeds.
-- Adding or rotating `SRV1_DEPLOY_KEY`, changing the tracked SRV1 host key,
-  altering the forced command or its authorized key, dispatching production,
-  probing the public route, or using the rollback tag requires fresh approval
-  for that exact credential, deployment, probe, or recovery effect.
+- CI and manual deployment use GitHub-hosted runners and the same portable
+  verification script. Pin actions by reviewed SHA; disable checkout credential
+  persistence. PR verification never receives production credentials.
+- Deployment is manual-only on main, requires the repository owner as both
+  initiating and rerunning actor, and exact `deploy-production` confirmation.
+- Verify the dispatch SHA in a credential-free job. Only the deployment job
+  uses the production environment, configured for main, required owner review,
+  permitted self-review, and disabled administrator bypass.
+- Keep deployment keys, connection details, and pinned known-host entries in
+  environment secrets. Never use live keyscan as a trust source.
+- Install the forced command and its configuration as administrator-owned
+  files. Accept only `deploy <40-character SHA>`, require the exact origin main
+  tip and a clean fast-forward, serialize activation, preserve the prior image,
+  check health and runtime invariants, and retain private failure logs.
+- Credential registration, environment changes, publication, dispatch, the
+  single HTTPS homepage check, and recovery need action-time approval. Failed
+  SSH reachability never authorizes firewall, port, runner, or VPN changes.

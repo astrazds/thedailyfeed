@@ -17,6 +17,8 @@ import {
 } from '@/lib/opml';
 import {
   runFeedManagerOperation,
+  FeedStorageError,
+  FeedLimitError,
   type FeedManagerOperationResult,
 } from '@/lib/feed-storage';
 import { mapFeedManagerResultToModalState } from '@/components/feed-manager-modal-state';
@@ -44,7 +46,7 @@ export type PendingOperation =
   | { type: 'import' };
 
 type OperationFailure = {
-  type: PendingOperation['type'];
+  type: PendingOperation['type'] | 'toggle' | 'delete';
   message: string;
 };
 
@@ -60,6 +62,10 @@ const EDIT_FAILURE =
   'Unable to save these changes. Check the feed URL and try again.';
 const IMPORT_FAILURE =
   'Unable to import this OPML file. Choose a valid OPML or XML file and try again.';
+
+function mutationFailure(error: unknown, fallback: string): string {
+  return error instanceof FeedStorageError || error instanceof FeedLimitError ? error.message : fallback;
+}
 
 function validateFields(name: string, url: string): FieldErrors {
   const errors: FieldErrors = {
@@ -320,35 +326,30 @@ export function FeedManagerModal({
       applyOperationResult(result);
       setAddErrors(EMPTY_FIELD_ERRORS);
       setStatusMessage('Feed added.');
-    } catch {
+    } catch (error) {
       setStatusMessage('');
-      setOperationFailure({ type: 'add', message: ADD_FAILURE });
+      setOperationFailure({ type: 'add', message: mutationFailure(error, ADD_FAILURE) });
     } finally {
       setPendingOperation(null);
     }
   };
 
-  const handleToggle = async (id: string) => {
-    const result = await runFeedManagerOperation({
-      type: 'toggle',
-      id,
-    });
-    applyOperationResult(result);
+  const handleSimpleMutation = async (type: 'toggle' | 'delete', id: string) => {
+    setOperationFailure(null);
+    setStatusMessage('');
+    try {
+      const result = await runFeedManagerOperation({ type, id });
+      if (type === 'delete') pendingFeedListFocusRef.current = true;
+      applyOperationResult(result);
+      if (type === 'delete') setDeletingId(null);
+    } catch (error) {
+      setOperationFailure({ type, message: mutationFailure(error, 'Unable to save this change. Try again.') });
+    }
   };
 
-  const beginDeleteConfirmation = (id: string) => {
-    setDeletingId(id);
-  };
-
-  const handleConfirmDelete = async (id: string) => {
-    const result = await runFeedManagerOperation({
-      type: 'delete',
-      id,
-    });
-    pendingFeedListFocusRef.current = true;
-    applyOperationResult(result);
-    setDeletingId(null);
-  };
+  const handleToggle = (id: string) => handleSimpleMutation('toggle', id);
+  const beginDeleteConfirmation = (id: string) => setDeletingId(id);
+  const handleConfirmDelete = (id: string) => handleSimpleMutation('delete', id);
 
   const handleEdit = (feed: Feed) => {
     setEditingId(feed.id);
@@ -408,9 +409,9 @@ export function FeedManagerModal({
       applyOperationResult(result);
       setEditErrors(EMPTY_FIELD_ERRORS);
       setStatusMessage('Changes saved.');
-    } catch {
+    } catch (error) {
       setStatusMessage('');
-      setOperationFailure({ type: 'edit', message: EDIT_FAILURE });
+      setOperationFailure({ type: 'edit', message: mutationFailure(error, EDIT_FAILURE) });
     } finally {
       setPendingOperation(null);
     }
@@ -464,7 +465,7 @@ export function FeedManagerModal({
       const resolvedError = error instanceof Error ? error : new Error('Failed to import');
       logger.error('Import error', resolvedError);
       setStatusMessage('');
-      setOperationFailure({ type: 'import', message: IMPORT_FAILURE });
+      setOperationFailure({ type: 'import', message: mutationFailure(error, IMPORT_FAILURE) });
     } finally {
       setPendingOperation(null);
       if (fileInputRef.current) {
@@ -661,6 +662,11 @@ export function FeedManagerModal({
           >
             Feeds ({feeds.length})
           </h3>
+          {(operationFailure?.type === 'toggle' || operationFailure?.type === 'delete') && (
+            <p role="alert" className="mb-3 text-sm" style={{ color: 'var(--status-error)' }}>
+              {operationFailure.message}
+            </p>
+          )}
           {showFeedRecovery && (
             <div
               className="mb-4 p-4 rounded"

@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.11 implementation as of August 28, 2026.
+This document reflects the 1.1.12 implementation as of September 8, 2026.
 
 ## System Overview
 
@@ -383,23 +383,26 @@ Chunk types:
   26, TypeScript 7, and ESLint 10 integrations are supported by this Next.js
   toolchain.
 
-### Compose / Traefik
+### Containers and GitHub Actions
 
-- Runtime config in `compose.yml`
-- `scripts/deploy-compose.sh` derives and exports `APP_VERSION` and `APP_COMMIT` before running Compose
-- Forgejo workflows pin the checkout action by full SHA with credential
-  persistence disabled. CI runs lint, tests, Next/PWA build, and a daemonless
-  Docker image build.
-- Container log rotation configured via Docker `json-file` logging driver
-- Traefik labels parameterized via:
-  - `TRAEFIK_DOMAIN`
-  - `TRAEFIK_RATE_LIMIT_AVERAGE`
-  - `TRAEFIK_RATE_LIMIT_BURST`
-  - `TRAEFIK_MAX_REQUEST_BODY_BYTES`
-- Reverse proxies should avoid buffering the feed stream route so `POST /api/feeds?stream=1` can deliver per-feed progress as chunks are produced
-- Compose publishes no host port and joins the existing external `traefik_proxy` network; Traefik owns ingress and is not part of this application's lifecycle
-- On SRV1, the `websecure` entrypoint owns TLS enablement, ACME, the unnamespaced `default` TLS profile, and the wildcard certificate; the application router does not declare a TLS section
-- Offline checks do not activate production. Deployment uses `scripts/deploy-compose.sh` and affects only the `thedailyfeed` service; network, Traefik, and project-wide shutdown or pruning are separate operational boundaries
+- `compose.yml` is a portable, hardened source-build default with loopback-only
+  port publication and a normal Compose-managed network.
+- `scripts/deploy-compose.sh` derives source metadata and starts only the app.
+- GitHub-hosted CI and the manual deployment verification job share
+  `scripts/verify-ci.sh`: frozen install, version check, lint, TypeScript, unit
+  tests, Next/PWA build, synthetic browser smoke tests, and an unpublished Docker build.
+- Actions are pinned by commit SHA with credential persistence disabled.
+  PR verification has no production secrets. Only the separately approved
+  production-environment job receives the restricted SSH deployment credential.
+- The installed forced command reads administrator-owned configuration outside
+  the checkout, requires a clean fast-forward to the exact GitHub main tip,
+  preserves the prior image, and checks health, metadata and runtime invariants.
+  Failures retain private logs and never trigger automatic rollback.
+- Reverse proxies own TLS and ingress limits and must disable response buffering
+  for progressive NDJSON. The portable host-installed Nginx example hides metrics
+  at ingress while the application retains bearer authentication.
+- Host-specific topology belongs in external administrator-owned Compose files.
+  Production activation and recovery remain separate approval boundaries.
 
 ### Environment
 
@@ -410,7 +413,21 @@ See `env.template` for supported variables. Key groups:
 - Logging (`LOG_*`) and build metadata (`APP_*`)
 - SSRF private-network toggle
 - Metrics bearer authentication
-- Traefik deployment parameters
+- Loopback host port (`APP_PORT`) and container timezone (`TZ`)
+
+### Browser subscriptions and typography
+
+Manual additions check the 50-feed inventory limit before validation and again
+against current storage after validation. Disabled feeds count toward the limit;
+existing oversized inventories are retained. OPML attributes escape XML quotes,
+ampersands and angle brackets. Subscription writes throw `FeedStorageError` so
+all manager mutations retain their previous state on failure and emit no success
+or `feedsUpdated` event. Cleanup writes during reading are best effort: valid
+records already parsed are still returned. Browser storage formats are unchanged.
+
+Roboto Serif normal weights 400–700 are loaded with `next/font/local` from bundled
+licensed assets. Builds and reading do not request Google Fonts. The existing
+CSS font variable and visual design are preserved.
 
 ## Testing
 
@@ -463,4 +480,13 @@ Next.js 16 uses Turbopack by default for `pnpm dev`. Production builds
 intentionally pass `--webpack` because `@serwist/next` injects the typed service
 worker through webpack.
 
-In restricted environments, `pnpm build` may require external network access for font fetch during build-time optimization.
+Fonts are bundled locally. After dependencies are installed, the Next/PWA build requires no font-provider network access.
+
+### Synthetic browser smoke tests
+
+`pnpm test:browser` runs Playwright against loopback production output with fresh
+browser storage, blocked service workers, intercepted synthetic API responses,
+and blocked external requests. Desktop and narrow projects exercise reader
+rendering, hostile HTML sanitization, OPML round-tripping and manager recovery.
+The same fixtures generate README screenshots; there is no production demo API.
+Python 3 provides an independent XML parser and isolated deployment-command tests.

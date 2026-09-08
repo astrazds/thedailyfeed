@@ -414,3 +414,53 @@ test('OPML import caps additions over the configured feed limit', async () => {
   });
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 });
+
+function inventory(count: number): Feed[] {
+  return Array.from({ length: count }, (_, i) => feed({
+    id: `feed-${i}`, url: `https://example.com/${i}.xml`, enabled: i % 2 === 0,
+  }));
+}
+
+test('manual additions allow 49 to 50 but reject a full inventory before validation', async () => {
+  saveStoredFeeds(inventory(49));
+  const operation = { type: 'add' as const, name: 'Last', url: 'https://example.com/last.xml', validateFeedUrl: async () => {} };
+  assert.equal((await runFeedManagerOperation(operation)).feeds.length, 50);
+  let validated = false;
+  await assert.rejects(runFeedManagerOperation({ ...operation, url: 'https://example.com/extra.xml', validateFeedUrl: async () => { validated = true; } }), /50 feeds/);
+  assert.equal(validated, false);
+  assert.equal(JSON.parse(localStorage.getItem(STORAGE_KEY_FEEDS)!).length, 50);
+});
+
+test('manual addition checks current storage after validation and preserves oversized inventories', async () => {
+  saveStoredFeeds(inventory(49));
+  await assert.rejects(runFeedManagerOperation({
+    type: 'add', name: 'Late', url: 'https://example.com/late.xml',
+    validateFeedUrl: async () => { saveStoredFeeds(inventory(51)); },
+  }), /50 feeds/);
+  assert.equal(JSON.parse(localStorage.getItem(STORAGE_KEY_FEEDS)!).length, 51);
+});
+
+for (const type of ['add', 'edit', 'toggle', 'delete', 'import-opml'] as const) {
+  test(`${type} rejects failed persistence without changing storage or notifying listeners`, async () => {
+    saveStoredFeeds([feed()]);
+    const before = localStorage.getItem(STORAGE_KEY_FEEDS);
+    let events = 0;
+    window.addEventListener('feedsUpdated', () => events++);
+    localStorage.setItem = () => { throw new Error('Quota exceeded'); };
+    const input = { name: 'Changed', url: 'https://example.com/new.xml', validateFeedUrl: async () => {} };
+    const operation = type === 'add' ? { type, ...input }
+      : type === 'edit' ? { type, id: 'feed-1', ...input }
+      : type === 'import-opml' ? { type, feeds: [input] }
+      : { type, id: 'feed-1' };
+    await assert.rejects(runFeedManagerOperation(operation), /browser storage/);
+    assert.equal(localStorage.getItem(STORAGE_KEY_FEEDS), before);
+    assert.equal(events, 0);
+  });
+}
+
+test('failed cleanup persistence still returns valid records already read', async () => {
+  const { getFeeds } = await import('../lib/feed-storage');
+  localStorage.setItem(STORAGE_KEY_FEEDS, JSON.stringify([feed(), { invalid: true }]));
+  localStorage.setItem = () => { throw new Error('Storage unavailable'); };
+  assert.deepEqual(getFeeds(), [feed()]);
+});

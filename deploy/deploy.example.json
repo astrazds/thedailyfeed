@@ -1,0 +1,40 @@
+{
+  "repository": "/srv/thedailyfeed",
+  "expected_origin": "https://github.com/astrazds/thedailyfeed.git",
+  "compose_file": "/etc/thedailyfeed/compose.yml",
+  "env_file": "/srv/thedailyfeed/.env.production",
+  "project": "thedailyfeed",
+  "container": "thedailyfeed-thedailyfeed-1",
+  "rollback_tag": "thedailyfeed:rollback",
+  "runtime": {
+    "user": "nextjs",
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "3000"
+        }
+      ]
+    },
+    "Memory": 536870912,
+    "NanoCpus": 1000000000,
+    "PidsLimit": 256,
+    "Tmpfs": {
+      "/tmp": "rw,noexec,nosuid,nodev,size=64m",
+      "/app/.next/cache": "rw,nosuid,nodev,size=128m,uid=1001,gid=1001,mode=1770"
+    },
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {
+        "max-size": "10m",
+        "max-file": "5"
+      }
+    },
+    "networks": [
+      "thedailyfeed_default"
+    ],
+    "labels": {},
+    "forbidden_label_prefixes": [],
+    "metrics_required": false
+  }
+}

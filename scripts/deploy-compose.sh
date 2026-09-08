@@ -19,10 +19,12 @@ APP_COMMIT="${APP_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
 export APP_VERSION
 export APP_COMMIT
 
+[ "$#" -gt 0 ] || set -- thedailyfeed
+
 echo "Deploying The Daily Feed version ${APP_VERSION} (${APP_COMMIT})"
 
 if [ -f "$ENV_FILE" ]; then
-  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build "$@"
+  docker compose --project-directory "$PWD" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build --no-deps "$@"
 else
-  docker compose -f "$COMPOSE_FILE" up -d --build "$@"
+  docker compose --project-directory "$PWD" -f "$COMPOSE_FILE" up -d --build --no-deps "$@"
 fi

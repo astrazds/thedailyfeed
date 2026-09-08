@@ -1,267 +1,110 @@
-# The Daily Feed
+<p align="center">
+  <img src="public/thedailyfeed-light-192.png" width="112" height="112" alt="The Daily Feed newspaper icon">
+</p>
 
-A focused RSS reader for today's articles.
+<h1 align="center">The Daily Feed</h1>
 
-[Live site](https://dailyfeed.astrazds.net) · [MIT license](LICENSE)
+<p align="center">Today's articles. Your sources. A quieter way to read.</p>
 
-[![CI](https://github.com/astrazds/thedailyfeed/actions/workflows/ci.yml/badge.svg)](https://github.com/astrazds/thedailyfeed/actions/workflows/ci.yml)
+<p align="center">
+  <a href="https://github.com/astrazds/thedailyfeed/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/astrazds/thedailyfeed/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+</p>
 
-Current release: `1.1.11`.
+The Daily Feed is a self-hosted RSS reader for the articles published today.
+Choose your feeds, open the page, and read a clean, chronological stream.
+There are no accounts, unread counts, or subscriptions to a service.
 
-The Daily Feed is a self-hostable web app that fetches your saved RSS feeds, keeps only the items published today in your local timezone, and streams results into the page as each feed finishes. It is built for a quiet daily reading workflow: add feeds, open the app, scan what is new today, and keep working even when a previous snapshot is all that is available.
+<p align="center">
+  <img src="docs/assets/reader-desktop.png" alt="The Daily Feed showing synthetic articles from Field Notes, Small Hours, and Open Workshop">
+</p>
 
-## Highlights
+The screenshot shows the actual application with synthetic content.
+[Optional live demonstration](https://dailyfeed.astrazds.net/) ·
+[Mobile screenshot](docs/assets/reader-narrow.png)
 
-- Today-only feed view based on the reader's browser timezone.
-- Hydration-safe date heading: server rendering and the first browser render use `Today`, then the browser replaces it with its local formatted date.
-- Progressive NDJSON streaming from `POST /api/feeds?stream=1`, so fast feeds render before slower ones finish.
-- Pulsing feed-item placeholders remain visible while additional feeds are still loading.
-- Feed management in the browser with add, edit, delete, enable/disable, and OPML import/export. The mobile-friendly manager uses a safe-area-aware viewport height, places the Add feed and OPML disclosures above the scrollable feed inventory, and opens Add feed automatically when the inventory is empty. Deletion uses an accessible in-row confirmation with a theme-aware destructive action instead of a native browser dialog.
-- Feed load results are shown in the feed manager with visible failure and timeout labels plus one aggregate retry action, without adding per-feed status badges or a second fetch path to the reading view.
-- Server-side feed validation before new feeds are saved locally.
-- Per-feed in-memory cache with TTL and max-entry controls.
-- Browser-local offline snapshots for same-day fallback, with an explicit refresh-failure notice and retry action instead of an ambiguous cache label.
-- Article titles and sanitized article-body links use normal same-tab navigation.
-- Installable PWA behavior when served over HTTPS and browser installability criteria are met.
-- Structured server logs, request correlation, and bearer-protected production metrics.
-- Defense-in-depth around untrusted feeds: SSRF guards, URL normalization, HTML sanitization, strict response headers, and proxy-owned production ingress controls.
+Current release: `1.1.12`.
 
-## Tech Stack
+## Install and self-host
 
-- Next.js 16 App Router
-- React 19
-- Node.js 24 LTS
-- TypeScript strict mode
-- Tailwind CSS v4
-- `rss-parser`, `date-fns`, `dompurify`
-- Serwist service worker tooling
-- Docker standalone output for self-hosting
-
-## Quick Start
-
-Requirements:
-
-- Node.js 24 LTS
-- pnpm 11.24.0 or newer within the pnpm 11 release line
+You need Git, Docker with Compose v2 and Buildx, and a host-installed reverse
+proxy for public access. Containers are built from source; no registry account
+or prebuilt application image is required.
 
 ```bash
 git clone https://github.com/astrazds/thedailyfeed.git
 cd thedailyfeed
-pnpm install
+cp env.template .env.production
+chmod 600 .env.production
+./scripts/deploy-compose.sh
+```
+
+Open `http://127.0.0.1:3000` on that host. Compose binds only to loopback,
+uses its own network, and runs a non-root container with a read-only filesystem.
+Set `APP_PORT` in `.env.production` if port 3000 is already in use.
+
+For internet access, follow [DEPLOYMENT.md](DEPLOYMENT.md), including the
+[complete Nginx HTTPS example](deploy/nginx.conf). Public TLS, rate limits,
+request-body limits, and unbuffered streaming belong at the reverse proxy.
+
+## Use
+
+- Open **Manage feeds** to add, edit, disable, or delete a source. Additions
+  validate the RSS or Atom URL before saving. The inventory limit is 50 feeds,
+  including disabled feeds; older oversized inventories are never trimmed.
+- Import or export an OPML file to move subscriptions between browsers.
+  Import skips duplicates and invalid URLs, and reports entries over the limit.
+- Read today's items in your browser's timezone, newest first. Articles appear
+  progressively as each source finishes. Expand long excerpts or open the original.
+- Install the app through your browser if it supports PWAs. Successful same-day
+  snapshots provide offline fallback for feeds already loaded in that browser.
+
+## Privacy
+
+Subscriptions and same-day offline snapshots stay in this browser's
+`localStorage`. OPML processing is client-side. Feed URLs are sent to the app
+server for fetching and validation; the server keeps a bounded in-memory cache.
+Publisher images load directly in the browser and can reveal your IP address
+to their hosts. Typography is bundled locally. There is no application analytics
+or account database. Read [PRIVACY.md](PRIVACY.md) for the full data flow.
+
+## Limitations
+
+This is a reader for today, not an archive or a cross-device reading service.
+There is no account, sync, full-text extraction service, or guaranteed offline
+copy of every article or image. Clearing site data removes your subscriptions
+and snapshots; export OPML before moving or resetting a browser. Feed quality,
+publication dates, upstream availability, and publisher content determine what
+appears. Private-network feeds are blocked in production by default.
+
+## Development
+
+Use Node 24, pnpm 11.24.0, and Python 3 (the offline XML and deployment tests).
+
+```bash
+corepack enable
+corepack prepare pnpm@11.24.0 --activate
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open `http://localhost:3000`.
-
-Useful local checks:
-
-```bash
-pnpm version:check
-pnpm lint
-pnpm exec tsc --noEmit
-pnpm test
-pnpm build
-```
-
-`pnpm dev` uses the default Next.js development bundler. `pnpm build` follows the production bundler path documented in [TECHNICAL.md](TECHNICAL.md), then verifies the emitted service worker contract. The standalone TypeScript check includes application code and the `.mts` test suite.
-
-## Development and Versioning
-
-`package.json` is the sole release-version authority. Check that its stable
-`MAJOR.MINOR.PATCH` value matches Compose and the release documentation with:
+For focused checks, use `pnpm test`, `pnpm lint`, or `pnpm exec tsc --noEmit`.
+The full portable gate also needs Docker/Buildx and Chromium system dependencies:
 
 ```bash
-pnpm version:check
+./scripts/verify-ci.sh
 ```
 
-After a release-worthy change has stabilized, synchronize one SemVer increment
-before the final repository gate:
+It installs locked dependencies, validates release metadata, runs lint,
+TypeScript and unit tests, builds Next/PWA output, runs isolated Playwright
+smoke tests, and builds one unpublished Docker image. It never deploys.
 
-```bash
-pnpm version:bump patch
-pnpm version:bump minor
-pnpm version:bump major
-```
+After `pnpm build` and `pnpm exec playwright install chromium`, run
+`pnpm test:browser`. To refresh the synthetic screenshots, use
+`UPDATE_SCREENSHOTS=1 pnpm test:browser --grep 'reader renders'`.
 
-Choose one component per change set: patch for fixes and compatible operational
-or dependency changes, minor for backward-compatible features, and major only
-for an intentionally breaking change. The command stops on existing drift and
-does not stage, commit, tag, push, dispatch CI, or deploy. CI validates version
-syntax and synchronization; release eligibility and bump size remain reviewer
-judgments.
-
-## Configuration
-
-Copy the template when you need local overrides:
-
-```bash
-cp env.template .env.local
-```
-
-Important runtime variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `RATE_LIMIT_MAX_REQUESTS` | Feed API requests allowed per rate-limit window. |
-| `RATE_LIMIT_WINDOW_MS` | Rate-limit window size in milliseconds. |
-| `FEED_TIMEOUT_MS` | Per-attempt upstream timeout spanning DNS, redirects, and response streaming. |
-| `FEED_RETRY_COUNT` | Retry count for transient feed failures. |
-| `FEED_OVERALL_TIMEOUT_MS` | Aggregate budget across all work for one feed, including validation redirects and retries. |
-| `FEED_REQUEST_TIMEOUT_MS` | Overall timeout budget for missing-feed work in a single request. |
-| `FEED_CACHE_TTL_MS` | Server-side feed cache TTL. |
-| `FEED_CACHE_MAX_ENTRIES` | Maximum in-memory feed cache entries. |
-| `LOG_LEVEL`, `LOG_FORMAT` | Server log verbosity and output format. |
-| `APP_VERSION`, `APP_COMMIT` | Build metadata included in logs. |
-| `ALLOW_PRIVATE_NETWORKS` | Production escape hatch for private-network feed URLs. Defaults to blocked. |
-| `METRICS_AUTH_TOKEN` | Required in production to access `GET /api/metrics`. |
-
-Numeric values are parsed with safe fallbacks in `lib/constants.ts`. `RATE_LIMIT_*` only controls the local/development fallback limiter; production ingress rate limits belong at the reverse proxy.
-
-## How It Works
-
-1. The client loads enabled feed configuration from `localStorage`.
-2. The client sends `{ feedUrls, timeZone }` to `POST /api/feeds`.
-3. The server validates, normalizes, and deduplicates the request.
-4. Cached feed results are returned immediately when available.
-5. Missing feeds are fetched with per-attempt, per-feed, and request-wide timeout controls.
-6. Feed items are filtered to the user's timezone-aware day key and sorted newest-first.
-7. Stream mode emits each feed as it completes, followed by a `done` message.
-8. Successful same-day results are saved in browser storage for offline fallback.
-
-The app intentionally keeps feed preferences and offline snapshots browser-local. There is no account system or cross-device sync layer.
-
-### Core Modules
-
-- Feed management and browser persistence live in `lib/feed-storage.ts`.
-- Server feed-set execution lives in `lib/feed-request.ts`; response serialization and untrusted stream validation remain separate adapters.
-- `FeedProgressEvent<Item>` is shared by server progress and serialized client progress events. Transport-error chunks remain a separate wire variant.
-- Client progressive state and offline fallback live in `lib/feed-set-lifecycle.ts`.
-
-See [TECHNICAL.md](TECHNICAL.md) for the authoritative module seams and runtime contracts.
-
-## API Surface
-
-### `POST /api/feeds`
-
-Fetches a set of feeds.
-
-Request body:
-
-```json
-{
-  "feedUrls": ["https://example.com/feed.xml"],
-  "timeZone": "Australia/Melbourne"
-}
-```
-
-Default response mode is JSON. Stream mode is enabled with `?stream=1` or `Accept: application/x-ndjson`.
-
-Stream chunks:
-
-- `meta`
-- `feed_result`
-- `done`
-- `error`
-
-All responses include `X-Request-Id` for log correlation.
-
-### `POST /api/feeds/validate`
-
-Validates a single feed URL before saving it in the browser. The endpoint applies the same request ID, logging, and URL policy as the main feed endpoint. It is unauthenticated and therefore relies on production ingress rate limiting, but its outbound work is bounded independently: one `FEED_OVERALL_TIMEOUT_MS` budget spans DNS, redirects, response reads, the retry delay, and both validation attempts. Aborting the inbound request cancels the same operation, closes the active outbound request, and prevents another retry.
-
-### `GET /api/metrics`
-
-Returns an operator snapshot with feed API counters and redacted cache stats.
-
-In production, requests require:
-
-```text
-Authorization: Bearer <METRICS_AUTH_TOKEN>
-```
-
-When production metrics auth is not configured, the endpoint returns `404`.
-
-### `GET /api/test-feed`
-
-Development and integration-test helper. It returns `404` in production.
-
-## Security Model
-
-The app treats feed URLs, upstream XML, and feed HTML as untrusted input.
-
-- Feed URLs must be `http` or `https`.
-- Production SSRF protection blocks localhost, private and special-use IPv4 ranges, local/private/special-use IPv6 ranges, and IPv4-mapped non-global addresses unless `ALLOW_PRIVATE_NETWORKS=true`.
-- Production deployments must run behind Traefik or another trusted reverse proxy. The proxy owns TLS, public client IP access logs, ingress rate limits, request body limits, and edge timeouts; direct internet exposure of the app container is unsupported.
-- The app does not log raw client IPs by default. Structured logs redact configured secret fields and remove credentials, query strings, and fragments from URL values.
-- The app keeps controls that the proxy cannot provide: outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` responses, the service worker's exact-path feed-set policy, and metrics authentication.
-- Feed validation and parsing use one aggregate `FEED_OVERALL_TIMEOUT_MS` budget across DNS, redirects, response streaming, retry delays, and retries. Per-attempt `FEED_TIMEOUT_MS` remains a narrower socket/fetch safeguard and is not renewed by redirects.
-- Feed HTML is sanitized with DOMPurify before rendering. Image and link URLs are resolved against the validated article URL and then restricted by element to safe protocols; images without a publisher-provided description receive `alt=""`. Safe language and text-direction metadata is preserved and validated, while embedded headings are normalized beneath each article title.
-- Long article HTML is truncated with DOM-aware logic so tags remain balanced.
-- API responses use `Cache-Control: no-store`.
-- The service-worker runtime URL pattern matches only the feed-set pathname
-  `/api/feeds` and uses `NetworkOnly`, with no cache options or network-timeout
-  fallback. It does not match `/api/feeds/validate`; browser-local same-day
-  snapshots, not a PWA response cache, provide offline fallback. A separate
-  bounded `StaleWhileRevalidate` route matches only cross-origin requests whose
-  browser request destination is `image`; build assets remain precached and no
-  other API, page, script, style, font, or same-origin asset runtime route is
-  registered. The worker-only CSP permits HTTP(S) fetch connections for this
-  route without widening the page CSP.
-- Production metrics require bearer authentication and always use `Cache-Control: no-store`.
-
-## Deployment
-
-The repository includes a multi-stage `Dockerfile` and a Traefik-ready `compose.yml`. Production deployments should put the app behind Traefik or an equivalent reverse proxy.
-
-```bash
-./scripts/deploy-compose.sh
-docker compose -f compose.yml logs -f thedailyfeed
-```
-
-The wrapper derives `APP_VERSION` from `package.json` and `APP_COMMIT` from the
-current Git commit before running Compose, so deployed logs retain source
-metadata.
-
-For production:
-
-- Set `TRAEFIK_DOMAIN`; SRV1's `websecure` entrypoint owns TLS, the
-  unnamespaced `default` profile, ACME policy, and the wildcard certificate.
-  The application router must not add a router-level TLS key.
-- Set `METRICS_AUTH_TOKEN` if you want operator metrics.
-- Keep direct container access blocked; the app is not intended to be exposed directly to the public internet.
-- Configure proxy-owned rate limits, request body limits, TLS, and access logging at the edge.
-- Preserve streaming behavior for `POST /api/feeds?stream=1`; avoid proxy buffering on the app route.
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the full production guide.
-
-## Project Layout
-
-```text
-thedailyfeed/
-├── app/
-│   ├── api/
-│   │   ├── feeds/
-│   │   ├── metrics/
-│   │   └── test-feed/
-│   ├── layout.tsx
-│   ├── manifest.ts
-│   └── page.tsx
-├── components/
-├── lib/
-├── public/
-├── scripts/
-├── tests/
-├── docs/
-│   └── architecture-complexity-sweep.md
-├── compose.yml
-├── Dockerfile
-├── DEPLOYMENT.md
-├── TECHNICAL.md
-└── env.template
-```
-
-## Additional Documentation
-
-- [TECHNICAL.md](TECHNICAL.md): architecture, runtime contracts, security notes, and known constraints.
-- [DEPLOYMENT.md](DEPLOYMENT.md): Docker, Compose, Traefik, reverse proxy, and operations guidance.
-- [Architecture complexity sweep](docs/architecture-complexity-sweep.md): implemented simplifications, verification evidence, and deliberately deferred candidates.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
+[TECHNICAL.md](TECHNICAL.md) for contribution guidance, private security reporting,
+and the public JSON/NDJSON contracts. Optional GitHub deployment setup is in
+[DEPLOYMENT.md](DEPLOYMENT.md). Application code is [MIT licensed](LICENSE);
+Roboto Serif retains its [SIL Open Font License](public/fonts/OFL.txt).

@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: thedailyfeed
     restart: unless-stopped
     read_only: true
     cap_drop:
@@ -14,8 +13,8 @@ services:
     mem_limit: 512m
     cpus: "1.0"
     stop_grace_period: 30s
-    networks:
-      - traefik_proxy
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -24,7 +23,7 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - LOG_SERVICE_NAME=${LOG_SERVICE_NAME:-thedailyfeed}
       - LOG_REDACT_FIELDS=${LOG_REDACT_FIELDS:-authorization,cookie,set-cookie,password,token}
-      - APP_VERSION=${APP_VERSION:-1.1.11}
+      - APP_VERSION=${APP_VERSION:-1.1.12}
       - APP_COMMIT=${APP_COMMIT:-unknown}
       - FEED_TIMEOUT_MS=${FEED_TIMEOUT_MS:-10000}
       - FEED_RETRY_COUNT=${FEED_RETRY_COUNT:-3}
@@ -33,19 +32,13 @@ services:
       - FEED_CACHE_TTL_MS=${FEED_CACHE_TTL_MS:-3600000}
       - FEED_CACHE_MAX_ENTRIES=${FEED_CACHE_MAX_ENTRIES:-200}
       - METRICS_AUTH_TOKEN=${METRICS_AUTH_TOKEN:-}
-      # Set to 'true' if you need to fetch RSS feeds from local network IPs
+      # Keep production SSRF protection enabled.
       - ALLOW_PRIVATE_NETWORKS=${ALLOW_PRIVATE_NETWORKS:-false}
       # Timezone support
       - TZ=${TZ:-UTC}
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m
       - /app/.next/cache:rw,nosuid,nodev,size=128m,uid=1001,gid=1001,mode=1770
-    # Optional: Mount env file for runtime configuration
-    # env_file:
-    #   - .env.production
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
       interval: 30s
@@ -57,15 +50,3 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dailyfeed.entrypoints=websecure"
-      - "traefik.http.routers.dailyfeed.rule=Host(`${TRAEFIK_DOMAIN:-dailyfeed.example.com}`)"
-      - "traefik.http.routers.dailyfeed.middlewares=dailyfeed-ratelimit,dailyfeed-request-limit"
-      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.average=${TRAEFIK_RATE_LIMIT_AVERAGE:-60}"
-      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.burst=${TRAEFIK_RATE_LIMIT_BURST:-120}"
-      - "traefik.http.middlewares.dailyfeed-request-limit.buffering.maxRequestBodyBytes=${TRAEFIK_MAX_REQUEST_BODY_BYTES:-1048576}"
-      - "traefik.http.services.dailyfeed.loadbalancer.server.port=3000"
-networks:
-  traefik_proxy:
-    external: true

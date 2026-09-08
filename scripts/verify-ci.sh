@@ -3,8 +3,6 @@ set -eu
 
 EXPECTED_NODE_MAJOR=24
 EXPECTED_PNPM_VERSION=11.24.0
-COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
-ENV_FILE="${ENV_FILE:-.env.production}"
 
 fail() {
   printf 'verification failed: %s\n' "$1" >&2
@@ -20,8 +18,6 @@ esac
 pnpm_version="$(pnpm --version)"
 [ "$pnpm_version" = "$EXPECTED_PNPM_VERSION" ] || fail "pnpm ${EXPECTED_PNPM_VERSION} is required"
 
-pnpm version:check
-
 APP_VERSION="$(node -p "require('./package.json').version")"
 APP_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')"
 case "$APP_COMMIT" in
@@ -36,52 +32,24 @@ fi
 export APP_VERSION APP_COMMIT
 printf 'metadata version=%s commit=%s\n' "$APP_VERSION" "$APP_COMMIT"
 
-compose_config() {
-  if [ -f "$ENV_FILE" ]; then
-    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" config "$@"
-  else
-    docker compose -f "$COMPOSE_FILE" config "$@"
-  fi
-}
-
-compose_config --quiet
-compose_config --format json | node -e '
-  const fs = require("node:fs");
-  const compose = JSON.parse(fs.readFileSync(0, "utf8"));
-  const environment = compose.services?.thedailyfeed?.environment;
-  if (!environment || environment.APP_VERSION !== process.env.APP_VERSION) {
-    throw new Error("Compose APP_VERSION metadata mismatch");
-  }
-  if (environment.APP_COMMIT !== process.env.APP_COMMIT) {
-    throw new Error("Compose APP_COMMIT metadata mismatch");
-  }
-'
+docker compose --env-file /dev/null -f compose.yml config --quiet
 
 pnpm install --frozen-lockfile
+pnpm version:check
 pnpm lint
 pnpm exec tsc --noEmit
 pnpm test
 pnpm build
 
-: "${BUILDKIT_HOST:?BUILDKIT_HOST is required}"
-buildctl --addr "$BUILDKIT_HOST" debug workers >/dev/null
+if [ "${GITHUB_ACTIONS:-false}" = true ]; then
+  pnpm exec playwright install --with-deps chromium
+else
+  pnpm exec playwright install chromium
+fi
+pnpm test:browser
 
-artifact_dir="${CI_ARTIFACT_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}}"
-mkdir -p "$artifact_dir"
-artifact="$(mktemp "$artifact_dir/thedailyfeed-${APP_COMMIT}.oci.XXXXXX")"
-cleanup() {
-  rm -f "$artifact"
-}
-trap cleanup EXIT HUP INT TERM
-
-buildctl --addr "$BUILDKIT_HOST" build \
-  --frontend dockerfile.v0 \
-  --local context=. \
-  --local dockerfile=. \
-  --opt filename=Dockerfile \
-  --output "type=oci,dest=$artifact,name=thedailyfeed:$APP_COMMIT"
-
-[ -s "$artifact" ] || fail "BuildKit did not produce an OCI artifact"
-rm -f "$artifact"
-trap - EXIT HUP INT TERM
+artifact_dir="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/thedailyfeed-image.XXXXXX")"
+trap 'rm -rf "$artifact_dir"' EXIT HUP INT TERM
+docker buildx build --output "type=docker,dest=$artifact_dir/image.tar" .
+[ -s "$artifact_dir/image.tar" ] || fail "Docker did not produce an image archive"
 printf 'verification status=success\n'
