@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.1.13 implementation as of September 8, 2026.
+This document reflects the 1.2.0 implementation as of September 8, 2026.
 
 ## System Overview
 

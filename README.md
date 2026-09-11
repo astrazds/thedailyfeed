@@ -22,7 +22,7 @@ There are no accounts, unread counts, or subscriptions to a service.
 The screenshot shows the actual application with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.1.13`.
+Current release: `1.2.0`.
 
 ## Install and self-host
 
