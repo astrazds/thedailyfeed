@@ -58,8 +58,12 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
 - Choose **Refresh feeds** to check your sources again. The progress panel shows
   how many feeds have been checked while available articles stay readable. Open
   **Manage feeds** to see which sources are still checking or need another try.
-- Install the app through your browser if it supports PWAs. Successful same-day
-  snapshots provide offline fallback for feeds already loaded in that browser.
+- If sources fail or remain unchecked, use **Refresh feeds** or **Try again**
+  in the reader, or **Try all feeds again** in the manager. A checked source may
+  have failed or timed out; **Not checked** means no result arrived for it.
+- Install the app through your browser if it supports PWAs. Saved same-day
+  snapshots provide fallback for the same enabled sources and timezone.
+  **Unable to refresh** identifies saved content after a request failure.
 
 See the synthetic [reader progress](docs/assets/loading-desktop.png) and
 [feed-manager progress](docs/assets/loading-manager-narrow.png) screenshots.
@@ -81,6 +85,12 @@ copy of every article or image. Clearing site data removes your subscriptions
 and snapshots; export OPML before moving or resetting a browser. Feed quality,
 publication dates, upstream availability, and publisher content determine what
 appears. Private-network feeds are blocked in production by default.
+
+Refresh requests can reuse the server's feed cache, which lasts one hour by
+default. The current app also checks feeds hourly while the page remains open.
+The [vision](VISION.md) calls for reader-initiated retrieval; the
+[implementation gaps](docs/architecture-decisions.md#known-implementation-gaps)
+record this difference.
 
 ## Development
 
@@ -106,8 +116,8 @@ smoke tests, and builds one unpublished Docker image. It never deploys.
 
 After `mise run build` and `mise run browser-install`, run `mise run browser`.
 Use `mise run integration` for the API tests that start a local server.
-To refresh the synthetic screenshots, use
-`UPDATE_SCREENSHOTS=1 mise run browser -- --grep 'reader renders'`.
+See [browser verification and screenshots](CONTRIBUTING.md#browser-verification-and-screenshots)
+for capture commands, evidence, and coverage limits.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [TECHNICAL.md](TECHNICAL.md) for contribution guidance, private security reporting,
