@@ -21,7 +21,11 @@ Read the sections relevant to the change rather than loading every document:
 - `lib/feed-set-lifecycle.ts`: progressive results, terminal states, and offline
   persistence. `components/use-feed-stream.ts` connects this lifecycle to React.
 - `lib/feed-storage.ts`: subscriptions and complete feed-manager mutations.
-  `lib/feed-manager-operations.ts` is only a compatibility re-export.
+- `lib/types.ts`: shared article and wire types; browser imports must not point
+  at the server RSS parser for article types.
+- `components/feed-manager-modal.tsx`: native dialog and focus ownership.
+  `feed-manager-form.tsx` owns drafts and validation, `use-feed-manager-actions.ts`
+  owns async operation state, and list/transfer components own their controls.
 - `components/` and `app/globals.css`: reader UI and styling.
 - `app/sw.ts` and `lib/serwist-runtime-caching.ts`: service-worker behavior.
 
@@ -52,18 +56,19 @@ Read the sections relevant to the change rather than loading every document:
 
 ## Validation
 
-The toolchain contract is in [package.json](package.json): Node 24 and the pinned
-pnpm release. Python 3 is also required for the independent XML tests.
+Use the versions and tasks in [mise.toml](mise.toml), consistent with the Node
+and pnpm contract in [package.json](package.json). Python runs the independent
+XML tests. Run `mise run install` after installing the toolchain.
 
-- `pnpm test`: serial Node/tsx tests in `tests/`. Full API integration is opt-in
-  with `RUN_INTEGRATION_TESTS=true`; it starts a local Next.js server.
-- `pnpm lint` and `pnpm exec tsc --noEmit`: lint and application/test type checks.
-- `pnpm build`: production webpack build plus the PWA artifact check. Keep
+- `mise run test`: serial Node/tsx tests in `tests/`. `mise run integration`
+  enables the full API integration tests and starts a local Next.js server.
+- `mise run lint` and `mise run typecheck`: lint and application/test type checks.
+- `mise run build`: production webpack build plus the PWA artifact check. Keep
   webpack here because Serwist's service-worker injection depends on it.
-- `pnpm test:browser`: Playwright against production output, using the isolated
+- `mise run browser`: Playwright against production output, using the isolated
   synthetic fixtures in `e2e/`. These block external requests and service workers,
   so they do not prove live feed fetching or service-worker operation.
-- [scripts/verify-ci.sh](scripts/verify-ci.sh): complete gate before commit or
+- `mise run verify` runs [scripts/verify-ci.sh](scripts/verify-ci.sh), the complete gate before commit or
   deployment. It installs dependencies and Chromium, runs the checks above,
   and builds an unpublished Docker image.
 - Documentation-only changes need diff review, `git diff --check`, and checks
@@ -85,3 +90,13 @@ pnpm release. Python 3 is also required for the independent XML tests.
 - Keep personal development procedures, hostnames, server paths, deployment
   history, and credentials out of public documentation. Use example domains and
   portable instructions; document application contracts and requirements.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
