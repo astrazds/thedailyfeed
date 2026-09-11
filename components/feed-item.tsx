@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { format } from 'date-fns';
-import type { FeedItem } from '@/lib/rss';
+import type { FeedItem } from '@/lib/types';
 import { CONTENT_MAX_LENGTH } from '@/lib/constants';
 import { normalizeSafeArticleLink } from '@/lib/feed-link-policy';
 import { ExpandableContent } from './expandable-content';

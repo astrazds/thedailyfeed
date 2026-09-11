@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { FeedItem } from './rss';
+import type { FeedItem } from './types';
 import {
   FEED_CACHE_TTL_MS,
   FEED_CACHE_MAX_ENTRIES,

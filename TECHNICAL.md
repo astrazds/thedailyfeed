@@ -40,7 +40,9 @@ The version commands only validate or update local release metadata.
 
 ### Module Seams
 
-- Feed manager: `runFeedManagerOperation` in `lib/feed-storage.ts` owns one complete browser storage mutation. `lib/feed-manager-operations.ts` is a compatibility re-export, not a second implementation.
+- Feed manager: `runFeedManagerOperation` in `lib/feed-storage.ts` owns complete browser storage mutations and returns the saved inventory, plus a required summary for imports.
+- Manager UI: `feed-manager-modal.tsx` owns dialog composition and focus. `feed-manager-form.tsx` owns drafts and validation; `use-feed-manager-actions.ts` owns asynchronous operations and messages. List and transfer components own their respective controls.
+- Article types: `lib/types.ts` owns `FeedItem` and derives `SerializedFeedItem` by replacing its date with a string.
 - Feed-set execution: `lib/feed-request.ts` owns cached and missing feed orchestration and emits `FeedProgressEvent<FeedItem>` values.
 - Stream serialization: `lib/feed-response-adapter.ts` converts server `FeedItem` dates to the serialized `FeedProgressEvent<SerializedFeedItem>` wire representation.
 - Stream validation: `lib/feed-stream-parser.ts` validates the untrusted JSON/NDJSON representation before it crosses into client lifecycle state.
@@ -299,8 +301,9 @@ Chunk types:
 - Modal handles CRUD and client-side OPML import/export without a duplicate footer action or build-version label consuming mobile height
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, cancellation restores the originating Delete button, confirmed deletion moves focus to the feed-list heading, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
-- `runFeedManagerOperation` in `lib/feed-storage.ts` applies mutations to current storage after URL validation, persists the result, derives mutation facts, and dispatches `feedsUpdated` only when the enabled feed set changes. Manual additions also check capacity before validation
-- `lib/feed-manager-operations.ts` preserves the former import interface as a compatibility re-export
+- `runFeedManagerOperation` in `lib/feed-storage.ts` applies mutations to current storage after URL validation, persists the result, and dispatches `feedsUpdated` only when the enabled feed set changes. Manual additions also check capacity before validation
+- `FeedManagerForm` owns its draft and field errors. Successful persistence resets the submitted form; failures retain the draft. Add/edit modes share field markup and validation
+- `useFeedManagerActions` owns the pending add/edit/import union, failure messages, live-region text, and independent refresh state. Toggle, delete, and beginning an edit remain available while a form is validating
 
 ### Feed Stream Lifecycle
 

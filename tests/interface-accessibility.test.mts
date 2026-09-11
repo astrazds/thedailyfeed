@@ -7,8 +7,6 @@ import { DisclosureButton } from '../components/expandable-content';
 import { FatalFallback } from '../components/error-boundary';
 import {
   FeedManagerModal,
-  getFeedManagerPendingState,
-  getFeedManagerSubmitTone,
 } from '../components/feed-manager-modal';
 import { OfflineIndicator } from '../components/offline-indicator';
 
@@ -107,20 +105,6 @@ test('feed manager prioritizes subscription workflows before the feed inventory'
   assert.match(emptyMarkup, /<details[^>]*open=""[^>]*><summary[^>]*>Add feed<\/summary>/);
 });
 
-test('only the validating add or edit form becomes busy and read-only', () => {
-  assert.deepEqual(getFeedManagerPendingState({ type: 'add' }, null), {
-    addPending: true,
-    editPending: false,
-  });
-  assert.deepEqual(
-    getFeedManagerPendingState({ type: 'edit', feedId: 'feed-1' }, 'feed-1'),
-    { addPending: false, editPending: true }
-  );
-  assert.deepEqual(
-    getFeedManagerPendingState({ type: 'edit', feedId: 'feed-2' }, 'feed-1'),
-    { addPending: false, editPending: false }
-  );
-});
 
 test('offline announcements keep a stable polite region mounted', () => {
   const markup = renderToStaticMarkup(React.createElement(OfflineIndicator));
@@ -130,11 +114,6 @@ test('offline announcements keep a stable polite region mounted', () => {
   assert.doesNotMatch(markup, /offline-indicator/);
 });
 
-test('feed manager moves primary emphasis from Add feed to Save changes while editing', () => {
-  assert.equal(getFeedManagerSubmitTone('add', false), 'primary-action');
-  assert.equal(getFeedManagerSubmitTone('add', true), 'neutral-action');
-  assert.equal(getFeedManagerSubmitTone('save', true), 'primary-action');
-});
 
 test('article disclosure exposes its expanded state and controlled region', () => {
   const markup = renderToStaticMarkup(

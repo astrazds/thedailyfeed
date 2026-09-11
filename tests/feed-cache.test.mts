@@ -7,7 +7,7 @@ import {
   getCachedFeed,
   getCacheStats,
 } from '../lib/feed-cache.ts';
-import type { FeedItem } from '../lib/rss.ts';
+import type { FeedItem } from '../lib/types.ts';
 
 function createItem(index: number): FeedItem {
   return {

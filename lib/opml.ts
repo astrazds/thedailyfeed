@@ -3,14 +3,7 @@
  * For importing and exporting RSS feed lists
  */
 
-import type { Feed, FeedImportSummary } from './feed-storage';
-
-export interface OPMLFeedEntry {
-  name: string;
-  url: string;
-}
-
-export type OPMLImportSummary = FeedImportSummary;
+import type { Feed, FeedImportEntry } from './feed-storage';
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -48,7 +41,7 @@ ${outlines}
 /**
  * Parse OPML and extract feed information
  */
-export function parseOPML(opmlContent: string): OPMLFeedEntry[] {
+export function parseOPML(opmlContent: string): FeedImportEntry[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(opmlContent, 'text/xml');
   
@@ -59,7 +52,7 @@ export function parseOPML(opmlContent: string): OPMLFeedEntry[] {
   }
   
   const outlines = doc.querySelectorAll('outline[type="rss"], outline[xmlUrl]');
-  const feeds: OPMLFeedEntry[] = [];
+  const feeds: FeedImportEntry[] = [];
   
   outlines.forEach(outline => {
     const xmlUrl = outline.getAttribute('xmlUrl');

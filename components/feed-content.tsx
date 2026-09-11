@@ -8,7 +8,7 @@ import { FeedSkeleton } from './feed-skeleton';
 import { FeedManagerButton } from './feed-manager-button';
 import { useFeedStream } from './use-feed-stream';
 import { getFeeds, type Feed } from '@/lib/feed-storage';
-import type { FeedItem } from '@/lib/rss';
+import type { FeedItem } from '@/lib/types';
 import type { FeedSetLifecycleReadModel } from '@/lib/feed-set-lifecycle';
 
 const FeedManagerModal = dynamic(

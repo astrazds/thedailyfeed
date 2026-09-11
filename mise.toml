@@ -1,0 +1,41 @@
+[tools]
+node = "24.19.0"
+pnpm = "11.24.0"
+python = "3.14.7"
+
+[env]
+NEXT_TELEMETRY_DISABLED = "1"
+
+[tasks.install]
+run = "pnpm install --frozen-lockfile"
+
+[tasks.dev]
+run = "pnpm dev"
+
+[tasks.lint]
+run = "pnpm lint"
+
+[tasks.typecheck]
+run = "pnpm exec tsc --noEmit"
+
+[tasks.test]
+run = "pnpm test"
+
+[tasks.build]
+run = "pnpm build"
+
+[tasks.browser]
+run = "pnpm test:browser"
+
+[tasks.browser-install]
+run = "pnpm exec playwright install chromium"
+
+[tasks.version-check]
+run = "pnpm version:check"
+
+[tasks.integration]
+env.RUN_INTEGRATION_TESTS = "true"
+run = "pnpm test"
+
+[tasks.verify]
+run = "sh scripts/verify-ci.sh"

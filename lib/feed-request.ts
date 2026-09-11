@@ -1,9 +1,9 @@
 import { FEED_OVERALL_TIMEOUT_MS, FEED_REQUEST_TIMEOUT_MS } from './constants';
 import { cacheFeed, getCachedFeedSplit } from './feed-cache';
-import { filterTodayItems, parseFeedsProgressively, sortByDate, type FeedItem } from './rss';
+import { filterTodayItems, parseFeedsProgressively, sortByDate } from './rss';
 import type { ValidatedFeedSet } from './feed-request-validation';
 import type { ProgressiveFeedParseResult } from './rss';
-import type { FeedProgressEvent } from './types';
+import type { FeedItem, FeedProgressEvent } from './types';
 
 type FeedCacheSplit = ReturnType<typeof getCachedFeedSplit>;
 

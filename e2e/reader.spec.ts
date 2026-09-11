@@ -117,6 +117,9 @@ for (const operation of ['edit', 'toggle', 'delete', 'import'] as const) {
     await perform();
     await expect(dialog.getByRole('alert')).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('rss-feeds'))).not.toBe(before);
+    if (operation === 'edit' || operation === 'delete') {
+      await expect(dialog.getByRole('heading', { name: /^Feeds \(\d+\)$/ })).toBeFocused();
+    }
   });
 }
 

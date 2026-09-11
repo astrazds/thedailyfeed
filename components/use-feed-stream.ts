@@ -22,7 +22,7 @@ import { getEnabledFeedUrls, getFeeds } from '@/lib/feed-storage';
 import { logger } from '@/lib/logger';
 import { loadOfflineFeedSnapshot, saveOfflineFeedSnapshot } from '@/lib/offline-feed-cache';
 import { AUTO_REFRESH_INTERVAL_MS } from '@/lib/constants';
-import type { FeedItem } from '@/lib/rss';
+import type { FeedItem } from '@/lib/types';
 
 interface UseFeedStreamResult {
   items: FeedItem[];
