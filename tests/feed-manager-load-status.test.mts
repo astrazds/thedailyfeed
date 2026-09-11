@@ -12,7 +12,7 @@ function renderEmptyFeedManager(): string {
     createElement(FeedManagerModal, {
       feeds: [],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'empty', title: 'No feeds yet', detail: '' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,
@@ -49,7 +49,7 @@ test('feed manager shows a semantic success tick beside a successfully loaded fe
         },
       ],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'empty', title: 'No feeds yet', detail: '' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: () => undefined,
       onClose: () => undefined,
@@ -83,7 +83,7 @@ test('feed manager shows a semantic error cross beside a feed that failed to loa
         },
       ],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'partial', title: 'Some feeds could not load', detail: '1 feed did not load.' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: () => undefined,
       onClose: () => undefined,
@@ -93,7 +93,7 @@ test('feed manager shows a semantic error cross beside a feed that failed to loa
   assert.match(markup, /Broken Feed<\/h4>[\s\S]*Failed to load/);
   assert.match(
     markup,
-    /Some feeds did not load\. Try all feeds again, or edit a feed if its URL changed\./
+    /Some feeds could not load/
   );
   assert.match(markup, />Try all feeds again<\/button>/);
   assert.match(markup, /id="feed-list-title"[^>]+tabindex="-1"/);
@@ -120,7 +120,7 @@ test('feed manager distinguishes timed out feeds from other failures', () => {
         },
       ],
       isOpen: true,
-      isRefreshing: true,
+      activity: { type: 'loading', title: 'Loading feeds', detail: '0 of 1 feeds checked', completed: 0, total: 1 },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,
@@ -131,7 +131,7 @@ test('feed manager distinguishes timed out feeds from other failures', () => {
   assert.match(markup, />Refreshing feeds…<\/button>/);
 });
 
-test('feed manager leaves disabled, pending, and unrequested feeds unmarked', () => {
+test('feed manager marks unfinished feeds without marking disabled or unrequested feeds as successful', () => {
   const markup = renderToStaticMarkup(
     createElement(FeedManagerModal, {
       feeds: [
@@ -172,7 +172,7 @@ test('feed manager leaves disabled, pending, and unrequested feeds unmarked', ()
         },
       ],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'empty', title: 'No feeds yet', detail: '' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: () => undefined,
       onClose: () => undefined,
@@ -180,4 +180,6 @@ test('feed manager leaves disabled, pending, and unrequested feeds unmarked', ()
   );
 
   assert.doesNotMatch(markup, /aria-label="(?:Loaded successfully|Failed to load)"/);
+  assert.match(markup, /Not checked/);
+  assert.doesNotMatch(markup, />Checking</);
 });

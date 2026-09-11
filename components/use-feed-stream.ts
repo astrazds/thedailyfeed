@@ -65,6 +65,7 @@ export function useFeedStream(): UseFeedStreamResult {
     [clientTimeZone]
   );
 
+  const [booting, setBooting] = useState(true);
   const [feedReadModel, setFeedReadModel] = useState<FeedSetLifecycleReadModel>(
     initialTransition.readModel
   );
@@ -88,6 +89,7 @@ export function useFeedStream(): UseFeedStreamResult {
       lifecycleStateRef.current = transition.state;
       feedReadModelRef.current = transition.readModel;
       setFeedReadModel(transition.readModel);
+      setBooting(false);
       executeLifecycleEffects(transition.effects);
     };
 
@@ -224,7 +226,7 @@ export function useFeedStream(): UseFeedStreamResult {
 
   return {
     items: feedReadModel.items,
-    loading: feedReadModel.loading,
+    loading: booting || feedReadModel.loading,
     error: feedReadModel.error,
     isCached: feedReadModel.isCached,
     refreshNotice: feedReadModel.refreshNotice,

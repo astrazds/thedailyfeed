@@ -37,7 +37,7 @@ test('OPML export and import round-trip special attribute characters', async ({ 
   }, xml);
   expect(attributes).toEqual({ error: false, name: special.name, url: special.url });
   await page.getByLabel('Choose OPML file').setInputFiles({ name: 'synthetic.opml', mimeType: 'text/xml', buffer: Buffer.from(xml) });
-  await expect(page.getByRole('dialog').getByRole('status')).toContainText('duplicate');
+  await expect(page.getByRole('dialog').getByRole('status', { name: 'Subscription updates', exact: true })).toContainText('duplicate');
 });
 
 test('failed storage write retains form and recovers on retry', async ({ page }) => {
@@ -110,7 +110,7 @@ for (const operation of ['edit', 'toggle', 'delete', 'import'] as const) {
     await perform();
     await expect(dialog.getByRole('alert')).toContainText('browser storage');
     expect(await page.evaluate(() => localStorage.getItem('rss-feeds'))).toBe(before);
-    await expect(dialog.getByRole('status')).not.toContainText(/saved|added|Imported/);
+    await expect(dialog.getByRole('status', { name: 'Subscription updates', exact: true })).not.toContainText(/saved|added|Imported/);
     if (operation === 'edit') await expect(dialog.getByRole('form', { name: 'Edit Field Notes' }).getByLabel('Feed name', { exact: true })).toHaveValue('Edited source');
     if (operation === 'delete') await expect(dialog.getByRole('group', { name: 'Confirm deletion of Field Notes' })).toBeVisible();
     await page.evaluate(() => (window as unknown as { restoreStorage(): void }).restoreStorage());

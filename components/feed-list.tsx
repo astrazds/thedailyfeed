@@ -1,13 +1,11 @@
 import type { FeedItem } from '@/lib/types';
 import { FeedItemComponent } from './feed-item';
-import { FeedSkeleton } from './feed-skeleton';
 
 interface FeedListProps {
   items: FeedItem[];
-  loading?: boolean;
 }
 
-export function FeedList({ items, loading = false }: FeedListProps) {
+export function FeedList({ items }: FeedListProps) {
   if (items.length === 0) {
     return null;
   }
@@ -20,7 +18,6 @@ export function FeedList({ items, loading = false }: FeedListProps) {
           item={item} 
         />
       ))}
-      {loading && <FeedSkeleton />}
     </div>
   );
 }

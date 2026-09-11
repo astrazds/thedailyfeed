@@ -8,19 +8,21 @@ import { FeedManagerForm } from './feed-manager-form';
 import { FeedManagerList } from './feed-manager-list';
 import { FeedManagerTransfer } from './feed-manager-transfer';
 import { useFeedManagerActions } from './use-feed-manager-actions';
+import { FeedActivity } from './feed-activity';
+import { feedActivityAnnouncement, type FeedLoadActivity } from '@/lib/feed-load-activity';
 
 interface FeedManagerModalProps {
   feeds: Feed[];
   feedStatuses?: FeedSetLifecycleStatusItem[];
   isOpen: boolean;
-  isRefreshing: boolean;
+  activity: FeedLoadActivity;
   onRefreshFeeds: () => Promise<void>;
   onFeedsChange: (feeds: Feed[]) => void;
   onClose: () => void;
 }
 
 export function FeedManagerModal({
-  feeds, feedStatuses = [], isOpen, isRefreshing, onRefreshFeeds, onFeedsChange, onClose,
+  feeds, feedStatuses = [], isOpen, activity, onRefreshFeeds, onFeedsChange, onClose,
 }: FeedManagerModalProps) {
   const [editingFeed, setEditingFeed] = useState<Feed | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -28,7 +30,7 @@ export function FeedManagerModal({
   const feedListHeadingRef = useRef<HTMLHeadingElement>(null);
   const pendingFeedListFocusRef = useRef(false);
   const actions = useFeedManagerActions({
-    isRefreshing,
+    isRefreshing: activity.type === 'loading',
     onRefreshFeeds,
     onFeedsChange,
     beforeListChange: () => { pendingFeedListFocusRef.current = true; },
@@ -107,6 +109,7 @@ export function FeedManagerModal({
             ×
           </button>
         </div>
+        <FeedActivity activity={activity} />
       </div>
 
       <div className="overflow-y-auto overscroll-contain min-h-0 flex-1 px-4 sm:px-6 py-4">
@@ -132,10 +135,13 @@ export function FeedManagerModal({
           onCancelEdit={cancelEdit}
           actions={actions}
           feedListHeadingRef={feedListHeadingRef}
-          isRefreshing={isRefreshing}
+          activity={activity}
         />
       </div>
-      <div role="status" className="sr-only">
+      <div role="status" aria-label="Feed activity" aria-live={isOpen ? 'polite' : 'off'} className="sr-only">
+        {isOpen ? feedActivityAnnouncement(activity) : ''}
+      </div>
+      <div role="status" aria-label="Subscription updates" className="sr-only">
         {actions.statusMessage}
       </div>
     </dialog>
