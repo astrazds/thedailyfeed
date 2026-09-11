@@ -2,7 +2,7 @@ import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { STORAGE_KEY_FEEDS } from '../lib/constants';
 import type { Feed } from '../lib/feed-storage';
-import { runFeedManagerOperation } from '../lib/feed-manager-operations';
+import { runFeedManagerOperation } from '../lib/feed-storage';
 
 class LocalStorageMock {
   private readonly store = new Map<string, string>();
@@ -64,7 +64,7 @@ function feed(overrides: Partial<Feed> = {}): Feed {
   };
 }
 
-test('add operation validates, persists, returns mutation facts, and notifies feed listeners', async () => {
+test('add operation validates, persists, returns the saved inventory, and notifies feed listeners', async () => {
   const seenEvents: string[] = [];
   window.addEventListener('feedsUpdated', (event) => {
     seenEvents.push(event.type);
@@ -84,39 +84,11 @@ test('add operation validates, persists, returns mutation facts, and notifies fe
   assert.equal(result.feeds.length, 4);
   assert.equal(result.feeds.at(-1)?.name, 'Example Feed');
   assert.equal(result.feeds.at(-1)?.url, 'https://example.com/rss.xml');
-  assert.equal(result.mutation.type, 'add');
-  assert.equal(result.mutation.enabledFeedSetChanged, true);
-  assert.deepEqual(
-    result.mutation.changedFeeds.map((item) => item.url),
-    ['https://example.com/rss.xml']
-  );
+  assert.equal(result.type, 'add');
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_FEEDS) ?? '[]') as unknown[];
   assert.equal(stored.length, 4);
-});
-
-test('add operation returns mutation facts without modal reset state', async () => {
-  const seenEvents: string[] = [];
-  window.addEventListener('feedsUpdated', (event) => {
-    seenEvents.push(event.type);
-  });
-
-  const result = await runFeedManagerOperation({
-    type: 'add',
-    name: ' Example Feed ',
-    url: ' https://example.com/rss.xml ',
-    validateFeedUrl: async () => {},
-  });
-
-  assert.equal('formState' in result, false);
-  assert.equal(result.mutation.type, 'add');
-  assert.equal(result.mutation.enabledFeedSetChanged, true);
-  assert.deepEqual(
-    result.mutation.changedFeeds.map((item) => item.url),
-    ['https://example.com/rss.xml']
-  );
-  assert.deepEqual(seenEvents, ['feedsUpdated']);
 });
 
 test('add operation preserves duplicate detection without notifying feed listeners', async () => {
@@ -165,7 +137,7 @@ test('add operation preserves validation failure behavior without mutating stora
   assert.equal(stored.length, 1);
 });
 
-test('edit operation validates, persists changes, reports mutation facts, and notifies feed listeners', async () => {
+test('edit operation validates, persists changes, returns the saved inventory, and notifies feed listeners', async () => {
   saveStoredFeeds([feed()]);
   const seenEvents: string[] = [];
   window.addEventListener('feedsUpdated', (event) => {
@@ -187,12 +159,7 @@ test('edit operation validates, persists changes, reports mutation facts, and no
   assert.equal(result.feeds.length, 1);
   assert.equal(result.feeds[0].name, 'Renamed');
   assert.equal(result.feeds[0].url, 'https://example.com/updated.xml');
-  assert.equal(result.mutation.type, 'edit');
-  assert.equal(result.mutation.enabledFeedSetChanged, true);
-  assert.deepEqual(
-    result.mutation.changedFeeds.map((item) => item.url),
-    ['https://example.com/updated.xml']
-  );
+  assert.equal(result.type, 'edit');
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 });
 
@@ -210,18 +177,14 @@ test('toggle operation flips enabled state and notifies feed listeners', async (
 
   assert.equal(result.feeds.length, 1);
   assert.equal(result.feeds[0].enabled, false);
-  assert.equal(result.mutation.type, 'toggle');
-  assert.deepEqual(
-    result.mutation.changedFeeds.map((item) => item.id),
-    ['feed-1']
-  );
+  assert.equal(result.type, 'toggle');
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_FEEDS) ?? '[]') as Feed[];
   assert.equal(stored[0].enabled, false);
 });
 
-test('operation result reports Feed set changes and notifies only for real enabled Feed set changes', async () => {
+test('operations notify only when enabled feed URLs change', async () => {
   saveStoredFeeds([feed({ enabled: true })]);
   const seenEvents: string[] = [];
   window.addEventListener('feedsUpdated', (event) => {
@@ -233,8 +196,6 @@ test('operation result reports Feed set changes and notifies only for real enabl
     id: 'missing-feed',
   });
 
-  assert.equal(missingToggleResult.mutation.enabledFeedSetChanged, false);
-  assert.deepEqual(missingToggleResult.mutation.changedFeeds, []);
   assert.deepEqual(
     missingToggleResult.feeds.map((item) => item.url),
     ['https://example.com/rss.xml']
@@ -249,9 +210,8 @@ test('operation result reports Feed set changes and notifies only for real enabl
     ],
   });
 
-  assert.equal(duplicateImportResult.mutation.enabledFeedSetChanged, false);
-  assert.deepEqual(duplicateImportResult.mutation.changedFeeds, []);
-  assert.deepEqual(duplicateImportResult.mutation.importSummary, {
+  assert.ok(duplicateImportResult.type === 'import-opml');
+  assert.deepEqual(duplicateImportResult.summary, {
     added: 0,
     skippedDuplicate: 1,
     invalid: 1,
@@ -264,7 +224,6 @@ test('operation result reports Feed set changes and notifies only for real enabl
     id: 'feed-1',
   });
 
-  assert.equal(realChangeResult.mutation.enabledFeedSetChanged, true);
   assert.equal(realChangeResult.feeds[0].enabled, false);
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 });
@@ -327,11 +286,7 @@ test('delete operation removes a feed and notifies feed listeners', async () => 
     result.feeds.map((item) => item.id),
     ['feed-2']
   );
-  assert.equal(result.mutation.type, 'delete');
-  assert.deepEqual(
-    result.mutation.changedFeeds.map((item) => item.id),
-    ['feed-1']
-  );
+  assert.equal(result.type, 'delete');
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 });
 
@@ -355,12 +310,8 @@ test('OPML import adds valid feeds and summarizes duplicate and invalid entries'
   assert.equal(result.feeds.length, 2);
   assert.equal(result.feeds[1].name, 'Imported');
   assert.equal(result.feeds[1].url, 'https://example.com/imported.xml');
-  assert.equal(result.mutation.type, 'import-opml');
-  assert.deepEqual(
-    result.mutation.changedFeeds.map((item) => item.url),
-    ['https://example.com/imported.xml']
-  );
-  assert.deepEqual(result.mutation.importSummary, {
+  assert.ok(result.type === 'import-opml');
+  assert.deepEqual(result.summary, {
     added: 1,
     skippedDuplicate: 1,
     invalid: 2,
@@ -381,7 +332,8 @@ test('OPML import summary follows Feed storage URL duplicate semantics', async (
 
   assert.equal(result.feeds.length, 2);
   assert.equal(result.feeds[1].url, 'https://example.com:443/rss.xml');
-  assert.deepEqual(result.mutation.importSummary, {
+  assert.ok(result.type === 'import-opml');
+  assert.deepEqual(result.summary, {
     added: 1,
     skippedDuplicate: 0,
     invalid: 0,
@@ -406,7 +358,8 @@ test('OPML import caps additions over the configured feed limit', async () => {
   });
 
   assert.equal(result.feeds.length, 2);
-  assert.deepEqual(result.mutation.importSummary, {
+  assert.ok(result.type === 'import-opml');
+  assert.deepEqual(result.summary, {
     added: 1,
     skippedDuplicate: 0,
     invalid: 0,

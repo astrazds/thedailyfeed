@@ -57,19 +57,10 @@ export type FeedManagerOperation =
       maxFeeds?: number;
     };
 
-export type FeedManagerOperationType = FeedManagerOperation['type'];
-
-export interface FeedManagerMutationFacts {
-  type: FeedManagerOperationType;
-  changedFeeds: Feed[];
-  enabledFeedSetChanged: boolean;
-  importSummary?: FeedImportSummary;
-}
-
-export interface FeedManagerOperationResult {
-  feeds: Feed[];
-  mutation: FeedManagerMutationFacts;
-}
+export type FeedManagerOperationResult = { feeds: Feed[] } & (
+  | { type: 'add' | 'edit' | 'toggle' | 'delete' }
+  | { type: 'import-opml'; summary: FeedImportSummary }
+);
 
 const STORAGE_KEY = STORAGE_KEY_FEEDS;
 
@@ -243,7 +234,7 @@ function assertFeedCapacity(feeds: Feed[]): void {
 /**
  * Save feeds to storage
  */
-export function saveFeeds(feeds: Feed[]): void {
+function saveFeeds(feeds: Feed[]): void {
   if (typeof window === 'undefined') return;
   
   try {
@@ -299,7 +290,7 @@ function createFeed(url: string, name: string): Feed {
   };
 }
 
-function addFeedTo(feeds: Feed[], url: string, name: string): { feeds: Feed[]; feed: Feed } {
+function addFeedTo(feeds: Feed[], url: string, name: string): Feed[] {
   const normalized = normalizeFeedMutationInput(url, name);
   const existingFeed = feeds.find((feed) => feed.url === normalized.url);
   if (existingFeed) {
@@ -308,7 +299,7 @@ function addFeedTo(feeds: Feed[], url: string, name: string): { feeds: Feed[]; f
 
   assertFeedCapacity(feeds);
   const feed = createFeed(normalized.url, normalized.name);
-  return { feeds: [...feeds, feed], feed };
+  return [...feeds, feed];
 }
 
 function importFeedsInto(
@@ -350,27 +341,10 @@ function importFeedsInto(
   return { feeds: nextFeeds, summary };
 }
 
-function updateFeedIn(feeds: Feed[], id: string, updates: Partial<Feed>): Feed[] {
-  const normalizedUpdates: Partial<Feed> = { ...updates };
-  if (typeof normalizedUpdates.url === 'string') {
-    normalizedUpdates.url = validateAndNormalizeFeedUrl(normalizedUpdates.url);
-  }
-  if (typeof normalizedUpdates.name === 'string') {
-    const trimmedName = normalizedUpdates.name.trim();
-    if (!trimmedName) {
-      throw new Error('Feed name cannot be empty');
-    }
-    normalizedUpdates.name = trimmedName;
-  }
-
-  if (normalizedUpdates.url) {
-    const existingFeed = feeds.find(
-      (feed) => feed.id !== id && feed.url === normalizedUpdates.url
-    );
-    if (existingFeed) {
-      throw new Error(`Feed already exists: ${existingFeed.name}`);
-    }
-  }
+function updateFeedIn(feeds: Feed[], id: string, updates: Pick<Feed, 'url' | 'name'>): Feed[] {
+  const normalizedUpdates = normalizeFeedMutationInput(updates.url, updates.name);
+  const existingFeed = feeds.find(feed => feed.id !== id && feed.url === normalizedUpdates.url);
+  if (existingFeed) throw new Error(`Feed already exists: ${existingFeed.name}`);
 
   let found = false;
   const updatedFeeds = feeds.map((feed) => {
@@ -405,103 +379,6 @@ function didEnabledFeedSetChange(previousFeeds: Feed[], nextFeeds: Feed[]): bool
   return previousUrls.size !== nextUrls.size || [...previousUrls].some((url) => !nextUrls.has(url));
 }
 
-function didFeedChange(previousFeed: Feed, nextFeed: Feed): boolean {
-  return previousFeed.name !== nextFeed.name
-    || previousFeed.url !== nextFeed.url
-    || previousFeed.enabled !== nextFeed.enabled
-    || previousFeed.addedAt.getTime() !== nextFeed.addedAt.getTime();
-}
-
-function changedFeeds(previousFeeds: Feed[], nextFeeds: Feed[]): Feed[] {
-  const previousById = new Map(previousFeeds.map((feed) => [feed.id, feed]));
-  const nextIds = new Set(nextFeeds.map((feed) => feed.id));
-  return [
-    ...nextFeeds.filter((feed) => {
-      const previousFeed = previousById.get(feed.id);
-      return previousFeed === undefined || didFeedChange(previousFeed, feed);
-    }),
-    ...previousFeeds.filter((feed) => !nextIds.has(feed.id)),
-  ];
-}
-
-function finishManagerOperation(
-  type: FeedManagerOperationType,
-  previousFeeds: Feed[],
-  feeds: Feed[],
-  importSummary?: FeedImportSummary
-): FeedManagerOperationResult {
-  const enabledFeedSetChanged = didEnabledFeedSetChange(previousFeeds, feeds);
-  if (enabledFeedSetChanged) {
-    notifyFeedsUpdated();
-  }
-
-  const mutation: FeedManagerMutationFacts = {
-    type,
-    changedFeeds: changedFeeds(previousFeeds, feeds),
-    enabledFeedSetChanged,
-  };
-  if (importSummary !== undefined) {
-    mutation.importSummary = importSummary;
-  }
-
-  return { feeds, mutation };
-}
-
-/**
- * Add a new feed
- */
-export function addFeed(url: string, name: string): Feed {
-  const feeds = getFeeds();
-  const result = addFeedTo(feeds, url, name);
-  saveFeeds(result.feeds);
-  return result.feed;
-}
-
-/**
- * Import feeds through the same storage mutation semantics as manual feed additions.
- */
-export function importFeeds(
-  importedFeeds: FeedImportEntry[],
-  maxFeeds: number = MAX_FEEDS_PER_REQUEST
-): FeedImportSummary {
-  const result = importFeedsInto(getFeeds(), importedFeeds, maxFeeds);
-  if (result.summary.added > 0) {
-    saveFeeds(result.feeds);
-  }
-  return result.summary;
-}
-
-/**
- * Update an existing feed
- */
-export function updateFeed(id: string, updates: Partial<Feed>): void {
-  const feeds = getFeeds();
-  saveFeeds(updateFeedIn(feeds, id, updates));
-}
-
-/**
- * Delete a feed
- */
-export function deleteFeed(id: string): void {
-  const feeds = getFeeds();
-  const filteredFeeds = feeds.filter((feed) => feed.id !== id);
-  saveFeeds(filteredFeeds);
-}
-
-/**
- * Toggle feed enabled status
- */
-export function toggleFeed(id: string): void {
-  const feeds = getFeeds();
-  const updatedFeeds = feeds.map((feed) =>
-    feed.id === id ? { ...feed, enabled: !feed.enabled } : feed
-  );
-  saveFeeds(updatedFeeds);
-}
-
-/**
- * Apply one user-visible Feed manager mutation through a single storage transaction.
- */
 export async function runFeedManagerOperation(
   operation: FeedManagerOperation
 ): Promise<FeedManagerOperationResult> {
@@ -511,45 +388,31 @@ export async function runFeedManagerOperation(
   }
 
   const previousFeeds = getFeeds();
-  let feeds: Feed[];
-  let importSummary: FeedImportSummary | undefined;
+  let result: FeedManagerOperationResult;
 
   switch (operation.type) {
     case 'add':
-      feeds = addFeedTo(previousFeeds, operation.url.trim(), operation.name.trim()).feeds;
-      saveFeeds(feeds);
+      result = { type: operation.type, feeds: addFeedTo(previousFeeds, operation.url.trim(), operation.name.trim()) };
       break;
     case 'edit':
-      feeds = updateFeedIn(previousFeeds, operation.id, {
-        name: operation.name.trim(),
-        url: operation.url.trim(),
-      });
-      saveFeeds(feeds);
+      result = { type: operation.type, feeds: updateFeedIn(previousFeeds, operation.id, {
+        name: operation.name.trim(), url: operation.url.trim(),
+      }) };
       break;
     case 'toggle':
-      feeds = previousFeeds.map((feed) =>
+      result = { type: operation.type, feeds: previousFeeds.map(feed =>
         feed.id === operation.id ? { ...feed, enabled: !feed.enabled } : feed
-      );
-      saveFeeds(feeds);
+      ) };
       break;
     case 'delete':
-      feeds = previousFeeds.filter((feed) => feed.id !== operation.id);
-      saveFeeds(feeds);
+      result = { type: operation.type, feeds: previousFeeds.filter(feed => feed.id !== operation.id) };
       break;
-    case 'import-opml': {
-      const result = importFeedsInto(
-        previousFeeds,
-        operation.feeds,
-        operation.maxFeeds ?? MAX_FEEDS_PER_REQUEST
-      );
-      feeds = result.feeds;
-      importSummary = result.summary;
-      if (result.summary.added > 0) {
-        saveFeeds(feeds);
-      }
+    case 'import-opml':
+      result = { type: operation.type, ...importFeedsInto(previousFeeds, operation.feeds, operation.maxFeeds ?? MAX_FEEDS_PER_REQUEST) };
       break;
-    }
   }
 
-  return finishManagerOperation(operation.type, previousFeeds, feeds, importSummary);
+  if (result.type !== 'import-opml' || result.summary.added > 0) saveFeeds(result.feeds);
+  if (didEnabledFeedSetChange(previousFeeds, result.feeds)) notifyFeedsUpdated();
+  return result;
 }
