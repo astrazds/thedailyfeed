@@ -1,5 +1,9 @@
 # Vision
 
+This document states the product's intended boundaries. The
+[architecture decisions](docs/architecture-decisions.md#known-implementation-gaps)
+record known differences in the current implementation.
+
 The Daily Feed exists so that people can read today's articles from sources they choose in a quiet, self-hosted reader.
 It serves the individual reader, turning browser-selected RSS and Atom feeds into a chronological page of today's items.
 It owns exactly one thing: the daily reading surface between a person's chosen feeds and the publishers' originals.

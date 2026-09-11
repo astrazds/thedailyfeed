@@ -10,6 +10,9 @@ Read the sections relevant to the change rather than loading every document:
 - [README.md](README.md): product behavior, development setup, and public interfaces.
 - [TECHNICAL.md](TECHNICAL.md): architecture, API contracts, security, and testing.
 - [DEPLOYMENT.md](DEPLOYMENT.md): production topology, deployment, and recovery.
+- [VISION.md](VISION.md): intended product boundaries. Known implementation
+  gaps are recorded in [architecture decisions](docs/architecture-decisions.md#known-implementation-gaps).
+- [CONTRIBUTING.md](CONTRIBUTING.md): verification scope and synthetic screenshot capture.
 
 ## Where changes belong
 
@@ -20,6 +23,9 @@ Read the sections relevant to the change rather than loading every document:
   serialization and client validation of untrusted JSON/NDJSON.
 - `lib/feed-set-lifecycle.ts`: progressive results, terminal states, and offline
   persistence. `components/use-feed-stream.ts` connects this lifecycle to React.
+- `lib/feed-load-activity.ts`: shared activity and announcement copy.
+  `components/feed-activity.tsx` renders copy and progress. Reader and manager
+  components own recovery controls and active-context announcements.
 - `lib/feed-storage.ts`: subscriptions and complete feed-manager mutations.
 - `lib/types.ts`: shared article and wire types; browser imports must not point
   at the server RSS parser for article types.
@@ -35,8 +41,9 @@ Read the sections relevant to the change rather than loading every document:
   and OPML import/export client-side. Server cache and metrics are disposable,
   process-local state. Accounts, server persistence, and synchronization require
   an explicit product scope change.
-- Preserve timezone-aware "today" filtering and distinct loading, partial,
-  completed, failed, and offline reader states.
+- Preserve timezone-aware "today" filtering and distinct loading, empty, ready,
+  partial, interrupted, failed, and snapshot-fallback reader states. The hourly
+  timer is a documented implementation gap, not a product requirement to preserve.
 - Feed URLs, DNS answers, redirects, XML, article HTML, and transport chunks are
   untrusted input. Preserve HTTP(S)-only fetching, destination and redirect
   checks, production SSRF blocking, DOMPurify sanitization, and DOM-aware
@@ -69,8 +76,9 @@ XML tests. Run `mise run install` after installing the toolchain.
   synthetic fixtures in `e2e/`. These block external requests and service workers,
   so they do not prove live feed fetching or service-worker operation.
 - `mise run verify` runs [scripts/verify-ci.sh](scripts/verify-ci.sh), the complete gate before commit or
-  deployment. It installs dependencies and Chromium, runs the checks above,
-  and builds an unpublished Docker image.
+  deployment. It installs dependencies and Chromium, runs default tests and
+  browser checks, and builds an unpublished Docker image. Run `mise run integration`
+  separately for opt-in API coverage.
 - Documentation-only changes need diff review, `git diff --check`, and checks
   of referenced paths and claims; no application build or release bump.
 

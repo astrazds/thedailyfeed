@@ -12,8 +12,9 @@ The template contains no credentials or release overrides.
 ./scripts/deploy-compose.sh
 ```
 
-The wrapper derives `APP_VERSION` from `package.json` and `APP_COMMIT` from Git,
-then builds and starts only `thedailyfeed`. Source archives without Git report
+By default, the wrapper derives `APP_VERSION` from `package.json` and `APP_COMMIT`
+from Git, then builds and starts `thedailyfeed`. Explicit environment values
+override that metadata. Source archives without Git report
 `unknown` for the commit. Compose binds `127.0.0.1:${APP_PORT:-3000}:3000` and
 creates a private project network. The default configuration is independent of
 any hosting provider or proxy network.
@@ -82,7 +83,10 @@ The wrapper builds the application and updates only its service, using
 `--no-deps`. It derives release metadata and invokes Compose; it does not select
 a release, check CI, back up configuration, or implement rollback. A container
 replacement can briefly interrupt active requests. The process-local cache and
-metrics reset on restart; browser subscriptions and snapshots are unaffected.
+metrics reset on restart. Browser subscriptions and snapshots stay available
+when the browser profile and site origin remain the same. Changing scheme,
+hostname, or port selects a different browser storage origin; export OPML before
+moving readers to a new origin.
 
 ### Custom Compose configuration
 
@@ -118,6 +122,11 @@ After an install or update:
   dropped capabilities, resource limits, tmpfs scratch space, and bounded logs.
 - Check that only the intended proxy can reach the application and that request
   limits and unbuffered streaming remain configured.
+- In a disposable browser profile, load synthetic sources through the proxy and
+  use **Refresh feeds**. Confirm progress remains visible until completion and
+  **Manage feeds** shows source outcomes. A healthy homepage alone does not
+  establish feed retrieval or unbuffered delivery. Refresh may reuse the server
+  cache; it does not force every publisher to be fetched again.
 - Keep `ALLOW_PRIVATE_NETWORKS=false`. Metrics should remain unavailable unless
   you deliberately configure bearer authentication and restrict access.
 
