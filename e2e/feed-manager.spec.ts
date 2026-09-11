@@ -80,7 +80,7 @@ test('manager validates fields and retains a pending form until validation finis
   await expect(edit.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
   await expect.poll(() => releaseValidation !== undefined).toBe(true);
   releaseValidation?.();
-  await expect(dialog.getByRole('status')).toHaveText('Feed added.');
+  await expect(dialog.getByRole('status', { name: 'Subscription updates', exact: true })).toHaveText('Feed added.');
   await expect(name).toHaveValue('');
   await expect(url).toHaveValue('');
   await expect(edit.getByLabel('Feed name', { exact: true })).toHaveValue('Concurrent draft');

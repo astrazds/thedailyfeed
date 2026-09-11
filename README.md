@@ -22,7 +22,7 @@ There are no accounts, unread counts, or subscriptions to a service.
 The screenshot shows the actual application with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.1.13`.
+Current release: `1.2.0`.
 
 ## Install and self-host
 
@@ -55,8 +55,14 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
   Import skips duplicates and invalid URLs, and reports entries over the limit.
 - Read today's items in your browser's timezone, newest first. Articles appear
   progressively as each source finishes. Expand long excerpts or open the original.
+- Choose **Refresh feeds** to check your sources again. The progress panel shows
+  how many feeds have been checked while available articles stay readable. Open
+  **Manage feeds** to see which sources are still checking or need another try.
 - Install the app through your browser if it supports PWAs. Successful same-day
   snapshots provide offline fallback for feeds already loaded in that browser.
+
+See the synthetic [reader progress](docs/assets/loading-desktop.png) and
+[feed-manager progress](docs/assets/loading-manager-narrow.png) screenshots.
 
 ## Privacy
 

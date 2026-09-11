@@ -10,7 +10,7 @@ function renderHeaderInTimeZone(timeZone: string): string {
   process.env.TZ = timeZone;
 
   try {
-    return renderToStaticMarkup(React.createElement(FeedHeader, { itemCount: 0 }));
+    return renderToStaticMarkup(React.createElement(FeedHeader, { itemCount: 0, activity: { type: 'empty', title: 'No feeds yet', detail: '' }, onRefresh: async () => undefined }));
   } finally {
     if (previousTimeZone === undefined) {
       delete process.env.TZ;

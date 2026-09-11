@@ -3,13 +3,16 @@ import type { Feed } from '@/lib/feed-storage';
 import type { FeedSetLifecycleStatusItem } from '@/lib/feed-set-lifecycle';
 import { FeedManagerForm } from './feed-manager-form';
 import { FeedDeleteActions, focusAfterUpdate } from './feed-delete-actions';
+import type { FeedLoadActivity } from '@/lib/feed-load-activity';
 import type { FeedManagerActions } from './use-feed-manager-actions';
 
 function FeedLoadStatusIndicator({
   enabled,
   status,
+  loading,
 }: {
   enabled: boolean;
+  loading: boolean;
   status: FeedSetLifecycleStatusItem['status'] | undefined;
 }) {
   if (!enabled) {
@@ -37,7 +40,12 @@ function FeedLoadStatusIndicator({
   }
 
   if (status !== 'error' && status !== 'timeout') {
-    return null;
+    return status === 'pending' ? (
+      <span className="feed-pending-label">
+        {loading && <span className="feed-loading-spinner" aria-hidden="true" />}
+        {loading ? 'Checking' : 'Not checked'}
+      </span>
+    ) : null;
   }
 
   return (
@@ -64,7 +72,7 @@ function FeedLoadStatusIndicator({
 }
 
 export function FeedManagerList({
-  feeds, feedStatuses, editingFeed, onEdit, onCancelEdit, actions, feedListHeadingRef, isRefreshing,
+  feeds, feedStatuses, editingFeed, onEdit, onCancelEdit, actions, feedListHeadingRef, activity,
 }: {
   feeds: Feed[];
   feedStatuses: FeedSetLifecycleStatusItem[];
@@ -73,11 +81,11 @@ export function FeedManagerList({
   onCancelEdit: () => void;
   actions: FeedManagerActions;
   feedListHeadingRef: RefObject<HTMLHeadingElement | null>;
-  isRefreshing: boolean;
+  activity: FeedLoadActivity;
 }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const refreshBusy = actions.refreshPending || isRefreshing;
-  const showFeedRecovery = actions.refreshPending || feedStatuses.some(item => item.status === 'error' || item.status === 'timeout');
+  const refreshBusy = activity.type === 'loading';
+  const showFeedRecovery = ['partial', 'interrupted', 'fallback', 'failed'].includes(activity.type);
   const beginEdit = (feed: Feed) => {
     actions.clearFailure('edit');
     onEdit(feed);
@@ -104,24 +112,14 @@ export function FeedManagerList({
           {actions.failure.message}
         </p>
       )}
-      {showFeedRecovery && (
-        <div
-          className="mb-4 p-4 rounded"
-          style={{ backgroundColor: 'var(--code-bg)' }}
-        >
-          <p className="mb-3">
-            Some feeds did not load. Try all feeds again, or edit a feed if its URL changed.
-          </p>
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={refreshBusy}
-            className="neutral-action px-4 py-2 rounded text-sm font-medium button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {refreshBusy ? 'Refreshing feeds…' : 'Try all feeds again'}
-          </button>
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={refreshBusy || !feeds.some(feed => feed.enabled)}
+        className="neutral-action px-4 py-2 rounded text-sm font-medium mb-4 button-hover-fade disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {refreshBusy ? 'Refreshing feeds…' : showFeedRecovery ? 'Try all feeds again' : 'Refresh feeds'}
+      </button>
       <div className="space-y-3">
         {feeds.map((feed) => (
           <div
@@ -155,6 +153,7 @@ export function FeedManagerList({
                     </h4>
                     <FeedLoadStatusIndicator
                       enabled={feed.enabled}
+                      loading={refreshBusy}
                       status={feedStatuses.find(
                         (item) => item.feedUrl === feed.url
                       )?.status}

@@ -2,21 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import { FeedActivity } from './feed-activity';
+import type { FeedLoadActivity } from '@/lib/feed-load-activity';
 
 interface FeedHeaderProps {
   itemCount: number;
   isCached?: boolean;
-  loading?: boolean;
-  completedFeeds?: number;
-  totalFeeds?: number;
+  activity: FeedLoadActivity;
+  onRefresh: () => Promise<void>;
 }
 
 export function FeedHeader({
   itemCount,
   isCached = false,
-  loading = false,
-  completedFeeds = 0,
-  totalFeeds = 0,
+  activity,
+  onRefresh,
 }: FeedHeaderProps) {
   const [today, setToday] = useState('Today');
 
@@ -29,31 +29,39 @@ export function FeedHeader({
   }, []);
 
   const countLabel = `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
-  const showProgress = loading && totalFeeds > 0;
-  const progressLabel = `${Math.min(completedFeeds, totalFeeds)}/${totalFeeds} feeds`;
+  const loading = activity.type === 'loading';
 
   return (
-    <header className="mb-12 pb-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
+    <header className="feed-header">
       <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
         The Daily Feed
       </h1>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="feed-header-meta">
         <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>
-          {today} · {loading ? `${countLabel} (loading more…)` : countLabel}
+          {today} · {countLabel}
         </p>
         <div className="flex items-center gap-2">
-          {showProgress && (
-            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'var(--code-bg)', color: 'var(--foreground-subtle)' }}>
-              {progressLabel}
-            </span>
-          )}
           {!loading && isCached && (
             <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'var(--code-bg)', color: 'var(--foreground-subtle)' }}>
               Cached
             </span>
           )}
+          <button
+            type="button"
+            aria-label="Refresh feeds"
+            onClick={() => { if (!loading && activity.type !== 'empty') void onRefresh(); }}
+            aria-disabled={loading || activity.type === 'empty'}
+            className="feed-refresh-button neutral-action button-hover-fade"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M20 7v5h-5M4 17v-5h5" />
+              <path d="M5.1 8a8 8 0 0 1 13.2-2L20 8M4 16l1.7 2A8 8 0 0 0 18.9 16" />
+            </svg>
+            Refresh feeds
+          </button>
         </div>
       </div>
+      {activity.type !== 'failed' && activity.type !== 'fallback' && <FeedActivity activity={activity} />}
     </header>
   );
 }

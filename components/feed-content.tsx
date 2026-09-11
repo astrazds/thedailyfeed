@@ -9,7 +9,7 @@ import { FeedManagerButton } from './feed-manager-button';
 import { useFeedStream } from './use-feed-stream';
 import { getFeeds, type Feed } from '@/lib/feed-storage';
 import type { FeedItem } from '@/lib/types';
-import type { FeedSetLifecycleReadModel } from '@/lib/feed-set-lifecycle';
+import { getFeedLoadActivity, feedActivityAnnouncement, type FeedLoadActivity } from '@/lib/feed-load-activity';
 
 const FeedManagerModal = dynamic(
   () => import('./feed-manager-modal').then((mod) => mod.FeedManagerModal),
@@ -21,9 +21,9 @@ interface FeedContentContainerProps {
   items: FeedItem[];
   isCached: boolean;
   loading: boolean;
-  completedFeeds: number;
-  totalFeeds: number;
-  readerStatus: string;
+  activity: FeedLoadActivity;
+  announce: boolean;
+  onRefresh: () => Promise<void>;
 }
 
 function FeedContentContainer({
@@ -31,22 +31,21 @@ function FeedContentContainer({
   items,
   isCached,
   loading,
-  completedFeeds,
-  totalFeeds,
-  readerStatus,
+  activity,
+  announce,
+  onRefresh,
 }: FeedContentContainerProps) {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--background)' }}>
-      <div role="status" className="sr-only">
-        {readerStatus}
+      <div role="status" aria-label="Feed activity" aria-live={announce ? 'polite' : 'off'} className="sr-only">
+        {announce ? feedActivityAnnouncement(activity) : ''}
       </div>
       <div className="max-w-[720px] mx-auto px-6 py-12">
         <FeedHeader
           itemCount={items.length}
           isCached={isCached}
-          loading={loading}
-          completedFeeds={completedFeeds}
-          totalFeeds={totalFeeds}
+          activity={activity}
+          onRefresh={onRefresh}
         />
         <main aria-busy={loading}>{children}</main>
       </div>
@@ -121,32 +120,6 @@ export function RefreshNotice({ onRefresh }: RefreshNoticeProps) {
   );
 }
 
-export function getReaderStatus(input: {
-  loading: boolean;
-  error: string | null;
-  refreshNotice: FeedSetLifecycleReadModel['refreshNotice'];
-  itemCount: number;
-  completedFeeds: number;
-  totalFeeds: number;
-}): string {
-  if (input.loading) {
-    if (input.totalFeeds > 0) {
-      return `Loading feeds. ${Math.min(input.completedFeeds, input.totalFeeds)} of ${input.totalFeeds} feeds complete. ${input.itemCount} ${input.itemCount === 1 ? 'item' : 'items'} loaded.`;
-    }
-    return 'Loading feeds…';
-  }
-
-  if (input.error && input.error !== 'no-feeds') {
-    return 'Unable to load feeds.';
-  }
-
-  if (input.refreshNotice === 'snapshot-fallback') {
-    return `Unable to refresh. Showing saved items from today. ${input.itemCount} ${input.itemCount === 1 ? 'item' : 'items'} loaded.`;
-  }
-
-  return `${input.itemCount} ${input.itemCount === 1 ? 'item' : 'items'} loaded.`;
-}
-
 export function FeedContent() {
   const {
     items,
@@ -176,17 +149,30 @@ export function FeedContent() {
     requestAnimationFrame(() => managerTriggerRef.current?.focus());
   }, []);
 
+  const activity = getFeedLoadActivity({
+    loading,
+    error,
+    refreshNotice,
+    items,
+    configuredFeedCount,
+    enabledFeedCount,
+    feedStatuses,
+    completedFeeds,
+    totalFeeds,
+  });
+
   let content: ReactNode;
   if (loading && items.length === 0) {
     content = <FeedSkeleton />;
-  } else if (error && error !== 'no-feeds') {
+  } else if (activity.type === 'failed' ||
+    (items.length === 0 && (activity.type === 'partial' || activity.type === 'interrupted'))) {
     content = (
       <section className="text-center py-12" aria-labelledby="reader-error-title">
         <h2 id="reader-error-title" className="text-xl font-semibold mb-2">
-          Unable to load feeds
+          {activity.type === 'failed' ? activity.title : 'No articles loaded'}
         </h2>
         <p className="mb-6" style={{ color: 'var(--foreground-muted)' }}>
-          {error}
+          {activity.type === 'failed' ? error : 'Try again to load articles from your sources.'}
         </p>
         <button
           type="button"
@@ -197,6 +183,8 @@ export function FeedContent() {
         </button>
       </section>
     );
+  } else if (items.length === 0 && activity.type === 'fallback') {
+    content = null;
   } else if (items.length === 0) {
     content = (
       <ReaderEmptyState
@@ -206,17 +194,9 @@ export function FeedContent() {
       />
     );
   } else {
-    content = <FeedList items={items} loading={loading} />;
+    content = <FeedList items={items} />;
   }
 
-  const readerStatus = getReaderStatus({
-    loading,
-    error,
-    refreshNotice,
-    itemCount: items.length,
-    completedFeeds,
-    totalFeeds,
-  });
 
   return (
     <>
@@ -224,9 +204,9 @@ export function FeedContent() {
         items={items}
         isCached={isCached && refreshNotice === null}
         loading={loading}
-        completedFeeds={completedFeeds}
-        totalFeeds={totalFeeds}
-        readerStatus={readerStatus}
+        activity={activity}
+        announce={!isManagerOpen}
+        onRefresh={refreshFeeds}
       >
         {refreshNotice === 'snapshot-fallback' && (
           <RefreshNotice onRefresh={refreshFeeds} />
@@ -238,7 +218,7 @@ export function FeedContent() {
         feeds={feeds}
         feedStatuses={feedStatuses}
         isOpen={isManagerOpen}
-        isRefreshing={loading}
+        activity={activity}
         onRefreshFeeds={refreshFeeds}
         onFeedsChange={setFeeds}
         onClose={closeFeedManager}

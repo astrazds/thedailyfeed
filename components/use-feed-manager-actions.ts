@@ -50,7 +50,6 @@ export function useFeedManagerActions({
   const [pending, setPending] = useState<PendingOperation | null>(null);
   const [failure, setFailure] = useState<OperationFailure | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
-  const [refreshPending, setRefreshPending] = useState(false);
 
   const clearFailure = (type: OperationFailure['type']) => {
     setFailure(current => current?.type === type ? null : current);
@@ -114,20 +113,12 @@ export function useFeedManagerActions({
   };
 
   const refresh = async (): Promise<void> => {
-    if (refreshPending || isRefreshing) return;
-    setRefreshPending(true);
-    setStatusMessage('Refreshing feeds…');
-    try {
-      await onRefreshFeeds();
-      setStatusMessage('Feed refresh complete.');
-    } catch {
-      setStatusMessage('Unable to refresh feeds. Try again.');
-    } finally {
-      setRefreshPending(false);
-    }
+    if (isRefreshing) return;
+    setStatusMessage('');
+    await onRefreshFeeds();
   };
 
-  return { pending, failure, statusMessage, refreshPending, clearFailure, save, mutate, importFile, refresh };
+  return { pending, failure, statusMessage, clearFailure, save, mutate, importFile, refresh };
 }
 
 export type FeedManagerActions = ReturnType<typeof useFeedManagerActions>;

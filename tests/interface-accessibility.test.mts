@@ -36,7 +36,7 @@ test('feed manager uses a native labelled dialog and real labelled forms', () =>
     React.createElement(FeedManagerModal, {
       feeds: [],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'empty', title: 'No feeds yet', detail: '' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,
@@ -72,7 +72,7 @@ test('feed manager prioritizes subscription workflows before the feed inventory'
         },
       ],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'empty', title: 'No feeds yet', detail: '' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,
@@ -95,7 +95,7 @@ test('feed manager prioritizes subscription workflows before the feed inventory'
     React.createElement(FeedManagerModal, {
       feeds: [],
       isOpen: true,
-      isRefreshing: false,
+      activity: { type: 'empty', title: 'No feeds yet', detail: '' },
       onRefreshFeeds: asyncNoOp,
       onFeedsChange: noOp,
       onClose: noOp,

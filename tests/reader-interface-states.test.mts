@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   ReaderEmptyState,
   RefreshNotice,
-  getReaderStatus,
 } from '../components/feed-content';
 
 const noOp = () => undefined;
@@ -45,15 +44,4 @@ test('snapshot fallback explains the stale refresh and offers the aggregate retr
   assert.match(markup, /Unable to refresh\. Showing saved items from today\./);
   assert.match(markup, />Try again<\/button>/);
   assert.match(markup, /class="neutral-action/);
-  assert.equal(
-    getReaderStatus({
-      loading: false,
-      error: null,
-      refreshNotice: 'snapshot-fallback',
-      itemCount: 2,
-      completedFeeds: 0,
-      totalFeeds: 0,
-    }),
-    'Unable to refresh. Showing saved items from today. 2 items loaded.'
-  );
 });
