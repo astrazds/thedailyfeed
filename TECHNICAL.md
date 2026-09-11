@@ -94,7 +94,7 @@ The version commands only validate or update local release metadata.
    - Emits cached feeds immediately as `feed_result` chunks (`status: cached`)
    - Parses missing feeds progressively and emits `feed_result` chunks (`status: success|timeout|error`)
    - Emits `done`
-6. Client incrementally merges/sorts items, keeps the loading skeleton visible until the stream completes, updates feed-manager result state, and persists the snapshot
+6. Client incrementally merges/sorts items, keeps progress visible until the stream ends, replaces initial skeletons with articles, updates feed-manager result state, and persists the snapshot
 7. On request failures, client attempts same-day snapshot fallback from `localStorage` and marks that terminal state with a distinct refresh notice and aggregate retry action
 
 ## Observability and Logging
@@ -267,11 +267,11 @@ Chunk types:
   - `feedStatuses`
 - Uses `AbortController` to cancel in-flight requests
 - Parses NDJSON stream incrementally via `ReadableStream` + `TextDecoderStream`
-- Displays the pulsing `FeedSkeleton` until initial results arrive and beneath progressively loaded items while more feeds remain pending
-- Keeps per-feed lifecycle status out of the reading view while passing terminal results to the feed manager
+- Displays two decorative skeletons only before articles are available; the header activity panel remains visible while additional feeds load
+- Derives shared reader and manager activity from lifecycle progress, errors, saved fallback, and per-feed statuses. Checked feeds include unsuccessful results; completion copy distinguishes failures and unfinished feeds
 - Keeps configured and enabled feed inventory counts across loading, completion, and failure so the reader can distinguish no configured feeds, no enabled feeds, and no items today
 - Owns the manager open state, current feed inventory, and exact opening trigger; both the floating control and inline empty-state action use the same opener
-- Keeps one stable polite reader status region, marks results busy during streaming, and announces progressive and terminal item counts while skeletons remain decorative
+- Marks results busy during loading and routes feed announcements to the active reader or manager context. Form-operation announcements remain separate
 - Persists snapshots on successful completion
 - Uses snapshot fallback on fetch failure when available
 - Suppresses the generic cached badge for snapshot fallback, renders an explicit refresh-failure notice, and includes that notice in the stable reader announcement
@@ -287,6 +287,13 @@ Chunk types:
   hydration markup
 - A client effect replaces that label with the browser-local formatted date
   after hydration
+- Keeps a stable **Refresh feeds** button mounted and uses `aria-disabled` with a click guard while loading
+  or when no sources are enabled, preserving keyboard focus across refresh
+- `lib/feed-load-activity.ts` derives presentation state from the lifecycle;
+  `FeedActivity` renders the same progress and outcome copy in both contexts
+- Shows **Loading feeds** before articles appear and **Refreshing feeds** when
+  articles are visible, with native progress and a checked-feed count
+- Loading animation respects reduced motion; progress remains visible without motion
 
 ### Feed Manager
 
@@ -297,13 +304,13 @@ Chunk types:
 - Add-feed and OPML controls are the manager's first sections and remain mounted behind native `<details>` disclosures; Add feed starts expanded only when no feeds are configured. The feed inventory follows those subscription workflows. Narrow layouts constrain each feed row to the dialog width, wrap otherwise unbroken names, and use the control-border token for visible card boundaries
 - Add and edit are labelled native forms with required trimmed-field validation, linked inline errors, persistent form-level recovery messages, and one typed pending operation; entering edit moves focus into the form, while cancellation and successful save return focus to the feed-list heading; progress and success use one stable polite status region
 - A validating add or edit form remains mounted and becomes `aria-busy`, with its fields read-only until that operation completes so a late keystroke cannot be lost
-- Failed and timed-out feed rows include visible labels; one recovery banner calls the existing aggregate feed refresh, stays mounted while busy, announces progress through the stable status region, and returns focus to the feed-list heading
+- Feed rows show Checking while pending, Not checked when a request ends unfinished, and distinct success, failure, and timeout results. Shared activity reports loading and terminal outcomes inside the modal; aggregate retry returns focus to the feed-list heading
 - Modal handles CRUD and client-side OPML import/export without a duplicate footer action or build-version label consuming mobile height
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, cancellation restores the originating Delete button, confirmed deletion moves focus to the feed-list heading, and the destructive action uses light/dark theme danger tokens
 - Add/edit operations call `POST /api/feeds/validate` before persisting
 - `runFeedManagerOperation` in `lib/feed-storage.ts` applies mutations to current storage after URL validation, persists the result, and dispatches `feedsUpdated` only when the enabled feed set changes. Manual additions also check capacity before validation
 - `FeedManagerForm` owns its draft and field errors. Successful persistence resets the submitted form; failures retain the draft. Add/edit modes share field markup and validation
-- `useFeedManagerActions` owns the pending add/edit/import union, failure messages, live-region text, and independent refresh state. Toggle, delete, and beginning an edit remain available while a form is validating
+- `useFeedManagerActions` owns the pending add/edit/import union and form-operation messages. Refresh outcome copy comes from lifecycle state rather than Promise resolution. Toggle, delete, and beginning an edit remain available while a form is validating
 
 ### Feed Stream Lifecycle
 
