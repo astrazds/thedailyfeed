@@ -78,29 +78,30 @@ appears. Private-network feeds are blocked in production by default.
 
 ## Development
 
-Use Node 24, pnpm 11.24.0, and Python 3 (the offline XML tests).
+Use [mise](https://mise.jdx.dev/) to select the Node, pnpm, and Python versions
+in `mise.toml`. Python runs the independent XML tests.
 
 ```bash
-corepack enable
-corepack prepare pnpm@11.24.0 --activate
-pnpm install --frozen-lockfile
-pnpm dev
+mise install
+mise run install
+mise run dev
 ```
 
-For focused checks, use `pnpm test`, `pnpm lint`, or `pnpm exec tsc --noEmit`.
+For focused checks, use `mise run test`, `mise run lint`, or `mise run typecheck`.
 The full portable gate also needs Docker/Buildx and Chromium system dependencies:
 
 ```bash
-./scripts/verify-ci.sh
+mise run verify
 ```
 
 It installs locked dependencies, validates release metadata, runs lint,
 TypeScript and unit tests, builds Next/PWA output, runs isolated Playwright
 smoke tests, and builds one unpublished Docker image. It never deploys.
 
-After `pnpm build` and `pnpm exec playwright install chromium`, run
-`pnpm test:browser`. To refresh the synthetic screenshots, use
-`UPDATE_SCREENSHOTS=1 pnpm test:browser --grep 'reader renders'`.
+After `mise run build` and `mise run browser-install`, run `mise run browser`.
+Use `mise run integration` for the API tests that start a local server.
+To refresh the synthetic screenshots, use
+`UPDATE_SCREENSHOTS=1 mise run browser -- --grep 'reader renders'`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [TECHNICAL.md](TECHNICAL.md) for contribution guidance, private security reporting,
