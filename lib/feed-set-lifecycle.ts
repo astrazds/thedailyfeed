@@ -4,7 +4,7 @@ import {
   serializeFeedItems,
 } from './feed-stream-parser';
 import { getDayKeyForTimeZone, normalizeTimeZone } from './date-utils';
-import type { FeedItem } from './rss';
+import type { FeedItem } from './types';
 import type { FeedApiResponse, FeedStreamChunk, FeedStreamStatus } from './types';
 
 export interface FeedSetLifecycleFeed {

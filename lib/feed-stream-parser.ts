@@ -1,4 +1,4 @@
-import type { FeedItem } from './rss';
+import type { FeedItem } from './types';
 import type { FeedApiResponse, FeedStreamChunk, FeedStreamStatus } from './types';
 
 type SerializedFeedItem = FeedApiResponse['items'][number];

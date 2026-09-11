@@ -1,18 +1,13 @@
-/**
- * Shared type definitions
- */
-
-/**
- * API response from /api/feeds endpoint
- */
-export interface SerializedFeedItem {
+export interface FeedItem {
   title: string;
   link: string;
-  pubDate: string;
+  pubDate: Date;
   description?: string;
   contentHtml?: string;
   source: string;
 }
+
+export type SerializedFeedItem = Omit<FeedItem, 'pubDate'> & { pubDate: string };
 
 export interface FeedApiResponse {
   items: SerializedFeedItem[];

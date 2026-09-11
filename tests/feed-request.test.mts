@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { POST } from '../app/api/feeds/route';
 import { cacheFeed } from '../lib/feed-cache';
 import { getFeedApiMetrics } from '../lib/metrics';
-import type { FeedItem } from '../lib/rss';
+import type { FeedItem } from '../lib/types';
 import { executeFeedRequest, executeFeedRequestProgressively } from '../lib/feed-request';
 
 const TODAY_REFERENCE_DATE = new Date('2026-06-02T12:00:00.000Z');

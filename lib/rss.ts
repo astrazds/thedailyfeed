@@ -1,3 +1,4 @@
+import type { FeedItem } from './types';
 import Parser from 'rss-parser';
 import { parseISO, isValid } from 'date-fns';
 import { logger } from './logger';
@@ -9,15 +10,6 @@ import {
 } from './constants';
 import { FeedTimeoutError, fetchFeedXml, isAbortError } from './feed-fetcher';
 import { normalizeSafeArticleLink } from './feed-link-policy';
-
-export interface FeedItem {
-  title: string;
-  link: string;
-  pubDate: Date;
-  description?: string;
-  contentHtml?: string;
-  source: string;
-}
 
 interface ParseFeedsOptions {
   overallTimeoutMs?: number;

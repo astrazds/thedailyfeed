@@ -1,4 +1,4 @@
-import type { FeedItem } from '@/lib/rss';
+import type { FeedItem } from '@/lib/types';
 import { FeedItemComponent } from './feed-item';
 import { FeedSkeleton } from './feed-skeleton';
 

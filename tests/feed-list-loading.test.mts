@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FeedList } from '../components/feed-list';
-import type { FeedItem } from '../lib/rss';
+import type { FeedItem } from '../lib/types';
 
 const item: FeedItem = {
   title: 'A loaded item',

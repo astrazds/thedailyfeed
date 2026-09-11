@@ -10,7 +10,7 @@ import {
 import type { FeedRequestOutcome, FeedRequestProgressEvent } from '../lib/feed-request';
 import type { FeedRequestTelemetryContext } from '../lib/feed-request-telemetry';
 import type { LogContext } from '../lib/logger';
-import type { FeedItem } from '../lib/rss';
+import type { FeedItem } from '../lib/types';
 
 const rateLimit: ApiRateLimitResult = {
   allowed: true,

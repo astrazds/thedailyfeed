@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FeedItemComponent } from '../components/feed-item';
-import type { FeedItem } from '../lib/rss';
+import type { FeedItem } from '../lib/types';
 
 function feedItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
