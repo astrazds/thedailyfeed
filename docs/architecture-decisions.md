@@ -1,4 +1,4 @@
-# Architecture Decisions
+# Architecture decisions
 
 This document explains the boundaries used by the current implementation.
 [TECHNICAL.md](../TECHNICAL.md) describes the API and runtime contracts.
@@ -46,11 +46,6 @@ Only one add, edit, or import can be pending. Row actions and refresh remain
 independent, as in the existing interface. Closing the dialog does not unmount
 these owners or discard their drafts.
 
-The existing edit-completion behavior also remains. An earlier save can close
-a subsequently selected editor, and an earlier edit failure can appear on that
-editor. Correcting this requires correlating responses with editor sessions and
-covering delayed responses in the browser. This refactor does not resolve it.
-
 A central reducer was considered. It would require events for every field
 edit, asynchronous completion, file interaction, and focus effect. Local form
 ownership keeps these changes within the form and avoids an additional event
@@ -90,11 +85,52 @@ consume its read model through `useFeedStream`.
 Keeping these transitions together prevents separate UI branches from disagreeing
 about whether results are current, incomplete, or an offline fallback.
 
-The current hook retains an hourly refresh timer. `VISION.md` excludes periodic
-refresh. Resolving that product discrepancy is separate from structural changes.
+## Reader and manager share activity presentation
+
+`lib/feed-load-activity.ts` derives a `FeedLoadActivity` union from lifecycle
+state. Only the `loading` variant carries progress counts. Terminal variants
+distinguish empty, ready, partial, interrupted, fallback, and failed outcomes.
+`components/feed-activity.tsx` renders shared copy and progress. The reader uses
+dedicated failure and snapshot-fallback panels, while the manager uses
+`FeedActivity` for those states. Surrounding components own recovery controls
+and announcement routing. Opening the dialog does not start a separate request.
+
+The lifecycle remains the authority for outcomes. Resolving a refresh Promise
+does not establish that every feed loaded. Counts include failed and timed-out
+sources, and an early stream close leaves unfinished rows marked **Not checked**.
+Snapshot persistence requires `done` or a validated JSON response. It is separate
+from whether every source succeeded.
+
+Only the active reader or manager context announces feed activity. Form messages
+use a separate status region. The refresh control stays mounted while disabled
+so completing a request preserves keyboard focus. Initial skeletons disappear
+when articles become available, while progress continues in the header.
+
+The non-stream JSON compatibility path has no individual feed outcomes. It
+assigns the same aggregate status and item count to every enabled source. The
+manager displays only each row's status, so it never presents that aggregate
+count as a source-specific value.
 
 ## Shared policies serve concrete consumers
 
 Route admission, Request ID handling, metrics exposure, and cache/header policies
 have multiple consumers. Their shared modules keep those consumers consistent
 without putting HTTP policy into feed parsing or browser storage.
+
+## Known implementation gaps
+
+[VISION.md](../VISION.md) describes product intent. These current behaviors remain
+distinct from that intent or from complete UI recovery:
+
+- `useFeedStream` retains an hourly refresh timer, while the vision excludes
+  periodic retrieval. The timer can also advance an open edition after midnight.
+  The browser suite does not verify the vision's midnight continuation behavior.
+- A completed request can save an empty snapshot, including when every source
+  failed. A later request failure can reuse that snapshot and say **Showing saved
+  items from today.** even when no articles are visible. The failure and retry
+  remain visible, but that sentence overstates the available content.
+- An earlier edit save can close a subsequently selected editor, and an earlier
+  edit failure can appear there. Correcting this requires correlating responses
+  with editor sessions and covering delayed responses in the browser.
+
+Documentation records these gaps without changing the approved product boundary.

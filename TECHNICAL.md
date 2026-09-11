@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.2.0 implementation as of September 8, 2026.
+This document reflects the 1.2.0 implementation as of September 11, 2026.
 
 ## System Overview
 
@@ -38,7 +38,7 @@ The version commands only validate or update local release metadata.
 
 ## Runtime Architecture
 
-### Module Seams
+### Module ownership
 
 - Feed manager: `runFeedManagerOperation` in `lib/feed-storage.ts` owns complete browser storage mutations and returns the saved inventory, plus a required summary for imports.
 - Manager UI: `feed-manager-modal.tsx` owns dialog composition and focus. `feed-manager-form.tsx` owns drafts and validation; `use-feed-manager-actions.ts` owns asynchronous operations and messages. List and transfer components own their respective controls.
@@ -46,7 +46,8 @@ The version commands only validate or update local release metadata.
 - Feed-set execution: `lib/feed-request.ts` owns cached and missing feed orchestration and emits `FeedProgressEvent<FeedItem>` values.
 - Stream serialization: `lib/feed-response-adapter.ts` converts server `FeedItem` dates to the serialized `FeedProgressEvent<SerializedFeedItem>` wire representation.
 - Stream validation: `lib/feed-stream-parser.ts` validates the untrusted JSON/NDJSON representation before it crosses into client lifecycle state.
-- Client lifecycle: `lib/feed-set-lifecycle.ts` owns offline preview/fallback, progressive merging, terminal state, and persistence effects.
+- Client lifecycle: `lib/feed-set-lifecycle.ts` owns offline preview/fallback, progressive merging, terminal state, and persistence effects. `components/use-feed-stream.ts` owns network, storage, and React effects.
+- Loading presentation: `lib/feed-load-activity.ts` derives shared activity and announcement copy. `components/feed-activity.tsx` renders copy and progress. Reader and manager components own recovery controls and announcement routing.
 
 ### Main UI Composition
 
@@ -56,11 +57,11 @@ The version commands only validate or update local release metadata.
     - `FeedManagerButton` (stateless floating trigger)
     - `FeedManagerModal` (lazy-loaded native dialog)
     - `FeedHeader`
-    - progressive feed list and loading skeleton
+    - progressive article list and initial loading skeletons
   - `OfflineIndicator`
   - `InstallPrompt`
 
-### API Surface
+### API endpoints
 
 - `POST /api/feeds` (`app/api/feeds/route.ts`)
   - Accepts `{ feedUrls: string[], timeZone?: string }`
@@ -85,7 +86,7 @@ The version commands only validate or update local release metadata.
 
 ## Data Flow
 
-1. `FeedContent` loads enabled feed config from `localStorage` (`lib/feed-storage.ts`)
+1. `useFeedStream` loads enabled feed config from `localStorage` (`lib/feed-storage.ts`)
 2. Client resolves browser timezone and posts `{ feedUrls, timeZone }` to `/api/feeds`
 3. API derives Request ID through `lib/request-context.ts`, then applies local/development admission checks
 4. API normalizes timezone and splits feed URLs into cached + missing
@@ -94,7 +95,7 @@ The version commands only validate or update local release metadata.
    - Emits cached feeds immediately as `feed_result` chunks (`status: cached`)
    - Parses missing feeds progressively and emits `feed_result` chunks (`status: success|timeout|error`)
    - Emits `done`
-6. Client incrementally merges/sorts items, keeps progress visible until the stream ends, replaces initial skeletons with articles, updates feed-manager result state, and persists the snapshot
+6. Client replaces any snapshot preview with the first network result, then merges and sorts later results. Progress remains visible while loading. A `done` event saves the resulting snapshot, including partial or empty results. Bare stream closure ends loading without saving and leaves unfinished sources **Not checked**
 7. On request failures, client attempts same-day snapshot fallback from `localStorage` and marks that terminal state with a distinct refresh notice and aggregate retry action
 
 ## Observability and Logging
@@ -170,7 +171,10 @@ Per-feed cache allows partial cache hits when feed sets change (add/remove feeds
   - dayKey
   - savedAt
   - serialized items
-- Only same-day snapshots are reused
+- Only snapshots for the requested feed set, timezone, and current day are reused
+- Storage is bounded to 20 snapshots, 256,000 bytes per snapshot, and 1,500,000 bytes overall
+- Size limits can trim articles; quota failures can evict older snapshots
+- Day expiry prevents reuse but does not immediately delete stored records
 
 ### Service Worker Runtime Caching (Serwist)
 
@@ -234,9 +238,29 @@ The deadline is created once per route invocation and is never recreated at redi
 - `filterTodayItems(items, timeZone)` filters using timezone day keys
 - `sortByDate()` orders items newest-first
 
+## JSON response contract
+
+`POST /api/feeds` accepts `{ feedUrls: string[], timeZone?: string }` and returns
+`{ items, cached, timeZone }`. Each item has `title`, `link`, an ISO-string
+`pubDate`, and `source`, with optional `description` and `contentHtml`.
+`cached` means the entire requested set came from the server cache.
+
+The route accepts 1-50 input entries before normalizing and deduplicating HTTP(S)
+URLs. An empty array returns HTTP 400 without consulting the cache. Missing or
+invalid timezone values become `UTC`.
+
+JSON responses contain no per-feed outcomes. The client's JSON fallback assigns
+an aggregate success or cached status to each requested source, so row statuses
+cannot establish individual source success in this mode. NDJSON carries that
+detail. Both modes return `X-Request-Id` and use `Cache-Control: no-store`.
+Errors before streaming starts, including invalid JSON, rejected input, and
+local rate limits, return ordinary non-2xx JSON responses.
+
 ## Streaming Contract (`POST /api/feeds?stream=1`)
 
-Response content type: `application/x-ndjson; charset=utf-8`
+The `stream=1` query or an `Accept` header containing `application/x-ndjson`
+selects streaming. Each newline-delimited JSON object uses the following contract.
+The response content type is `application/x-ndjson; charset=utf-8`.
 
 Chunk types:
 
@@ -250,50 +274,55 @@ Chunk types:
 - `error`
   - `{ type, requestId, error }`
 
-## Client-Side State and Events
+A `feed_result` completes one source, including an error or timeout. `done`
+means feed-set processing ended, not that every source succeeded. A terminal
+`error` can arrive after HTTP 200 because response headers are already sent.
+Clients must handle it and unexpected stream closure separately from `done`.
+`cached` has the same whole-request meaning in every chunk. Individual cache
+hits use `feed_result.status: cached`. `totalFeeds` counts unique normalized
+URLs; `completedFeeds` counts emitted results, including failures and timeouts.
 
-### FeedContent (`components/feed-content.tsx`)
+## Client state and events
 
-- State:
-  - `items`
-  - `loading`
-  - `error`
-  - `isCached`
-  - `refreshNotice` (`snapshot-fallback` only when a failed refresh uses a same-day snapshot)
-  - `configuredFeedCount`
-  - `enabledFeedCount`
-  - `completedFeeds`
-  - `totalFeeds`
-  - `feedStatuses`
-- Uses `AbortController` to cancel in-flight requests
-- Parses NDJSON stream incrementally via `ReadableStream` + `TextDecoderStream`
-- Displays two decorative skeletons only before articles are available; the header activity panel remains visible while additional feeds load
-- Derives shared reader and manager activity from lifecycle progress, errors, saved fallback, and per-feed statuses. Checked feeds include unsuccessful results; completion copy distinguishes failures and unfinished feeds
-- Keeps configured and enabled feed inventory counts across loading, completion, and failure so the reader can distinguish no configured feeds, no enabled feeds, and no items today
-- Owns the manager open state, current feed inventory, and exact opening trigger; both the floating control and inline empty-state action use the same opener
-- Marks results busy during loading and routes feed announcements to the active reader or manager context. Form-operation announcements remain separate
-- Persists snapshots on successful completion
-- Uses snapshot fallback on fetch failure when available
-- Suppresses the generic cached badge for snapshot fallback, renders an explicit refresh-failure notice, and includes that notice in the stable reader announcement
-- Listens for:
-  - browser `storage` event
-  - custom `feedsUpdated` event
-- Auto-refreshes every hour
+### Reader composition and activity
 
-### FeedHeader (`components/feed-header.tsx`)
+`FeedContent` consumes `useFeedStream` and owns the manager's open state,
+current inventory, and exact opening trigger. The floating control and inline
+empty-state action use the same opener. `FeedContent` restores focus there when
+the native dialog closes.
 
-- Server rendering and the first client render use the deterministic `Today`
-  label, so the UTC container and a browser in another timezone produce matching
-  hydration markup
-- A client effect replaces that label with the browser-local formatted date
-  after hydration
-- Keeps a stable **Refresh feeds** button mounted and uses `aria-disabled` with a click guard while loading
-  or when no sources are enabled, preserving keyboard focus across refresh
-- `lib/feed-load-activity.ts` derives presentation state from the lifecycle;
-  `FeedActivity` renders the same progress and outcome copy in both contexts
-- Shows **Loading feeds** before articles appear and **Refreshing feeds** when
-  articles are visible, with native progress and a checked-feed count
-- Loading animation respects reduced motion; progress remains visible without motion
+`getFeedLoadActivity` in `lib/feed-load-activity.ts` derives one presentation
+state from the lifecycle read model. It does not fetch or persist data.
+`FeedActivity` renders copy and progress in the header and manager, excluding
+`empty`. The reader uses dedicated failure and snapshot-fallback panels in
+`FeedContent`; the manager uses `FeedActivity` for those states. Recovery controls
+belong to `FeedContent`, `FeedHeader`, and `FeedManagerList`.
+
+| State | Reader feedback |
+| --- | --- |
+| `loading` | **Loading feeds** without articles or **Refreshing feeds** with visible articles. The count includes successful, cached, failed, and timed-out results. |
+| `empty` | **No feeds yet** or **No feeds enabled**, based on the saved inventory. |
+| `ready` | **All feeds checked**, with today's item count. |
+| `partial` | **Some feeds could not load**, with a retry action. |
+| `interrupted` | **Feed loading interrupted**, with the number of unfinished sources and a retry action. |
+| `fallback` | **Unable to refresh**, identifying a same-day saved snapshot and offering retry. |
+| `failed` | **Unable to load feeds**, with retry when no usable fallback exists. |
+
+The hook's initial `booting` flag shows loading before browser subscriptions are
+read. Two decorative skeletons appear only while loading without articles.
+The main region has `aria-busy` during loading. Native progress stays visible
+when reduced motion is enabled. Available snapshot articles can appear during
+refresh; the first network result replaces that preview even if it is empty.
+
+Both reader and manager have a status region named **Feed activity**. Only the
+active context receives feed announcements. The manager's **Subscription
+updates** region reports form operations separately.
+
+`FeedHeader` first renders the deterministic **Today** label to avoid a server
+and browser timezone hydration mismatch. After hydration, an effect formats the
+browser-local date. The **Refresh feeds** button remains mounted and uses
+`aria-disabled` plus a click guard during loading or when no feeds are enabled,
+so keyboard focus survives refresh.
 
 ### Feed Manager
 
@@ -307,7 +336,7 @@ Chunk types:
 - Feed rows show Checking while pending, Not checked when a request ends unfinished, and distinct success, failure, and timeout results. Shared activity reports loading and terminal outcomes inside the modal; aggregate retry returns focus to the feed-list heading
 - Modal handles CRUD and client-side OPML import/export without a duplicate footer action or build-version label consuming mobile height
 - `FeedDeleteActions` owns the row-level transition from the normal actions to an accessible Cancel/Delete confirmation group; mounting the safe Cancel action moves keyboard focus explicitly, cancellation restores the originating Delete button, confirmed deletion moves focus to the feed-list heading, and the destructive action uses light/dark theme danger tokens
-- Add/edit operations call `POST /api/feeds/validate` before persisting
+- Add and edit operations call `POST /api/feeds/validate` before persisting, including name-only edits
 - `runFeedManagerOperation` in `lib/feed-storage.ts` applies mutations to current storage after URL validation, persists the result, and dispatches `feedsUpdated` only when the enabled feed set changes. Manual additions also check capacity before validation
 - `FeedManagerForm` owns its draft and field errors. Successful persistence resets the submitted form; failures retain the draft. Add/edit modes share field markup and validation
 - `useFeedManagerActions` owns the pending add/edit/import union and form-operation messages. Refresh outcome copy comes from lifecycle state rather than Promise resolution. Toggle, delete, and beginning an edit remain available while a form is validating
@@ -315,9 +344,13 @@ Chunk types:
 ### Feed Stream Lifecycle
 
 - `FeedProgressEvent<Item>` is the canonical progress interface for server `FeedItem` values and serialized client values; the response adapter owns Date-to-ISO serialization
-- `useFeedStream` creates its initial feed-set lifecycle transition with a memoized pure initializer
+- `useFeedStream` creates its initial feed-set lifecycle transition with a memoized pure initializer. It starts requests on mount, manual refresh, browser `storage` events, custom `feedsUpdated` events, and the current hourly timer. A new request aborts its predecessor; unmount aborts active work
 - React state exposes the current read model, while refs retain transition state needed by asynchronous stream processing
-- Lifecycle transitions, rather than component-local branching, own progressive results, offline fallback, completion, persistence effects, and persistent configured/enabled inventory counts
+- Lifecycle transitions own progressive results, offline fallback, completion, persistence effects, and configured/enabled inventory counts
+- A validated JSON response or stream `done` produces a snapshot persistence effect, including partial or empty results. The hook executes it. Storage failure does not undo displayed network results
+- A bare stream close ends loading without persistence. Pending sources remain pending internally and appear as **Not checked** in the manager
+- Request failure replaces partial network results with a matching same-day snapshot when available. Without one, the lifecycle retains partial items in state, but the reader shows the failure panel instead of the article list
+- The activity title **All feeds checked** describes source statuses, not proof that a terminal `done` was received or a snapshot was saved
 
 ## Security
 
@@ -440,21 +473,38 @@ CSS font variable and visual design are preserved.
 
 ## Testing
 
-### Default
+`mise.toml` owns tool versions and common tasks. Run commands from the repository
+root. [CONTRIBUTING.md](CONTRIBUTING.md#browser-verification-and-screenshots)
+describes browser setup and synthetic screenshot updates.
 
-```bash
-pnpm test
-```
+| Command | What it verifies |
+| --- | --- |
+| `mise run test` | Serial Node/tsx tests in `tests/`; API integration cases are skipped by default. |
+| `mise run integration` | The same tests with `RUN_INTEGRATION_TESTS=true`, including API requests against a local Next.js dev server. |
+| `mise run lint` | ESLint checks. |
+| `mise run typecheck` | Application and `.mts` test types without JavaScript emission. |
+| `mise run version-check` | Stable release version and synchronized markers. |
+| `mise run build` | Production webpack compilation and emitted PWA artifact contracts. |
+| `mise run browser` | Playwright against production output in desktop and narrow viewports. |
+| `mise run verify` | Locked install, Compose validation, metadata, lint, types, default tests, build, browser checks, and an unpublished Docker image. It does not enable API integration mode. |
 
-Runs `.mts` test files through `tsx` and the Node test runner with serial test-file concurrency. Integration tests are skipped unless `RUN_INTEGRATION_TESTS=true`.
+The browser suite uses fresh storage, intercepted synthetic feed responses,
+blocked external requests, and blocked service workers. It covers reader layout,
+hostile HTML, progressive loading, refresh failures, saved fallback, interrupted
+streams, manager forms and focus, subscription failures and retry, and OPML
+round trips. Loading cases also cover dark appearance and reduced motion.
+Python 3 independently parses exported OPML in the Node tests.
 
-### Full Integration Mode
+Current browser coverage excludes article expansion, the inline empty-state
+manager opener, service-worker offline behavior, online/offline notices, app
+installation, dark appearance outside loading, and timezone rollover. Synthetic
+browser passes do not prove live publisher fetching or production proxy behavior.
 
-```bash
-RUN_INTEGRATION_TESTS=true pnpm test
-```
-
-This mode starts a local Next.js dev server and exercises API endpoints (`/api/feeds`, `/api/feeds/validate`, stream mode, cache behavior, and rate limiting).
+`mise run build` checks the actual emitted service worker, including the exact
+feed-set `NetworkOnly` route and bounded cross-origin image cache. It does not
+exercise the worker in a browser. Next.js development uses Turbopack; production
+builds use webpack because Serwist's worker injection depends on it. Bundled
+fonts eliminate font-provider network access during the build.
 
 ## Known Constraints
 
@@ -463,41 +513,12 @@ This mode starts a local Next.js dev server and exercises API endpoints (`/api/f
 - Feed preferences, imported OPML subscriptions, and offline snapshots are browser-local (not cross-device synced or server-backed)
 - Metrics are in-memory and reset on process restart
 - `/api/feeds/validate` is unauthenticated and depends on the production reverse proxy for ingress admission controls; admitted validation work is independently bounded by `FEED_OVERALL_TIMEOUT_MS` and inbound cancellation. `/api/metrics` requires bearer auth in production
-- Some upstream feeds can intermittently return malformed XML; retry logic reduces impact but cannot eliminate source-side errors
+- Some upstream feeds return malformed XML; retries cannot eliminate source-side errors
+- Refresh requests can reuse the server cache and do not force a publisher fetch
+- Known product and UI discrepancies are recorded in [architecture decisions](docs/architecture-decisions.md#known-implementation-gaps)
 
 ## Architecture Decisions
 
 [Architecture decisions](docs/architecture-decisions.md) explains the module
 boundaries for feed management, progress events, network validation, and client
 lifecycle state.
-
-## Verification Commands
-
-```bash
-pnpm lint
-pnpm exec tsc --noEmit
-pnpm test
-pnpm build
-```
-
-`pnpm exec tsc --noEmit` checks both application code and `.mts` tests;
-`allowImportingTsExtensions` is enabled because this project is typechecked
-without emitting JavaScript. `pnpm build` performs Next.js production
-typechecking and includes the PWA artifact contract; a missing or empty service
-worker, a stale Workbox runtime asset, or a missing declared `/api/feeds`
-`NetworkOnly` runtime route fails the build.
-
-Next.js 16 uses Turbopack by default for `pnpm dev`. Production builds
-intentionally pass `--webpack` because `@serwist/next` injects the typed service
-worker through webpack.
-
-Fonts are bundled locally. After dependencies are installed, the Next/PWA build requires no font-provider network access.
-
-### Synthetic browser smoke tests
-
-`pnpm test:browser` runs Playwright against loopback production output with fresh
-browser storage, blocked service workers, intercepted synthetic API responses,
-and blocked external requests. Desktop and narrow projects exercise reader
-rendering, hostile HTML sanitization, OPML round-tripping and manager recovery.
-The same fixtures generate README screenshots; there is no production demo API.
-Python 3 provides an independent XML parser for OPML round-trip checks.
