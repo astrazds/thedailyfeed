@@ -9,9 +9,9 @@ or the publishers you read.
 | --- | --- |
 | Feed names, URLs, enabled status | Browser localStorage until edited, deleted, or site data is cleared. |
 | OPML imports and exports | Parsed or generated in the browser. Exported files remain wherever you save them. Imported URLs are sent to the server when enabled feeds load. |
-| Enabled feed URLs and browser timezone | Sent to the application server to fetch today's items. Manual additions/URL edits send the URL for validation. |
+| Enabled feed URLs and browser timezone | Sent to the application server to fetch today's items. Manual additions and all edits, including name-only edits, send the URL for validation. |
 | Feed responses | Fetched by the server from publishers; a bounded, process-local memory cache expires entries or loses them on restart. There is no server-side subscription store. |
-| Same-day article snapshots | Browser localStorage for offline fallback. Snapshots can include article HTML and identifying links. |
+| Article snapshots | Browser localStorage, keyed by enabled feed URLs and timezone. Only same-day snapshots are reused, but older records can remain stored until replaced, evicted, or site data is cleared. Snapshots can include article HTML and identifying links. |
 | Publisher images | Requested directly by the browser; hosts can see your IP address and request metadata. A bounded service-worker image cache may keep copies locally. |
 | Operational logs and metrics | The server logs redacted operational events and keeps process-local metrics. Operators control log retention; the reverse proxy may retain client IPs. |
 
@@ -23,6 +23,10 @@ publishers see requests from the server; image hosts see requests from browsers.
 Fonts are shipped with the application, so reading and building do not require
 Google Fonts requests. API responses use `no-store` and are not cached by the
 service worker. Offline article snapshots are a separate browser-local feature.
+Snapshot storage is bounded and may omit articles to stay within its size limits.
+Disabling or deleting a feed changes future requests but does not erase every
+older snapshot that contains that source. The current app requests feeds on
+opening, subscription events, explicit refresh, and an hourly timer while open.
 
 Export OPML before clearing site data if you want to retain subscriptions.
 Clearing browser site storage also removes snapshots and PWA caches; exported
