@@ -1,6 +1,6 @@
 # Deployment
 
-This guide covers running The Daily Feed 1.2.0 in production with source-built containers and a trusted HTTPS reverse proxy.
+This guide covers running The Daily Feed 1.2.1 in production with source-built containers and a trusted HTTPS reverse proxy.
 
 ## Portable Compose hosting
 
@@ -46,7 +46,7 @@ proxy error logs, which can include request details, and configure log rotation.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `APP_PORT` | `3000` | Loopback host port; container port stays 3000. |
-| `APP_VERSION` | `1.2.0` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.2.1` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Set by the deployment wrapper from Git. |
 | `TZ` | `UTC` | Container timezone. |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` | Operational logging. |
