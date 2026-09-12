@@ -71,6 +71,22 @@ test('loading remains visible through initial response, partial articles, and re
   await expect(progress).toHaveAttribute('max', '3');
   await expect(progress).toHaveAttribute('value', '0');
   await expect(page.getByRole('button', { name: 'Refresh feeds', exact: true })).toBeDisabled();
+  await page.evaluate(() => document.fonts.ready);
+  expect(await page.getByRole('banner').evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(145);
+  expect(await progress.evaluate(element => element.getBoundingClientRect().height)).toBe(2);
+  const refreshBounds = await page.getByRole('button', { name: 'Refresh feeds', exact: true }).boundingBox();
+  const managerBounds = await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().boundingBox();
+  expect(refreshBounds).not.toBeNull();
+  expect(managerBounds).not.toBeNull();
+  if (refreshBounds && managerBounds) {
+    expect(refreshBounds.width).toBeGreaterThanOrEqual(44);
+    expect(refreshBounds.height).toBeGreaterThanOrEqual(44);
+    const overlap = refreshBounds.x < managerBounds.x + managerBounds.width &&
+      refreshBounds.x + refreshBounds.width > managerBounds.x &&
+      refreshBounds.y < managerBounds.y + managerBounds.height &&
+      refreshBounds.y + refreshBounds.height > managerBounds.y;
+    expect(overlap).toBe(false);
+  }
   await capture(page, info.project.name, 'initial');
   await send(page, [firstResult]);
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();

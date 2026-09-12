@@ -104,10 +104,7 @@ interface RefreshNoticeProps {
 
 export function RefreshNotice({ onRefresh }: RefreshNoticeProps) {
   return (
-    <div
-      className="mb-8 p-4 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-      style={{ backgroundColor: 'var(--code-bg)' }}
-    >
+    <div className="reader-refresh-notice">
       <p>Unable to refresh. Showing saved items from today.</p>
       <button
         type="button"
