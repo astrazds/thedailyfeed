@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.2.1 implementation as of September 11, 2026.
+This document reflects the 1.2.1 implementation as of September 12, 2026.
 
 ## System Overview
 
@@ -302,15 +302,17 @@ belong to `FeedContent`, `FeedHeader`, and `FeedManagerList`.
 | --- | --- |
 | `loading` | **Loading feeds** without articles or **Refreshing feeds** with visible articles. The count includes successful, cached, failed, and timed-out results. |
 | `empty` | **No feeds yet** or **No feeds enabled**, based on the saved inventory. |
-| `ready` | **All feeds checked**, with today's item count. |
+| `ready` | Today's item count remains in the header. **All feeds checked** is announced without a separate visible status row. |
 | `partial` | **Some feeds could not load**, with a retry action. |
 | `interrupted` | **Feed loading interrupted**, with the number of unfinished sources and a retry action. |
 | `fallback` | **Unable to refresh**, identifying a same-day saved snapshot and offering retry. |
 | `failed` | **Unable to load feeds**, with retry when no usable fallback exists. |
 
 The hook's initial `booting` flag shows loading before browser subscriptions are
-read. Two decorative skeletons appear only while loading without articles.
-The main region has `aria-busy` during loading. Native progress stays visible
+read. One compact, three-line decorative placeholder appears only while loading
+without articles. The reader shows native progress as a two-pixel line along
+the header border, with compact activity text. The manager retains its detailed
+activity panel. The main region has `aria-busy` during loading. Progress stays visible
 when reduced motion is enabled. Available snapshot articles can appear during
 refresh; the first network result replaces that preview even if it is empty.
 
@@ -320,7 +322,8 @@ updates** region reports form operations separately.
 
 `FeedHeader` first renders the deterministic **Today** label to avoid a server
 and browser timezone hydration mismatch. After hydration, an effect formats the
-browser-local date. The **Refresh feeds** button remains mounted and uses
+browser-local date. The icon-only **Refresh feeds** button has a 44-pixel target,
+an accessible name, and a hover title. It remains mounted and uses
 `aria-disabled` plus a click guard during loading or when no feeds are enabled,
 so keyboard focus survives refresh.
 

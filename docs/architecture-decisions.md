@@ -90,7 +90,9 @@ about whether results are current, incomplete, or an offline fallback.
 `lib/feed-load-activity.ts` derives a `FeedLoadActivity` union from lifecycle
 state. Only the `loading` variant carries progress counts. Terminal variants
 distinguish empty, ready, partial, interrupted, fallback, and failed outcomes.
-`components/feed-activity.tsx` renders shared copy and progress. The reader uses
+`components/feed-activity.tsx` renders shared copy and progress. Header-scoped
+styles make the reader activity compact and place its progress on the header
+border; the manager retains the detailed panel. The reader uses
 dedicated failure and snapshot-fallback panels, while the manager uses
 `FeedActivity` for those states. Surrounding components own recovery controls
 and announcement routing. Opening the dialog does not start a separate request.
@@ -103,8 +105,8 @@ from whether every source succeeded.
 
 Only the active reader or manager context announces feed activity. Form messages
 use a separate status region. The refresh control stays mounted while disabled
-so completing a request preserves keyboard focus. Initial skeletons disappear
-when articles become available, while progress continues in the header.
+so completing a request preserves keyboard focus. The compact initial placeholder
+disappears when articles become available, while progress continues in the header.
 
 The non-stream JSON compatibility path has no individual feed outcomes. It
 assigns the same aggregate status and item count to every enabled source. The
