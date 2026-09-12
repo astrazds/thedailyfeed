@@ -58,7 +58,7 @@ LOADING_CAPTURE_DIR=/tmp/thedailyfeed-loading-captures \
   mise run browser -- e2e/loading.spec.ts --trace on
 ```
 
-The README progress images use `desktop-partial.png` and
-`narrow-manager-pending.png` from that capture directory. Inspect both viewport
+The README manager progress image uses `narrow-manager-pending.png` from that
+capture directory. Inspect both viewport
 sizes before replacing documentation images. Keep reports, traces, screenshots,
 and downloaded OPML synthetic; exclude private reading data from pull requests.

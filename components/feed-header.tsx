@@ -32,12 +32,12 @@ export function FeedHeader({
   const loading = activity.type === 'loading';
 
   return (
-    <header className="feed-header">
+    <header className="feed-header" data-loading={loading}>
       <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
         The Daily Feed
       </h1>
       <div className="feed-header-meta">
-        <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>
+        <p className="feed-header-date text-sm" style={{ color: 'var(--foreground-muted)' }}>
           {today} · {countLabel}
         </p>
         <div className="flex items-center gap-2">
@@ -48,16 +48,16 @@ export function FeedHeader({
           )}
           <button
             type="button"
+            title="Refresh feeds"
             aria-label="Refresh feeds"
             onClick={() => { if (!loading && activity.type !== 'empty') void onRefresh(); }}
             aria-disabled={loading || activity.type === 'empty'}
-            className="feed-refresh-button neutral-action button-hover-fade"
+            className="feed-refresh-button"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
               <path d="M20 7v5h-5M4 17v-5h5" />
               <path d="M5.1 8a8 8 0 0 1 13.2-2L20 8M4 16l1.7 2A8 8 0 0 0 18.9 16" />
             </svg>
-            Refresh feeds
           </button>
         </div>
       </div>

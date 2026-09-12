@@ -22,7 +22,7 @@ There are no accounts, unread counts, or subscriptions to a service.
 The screenshot shows the actual application with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.2.0`.
+Current release: `1.2.1`.
 
 ## Install and self-host
 
@@ -55,9 +55,10 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
   Import skips duplicates and invalid URLs, and reports entries over the limit.
 - Read today's items in your browser's timezone, newest first. Articles appear
   progressively as each source finishes. Expand long excerpts or open the original.
-- Choose **Refresh feeds** to check your sources again. The progress panel shows
-  how many feeds have been checked while available articles stay readable. Open
-  **Manage feeds** to see which sources are still checking or need another try.
+- Choose the **Refresh feeds** icon to check your sources again. A thin header
+  progress line and feed count track loading while available articles stay
+  readable. Open **Manage feeds** to see which sources are still checking or
+  need another try.
 - If sources fail or remain unchecked, use **Refresh feeds** or **Try again**
   in the reader, or **Try all feeds again** in the manager. A checked source may
   have failed or timed out; **Not checked** means no result arrived for it.
@@ -65,8 +66,8 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
   snapshots provide fallback for the same enabled sources and timezone.
   **Unable to refresh** identifies saved content after a request failure.
 
-See the synthetic [reader progress](docs/assets/loading-desktop.png) and
-[feed-manager progress](docs/assets/loading-manager-narrow.png) screenshots.
+See the synthetic [feed-manager progress](docs/assets/loading-manager-narrow.png)
+screenshot.
 
 ## Privacy
 
