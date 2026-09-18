@@ -39,3 +39,8 @@ run = "pnpm test"
 
 [tasks.verify]
 run = "sh scripts/verify-ci.sh"
+
+[tasks.bench-feed-latency]
+description = "Measure feed-set stream latency against local synthetic RSS"
+env.LOG_LEVEL = "error"
+run = "pnpm exec tsx scripts/bench-feed-latency.mts"
