@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.2.3 implementation as of September 12, 2026.
+This document reflects the 1.2.3 implementation as of September 19, 2026.
 
 ## System Overview
 
@@ -371,11 +371,15 @@ so keyboard focus survives refresh.
 ### Content Safety
 
 - Feed HTML is sanitized before rendering (`DOMPurify`)
+- If `window` is missing, rendering returns empty markup instead of unsanitized HTML
 - Long feed HTML is truncated with DOM-aware logic to preserve valid markup
 - Sanitized image `src` and link `href` values are resolved against the item's
   validated HTTP(S) article URL. Images retain only HTTP(S), links additionally
   allow `mailto:`, and relative URLs without a valid base plus scriptable or
   unsupported schemes fail closed.
+- HTTP(S) image and link destinations whose host is localhost or a loopback,
+  link-local, or private IP literal are dropped. IPv6 embeddings of non-global
+  IPv4 use the same special-use table as feed fetching.
 - Images without publisher-provided alt text receive `alt=""`; provided alt text
   is preserved. Images without a valid source are removed, along with event
   handlers, inline styles, and `srcset`.
@@ -389,6 +393,7 @@ so keyboard focus survives refresh.
 - The reverse proxy owns public client IP access logs, ingress rate limits, request body limits, TLS, and ingress timeouts
 - Direct public internet exposure of the Next.js app container is unsupported
 - The app retains outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` behavior, the PWA's exact-path feed-set `NetworkOnly` policy, and production metrics auth
+- Feed JSON routes reject a `Content-Length` larger than 1 MiB with status `413` and `Cache-Control: no-store`
 - The unauthenticated validation route shares one cancellation signal across DNS, redirects, body streaming, retry delay, and retries; caller abort closes the active outbound request and prevents later attempts
 - In non-production, the app keeps an in-process fallback feed API limiter for local abuse testing
 
@@ -487,6 +492,7 @@ describes browser setup and synthetic screenshot updates.
 | `mise run lint` | ESLint checks. |
 | `mise run typecheck` | Application and `.mts` test types without JavaScript emission. |
 | `mise run version-check` | Stable release version and synchronized markers. |
+| `mise run bench-feed-latency` | Local synthetic RSS. Cold-cache time to the stream `done` event. Not part of `mise run verify`. |
 | `mise run build` | Production webpack compilation and emitted PWA artifact contracts. |
 | `mise run browser` | Playwright against production output in desktop and narrow viewports. |
 | `mise run verify` | Locked install, Compose validation, metadata, lint, types, default tests, build, browser checks, and an unpublished Docker image. It does not enable API integration mode. |

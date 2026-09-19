@@ -14,8 +14,10 @@ For defects, first reproduce the problem through the affected user path with
 synthetic data. Add a focused regression where it can detect the observed
 failure. Run affected tests while iterating and `mise run verify` before a
 code commit or release. The full gate needs Python 3, Docker/Compose/Buildx,
-and Playwright's Chromium dependencies. Documentation-only changes need diff
-review, `git diff --check`, and checks of referenced paths and claims.
+and Playwright's Chromium dependencies. Documentation-only changes need
+`mise run test` for the documentation claim checks, `git diff --check`, and
+diff review of referenced paths. Those checks cover relative links, documented
+`mise run` tasks, and the Nginx example numbers.
 Avoid tests that merely assert source text or duplicate the implementation.
 
 Release metadata is checked with `mise run version-check`. Maintainers bump

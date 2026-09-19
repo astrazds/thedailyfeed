@@ -32,7 +32,7 @@ Validate with `nginx -t` before reloading Nginx. Certificate issuance,
 renewal and proxy lifecycle belong to the host administrator.
 
 The example redirects HTTP to HTTPS, allows TLS 1.2/1.3, limits request bodies
-to 1 MiB and request rate to 1/second with a burst of 120, and uses 45-second
+to 1 MiB and request rate to 1/second with a burst of 10, and uses 45-second
 upstream timeouts for the default 30-second application budget. It overwrites
 forwarded client headers, logs paths without query strings, disables response
 buffering/cache, and hides metrics at ingress. Request buffering remains enabled

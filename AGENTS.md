@@ -19,6 +19,9 @@ Read the sections relevant to the change rather than loading every document:
 - `app/api/feeds/`: feed-set and validation routes; keep route admission shared.
 - `lib/feed-request.ts`: cache/missing-feed orchestration. Fetching and parsing
   live in `lib/feed-fetcher.ts` and `lib/rss.ts`; extend that pipeline.
+- `lib/url-validator.ts`: HTTP(S) destination policy for feeds and article media.
+- `lib/feed-content-normalization.ts` and `lib/feed-html-render.ts`: sanitized HTML
+  rewrite and fail-closed empty markup when the DOM is missing.
 - `lib/feed-response-adapter.ts` and `lib/feed-stream-parser.ts`: server wire
   serialization and client validation of untrusted JSON/NDJSON.
 - `lib/feed-set-lifecycle.ts`: progressive results, terminal states, and offline
@@ -46,9 +49,12 @@ Read the sections relevant to the change rather than loading every document:
   timer is a documented implementation gap, not a product requirement to preserve.
 - Feed URLs, DNS answers, redirects, XML, article HTML, and transport chunks are
   untrusted input. Preserve HTTP(S)-only fetching, destination and redirect
-  checks, production SSRF blocking, DOMPurify sanitization, and DOM-aware
-  truncation. Keep `ALLOW_PRIVATE_NETWORKS` false unless explicitly approved.
-- Preserve response-size limits, bounded concurrency and retries, cancellation,
+  checks, and production SSRF blocking. Preserve DOMPurify sanitization,
+  fail-closed empty markup when the DOM is missing, removal of localhost and
+  private IP literals from article images and links, and DOM-aware truncation.
+  Keep `ALLOW_PRIVATE_NETWORKS` false unless explicitly approved.
+- Preserve outbound response-size limits, the inbound 1 MiB feed JSON
+  `Content-Length` cap, bounded concurrency and retries, cancellation,
   and nested timeout budgets across DNS, redirects, streaming, and retry delays.
 - Preserve both `POST /api/feeds` JSON and progressive NDJSON contracts (`meta`,
   `feed_result`, `done`, terminal `error`). Keep API responses `no-store`.
@@ -79,8 +85,9 @@ XML tests. Run `mise run install` after installing the toolchain.
   deployment. It installs dependencies and Chromium, runs default tests and
   browser checks, and builds an unpublished Docker image. Run `mise run integration`
   separately for opt-in API coverage.
-- Documentation-only changes need diff review, `git diff --check`, and checks
-  of referenced paths and claims; no application build or release bump.
+- Documentation-only changes need `mise run test` for the documentation claim
+  checks, `git diff --check`, and diff review of referenced paths. They do not
+  need an application build or a release bump.
 
 ## Releases and operations
 
