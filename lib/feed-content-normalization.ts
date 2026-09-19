@@ -187,7 +187,11 @@ export function normalizeSanitizedFeedContent(root: Element, baseUrl: string | n
   });
 
   for (const lineBreak of Array.from(root.querySelectorAll('br'))) {
-    if (lineBreak.previousElementSibling?.localName === 'br') {
+    let previous = lineBreak.previousSibling;
+    while (previous?.nodeType === Node.TEXT_NODE && /^[\t\n\f\r ]*$/.test(previous.textContent ?? '')) {
+      previous = previous.previousSibling;
+    }
+    if (previous instanceof Element && previous.localName === 'br') {
       lineBreak.remove();
     }
   }
