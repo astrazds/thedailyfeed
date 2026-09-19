@@ -6,6 +6,7 @@ import {
   validateFeedUrlForFetch,
   type ResolveHostname,
 } from '../lib/feed-security';
+import { isPrivateOrLocalIPv6, isValidFeedUrl } from '../lib/url-validator';
 import { POST as validateFeed } from '../app/api/feeds/validate/route';
 import { clearRateLimitState } from '../lib/rate-limiter';
 
@@ -149,6 +150,40 @@ test('preserves local and test private network behavior', async () => {
     });
 
     assert.equal(url.hostname, 'local-feed.example');
+  });
+});
+
+test('rejects IPv6 transition and compatible embeddings of loopback in production', async () => {
+  const loopbackEmbeddings = [
+    'http://[::7f00:1]/rss.xml',
+    'http://[::ffff:0:7f00:1]/rss.xml',
+    'http://[64:ff9b::7f00:1]/rss.xml',
+    'http://[2002:7f00:1::1]/rss.xml',
+    'http://[fec0::1]/rss.xml',
+    'http://localhost./rss.xml',
+  ];
+
+  await withEnv({ NODE_ENV: 'production' }, async () => {
+    for (const url of loopbackEmbeddings) {
+      assert.equal(isValidFeedUrl(url), false, url);
+      await assert.rejects(
+        () => validateFeedUrlForFetch(url),
+        FeedSecurityError,
+        url
+      );
+    }
+  });
+});
+
+test('rejects non-canonical IPv6 loopback DNS answers in production', async () => {
+  const resolveHostname: ResolveHostname = async () => [{ address: '::0:1', family: 6 }];
+
+  await withEnv({ NODE_ENV: 'production' }, async () => {
+    assert.equal(isPrivateOrLocalIPv6('::0:1'), true);
+    await assert.rejects(
+      () => validateFeedUrlForFetch('https://feeds.example.com/rss.xml', { resolveHostname }),
+      FeedSecurityError
+    );
   });
 });
 
