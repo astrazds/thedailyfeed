@@ -1,3 +1,5 @@
+import { isDisallowedContentDestination } from './url-validator';
+
 const EMBEDDED_HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 const SAFE_DIRECTIONS = new Set(['ltr', 'rtl', 'auto']);
 
@@ -34,7 +36,18 @@ export function normalizeFeedContentUrl(
     const normalizedUrl = new URL(trimmedValue, validatedBaseUrl(baseUrl));
     const allowedProtocols = kind === 'image' ? IMAGE_PROTOCOLS : LINK_PROTOCOLS;
 
-    return allowedProtocols.has(normalizedUrl.protocol) ? normalizedUrl.href : null;
+    if (!allowedProtocols.has(normalizedUrl.protocol)) {
+      return null;
+    }
+
+    if (
+      (normalizedUrl.protocol === 'http:' || normalizedUrl.protocol === 'https:')
+      && isDisallowedContentDestination(normalizedUrl.hostname)
+    ) {
+      return null;
+    }
+
+    return normalizedUrl.href;
   } catch {
     return null;
   }

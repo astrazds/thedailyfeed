@@ -138,3 +138,23 @@ test('feed content URLs fail closed for missing bases and unsupported schemes', 
     'https://publisher.example/about'
   );
 });
+
+test('feed image and link URLs fail closed for private and local destinations', () => {
+  const baseUrl = 'https://publisher.example/posts/article';
+
+  for (const value of [
+    'http://127.0.0.1/secret.png',
+    'http://169.254.169.254/latest/meta-data',
+    'http://192.168.1.1/logo.png',
+    'http://[::1]/x.png',
+    'http://localhost/x.png',
+  ]) {
+    assert.equal(normalizeFeedContentUrl(value, baseUrl, 'image'), null, value);
+    assert.equal(normalizeFeedContentUrl(value, baseUrl, 'link'), null, value);
+  }
+
+  assert.equal(
+    normalizeFeedContentUrl('https://cdn.example/image.jpg', baseUrl, 'image'),
+    'https://cdn.example/image.jpg'
+  );
+});
