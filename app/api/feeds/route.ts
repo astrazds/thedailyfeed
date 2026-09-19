@@ -1,5 +1,6 @@
 import {
   admitFeedRouteRequest,
+  createOversizedFeedJsonResponse,
   type FeedRouteAdmissionPolicy,
 } from '@/lib/feed-api-admission';
 import { executeFeedRequest } from '@/lib/feed-request';
@@ -40,6 +41,11 @@ export async function POST(request: Request): Promise<Response> {
     if (!rateLimit.allowed) {
       requestLogger.warn('Rate limit exceeded', admission.rateLimitLogFacts);
       return admission.createRateLimitedResponse();
+    }
+
+    const oversized = createOversizedFeedJsonResponse(request, requestId, rateLimit);
+    if (oversized) {
+      return oversized;
     }
 
     const wantsStreaming = wantsFeedStreamResponse(request);
