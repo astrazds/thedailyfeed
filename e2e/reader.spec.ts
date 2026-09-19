@@ -64,6 +64,20 @@ test('failed storage write retains form and recovers on retry', async ({ page })
   await expect(page.getByRole('dialog').getByRole('alert')).toHaveCount(0);
 });
 
+test('adjacent line breaks do not stack into a large blank gap', async ({ page }) => {
+  const stackedBreaks = Array.from({ length: 40 }, () => '<br/>').join('');
+  await page.route('**/api/feeds?*', route => route.fulfill({ json: { cached: false, items: [{
+    title: 'Line-broken comparison', source: 'Synthetic', link: 'https://example.com/article', pubDate: '2026-09-08T11:00:00Z',
+    contentHtml: `<p>Before the spacer.</p>${stackedBreaks}<p>After the spacer.</p>`,
+  }] } }));
+  await page.goto('/');
+  const article = page.locator('article').filter({ hasText: 'Line-broken comparison' });
+  await expect(article.getByText('Before the spacer.')).toBeVisible();
+  await expect(article.getByText('After the spacer.')).toBeVisible();
+  expect(await article.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(800);
+  await expect(article.locator('br')).toHaveCount(1);
+});
+
 test('malicious article HTML cannot create executable elements or links', async ({ page }) => {
   await page.route('**/api/feeds?*', route => route.fulfill({ json: { cached: false, items: [{
     title: 'Untrusted article', source: 'Synthetic', link: 'https://example.com/article', pubDate: '2026-09-08T11:00:00Z',
