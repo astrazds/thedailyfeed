@@ -14,8 +14,10 @@ There is no guaranteed response time or paid bounty program.
 Security fixes target the latest release. Self-hosters should review updates and
 run behind a trusted HTTPS reverse proxy with rate and request-body limits.
 Keep `ALLOW_PRIVATE_NETWORKS=false`; it is an SSRF escape hatch, not a routine
-compatibility option. Metrics are unavailable in production until a private
-bearer token is configured and should also be restricted at ingress.
+compatibility option. Article HTML drops localhost and private IP literals in
+image and link destinations. A missing DOM returns empty markup, not raw HTML.
+Metrics are unavailable in production until a private bearer token is
+configured and should also be restricted at ingress.
 
 Feed progress and retries use the same destination checks, cancellation, and
 timeout budgets as initial retrieval. A visible failure is not a reason to
