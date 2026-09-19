@@ -1,4 +1,5 @@
 import { checkApiRateLimit, type ApiRateLimitResult } from './api-rate-limit';
+import { MAX_FEED_JSON_BODY_BYTES } from './constants';
 import { createFeedErrorResponse } from './feed-response-adapter';
 import {
   deriveRequestContext,
@@ -54,6 +55,29 @@ function createRateLimitLogFacts(
     event: policy.rateLimitEvent,
     retryAfter: rateLimit.retryAfter,
   };
+}
+
+export function createOversizedFeedJsonResponse(
+  request: Request,
+  requestId: string,
+  rateLimit?: ApiRateLimitResult
+): Response | null {
+  const header = request.headers.get('content-length');
+  if (header === null) {
+    return null;
+  }
+
+  const length = Number.parseInt(header, 10);
+  if (!Number.isFinite(length) || length < 0 || length <= MAX_FEED_JSON_BODY_BYTES) {
+    return null;
+  }
+
+  return createFeedErrorResponse(
+    { error: 'Request body too large.' },
+    413,
+    requestId,
+    rateLimit
+  );
 }
 
 export function admitFeedRouteRequest(

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { metricsExposurePolicy } from './metrics-exposure-policy';
 
 interface MetricsAccessAllowed {
@@ -11,6 +12,17 @@ interface MetricsAccessDenied {
 }
 
 export type MetricsAccessDecision = MetricsAccessAllowed | MetricsAccessDenied;
+
+function bearerTokenMatches(provided: string, expected: string): boolean {
+  const left = Buffer.from(provided);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length) {
+    timingSafeEqual(right, right);
+    return false;
+  }
+
+  return timingSafeEqual(left, right);
+}
 
 function readBearerToken(headers: Headers): string {
   const authorization = headers.get('authorization')?.trim() || '';
@@ -30,7 +42,7 @@ export function authorizeMetricsRequest(request: Request): MetricsAccessDecision
     return { allowed: false, status: 404 };
   }
 
-  if (readBearerToken(request.headers) === configuredToken) {
+  if (bearerTokenMatches(readBearerToken(request.headers), configuredToken)) {
     return { allowed: true };
   }
 

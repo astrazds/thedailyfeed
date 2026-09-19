@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import { CONTENT_TRUNCATE_LENGTH } from '@/lib/constants';
 import { FEED_CONTENT_SANITIZER_CONFIG } from '@/lib/feed-content-sanitizer-policy';
 import { normalizeSanitizedFeedContent } from '@/lib/feed-content-normalization';
+import { unsanitizedFeedHtmlFallback } from '@/lib/feed-html-render';
 
 interface ExpandableContentProps {
   baseUrl?: string | null;
@@ -143,14 +144,10 @@ export function ExpandableContent({
 }: ExpandableContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentId = useId();
-  
-  // Sanitize HTML content to prevent XSS attacks
+
   const processedContent = useMemo(() => {
     if (typeof window === 'undefined') {
-      return {
-        sanitized: content,
-        truncated: { html: content, truncated: false },
-      };
+      return unsanitizedFeedHtmlFallback();
     }
 
     const fragment = DOMPurify.sanitize(content, {

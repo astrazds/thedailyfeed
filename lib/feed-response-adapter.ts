@@ -83,6 +83,7 @@ export function createFeedErrorResponse(
   const response = NextResponse.json(body, {
     status,
     headers: {
+      'Cache-Control': DEFAULT_CACHE_CONTROL,
       ...(rateLimit ? getRateLimitHeaders(rateLimit) : {}),
       ...(headers || {}),
     },

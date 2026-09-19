@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.2.2 implementation as of September 12, 2026.
+This document reflects the 1.2.3 implementation as of September 12, 2026.
 
 ## System Overview
 
@@ -365,8 +365,8 @@ so keyboard focus survives refresh.
 - Production SSRF guard blocks:
   - localhost
   - private, local, carrier-grade NAT, documentation, benchmarking, multicast, reserved, and other special-use IPv4 ranges
-  - local, private, documentation, and multicast IPv6 ranges
-  - IPv4-mapped non-global IPv6
+  - local, private, documentation, multicast, and deprecated site-local IPv6 ranges
+  - IPv4-mapped, IPv4-compatible, NAT64, 6to4, and SIIT embeddings of non-global IPv4
 
 ### Content Safety
 

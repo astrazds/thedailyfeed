@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { POST as postFeeds } from '../app/api/feeds/route';
 import { POST as validateFeed } from '../app/api/feeds/validate/route';
-import { RATE_LIMIT_MAX_REQUESTS } from '../lib/constants';
+import { MAX_FEED_JSON_BODY_BYTES, RATE_LIMIT_MAX_REQUESTS } from '../lib/constants';
 import { REQUEST_ID_HEADER } from '../lib/request-context';
 import { clearRateLimitState } from '../lib/rate-limiter';
 
@@ -111,8 +111,28 @@ for (const route of routeCases) {
 
       assert.ok(response);
       assert.equal(response.status, 400);
+      assert.equal(response.headers.get('Cache-Control'), 'no-store');
       assert.equal(response.headers.get('X-RateLimit-Limit'), null);
       assert.equal(response.headers.get('X-RateLimit-Remaining'), null);
     });
+  });
+
+  test(`${route.name} rejects JSON bodies larger than the application cap`, async () => {
+    const response = await route.handler(
+      new Request(route.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': String(MAX_FEED_JSON_BODY_BYTES + 1),
+          'x-request-id': `oversized-${route.name.replaceAll(' ', '-')}`,
+        },
+        body: '{}',
+      })
+    );
+
+    const payload = requireRecord(await response.json());
+    assert.equal(response.status, 413);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.equal(payload.error, 'Request body too large.');
   });
 }
