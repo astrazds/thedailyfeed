@@ -65,7 +65,7 @@ test('failed storage write retains form and recovers on retry', async ({ page })
 });
 
 test('adjacent line breaks do not stack into a large blank gap', async ({ page }) => {
-  const stackedBreaks = Array.from({ length: 40 }, () => '<br/>').join('');
+  const stackedBreaks = Array.from({ length: 20 }, () => '<br/><br/>').join(' \n\t');
   await page.route('**/api/feeds?*', route => route.fulfill({ json: { cached: false, items: [{
     title: 'Line-broken comparison', source: 'Synthetic', link: 'https://example.com/article', pubDate: '2026-09-08T11:00:00Z',
     contentHtml: `<p>Before the spacer.</p>${stackedBreaks}<p>After the spacer.</p>`,
@@ -76,6 +76,18 @@ test('adjacent line breaks do not stack into a large blank gap', async ({ page }
   await expect(article.getByText('After the spacer.')).toBeVisible();
   expect(await article.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(800);
   await expect(article.locator('br')).toHaveCount(1);
+});
+
+test('line breaks preserve separate text lines and nonbreaking spaces', async ({ page }) => {
+  await page.route('**/api/feeds?*', route => route.fulfill({ json: { cached: false, items: [{
+    title: 'Separate lines', source: 'Synthetic', link: 'https://example.com/article', pubDate: '2026-09-08T11:00:00Z',
+    contentHtml: '<p>one<br>two<br>three<br>four</p><p>before<br>&nbsp;<br>after</p>',
+  }] } }));
+  await page.goto('/');
+  const paragraphs = page.locator('article .prose p');
+  await expect(paragraphs.first()).toBeVisible();
+  expect(await paragraphs.first().innerText()).toBe('one\ntwo\nthree\nfour');
+  expect(await paragraphs.nth(1).innerText()).toBe('before\n\u00a0\nafter');
 });
 
 test('malicious article HTML cannot create executable elements or links', async ({ page }) => {
