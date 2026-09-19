@@ -2,8 +2,6 @@
  * URL validation utilities to prevent SSRF and invalid URLs
  */
 
-import { isIP } from 'node:net';
-
 const NON_GLOBAL_IPV4_RANGES: Array<[string, number]> = [
   ['0.0.0.0', 8],
   ['10.0.0.0', 8],
@@ -70,14 +68,14 @@ function ipv4FromGroups(high: number, low: number): string {
 
 function canonicalizeIPv6(hostname: string): string | null {
   const stripped = hostname.replace(/^\[|\]$/g, '');
-  if (isIP(stripped) !== 6) {
+  if (!stripped.includes(':')) {
     return null;
   }
 
   try {
     return new URL(`http://[${stripped}]`).hostname.replace(/^\[|\]$/g, '');
   } catch {
-    return stripped.toLowerCase();
+    return null;
   }
 }
 
