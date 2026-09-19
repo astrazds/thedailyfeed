@@ -185,4 +185,10 @@ export function normalizeSanitizedFeedContent(root: Element, baseUrl: string | n
     }
     heading.replaceWith(replacement);
   });
+
+  for (const lineBreak of Array.from(root.querySelectorAll('br'))) {
+    if (lineBreak.previousElementSibling?.localName === 'br') {
+      lineBreak.remove();
+    }
+  }
 }
