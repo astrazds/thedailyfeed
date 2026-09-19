@@ -75,7 +75,7 @@ test('adjacent line breaks do not stack into a large blank gap', async ({ page }
   await expect(article.getByText('Before the spacer.')).toBeVisible();
   await expect(article.getByText('After the spacer.')).toBeVisible();
   expect(await article.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(800);
-  await expect(article.locator('br')).toHaveCount(1);
+  await expect(article.locator('br')).toHaveCount(2);
 });
 
 test('line breaks preserve separate text lines and nonbreaking spaces', async ({ page }) => {
@@ -88,6 +88,46 @@ test('line breaks preserve separate text lines and nonbreaking spaces', async ({
   await expect(paragraphs.first()).toBeVisible();
   expect(await paragraphs.first().innerText()).toBe('one\ntwo\nthree\nfour');
   expect(await paragraphs.nth(1).innerText()).toBe('before\n\u00a0\nafter');
+});
+
+test('expanded articles preserve a blank line between publisher paragraphs', async ({ page }, info) => {
+  const first = 'A quiet morning leaves time to notice the garden, read a chapter, and make plans for the day. '.repeat(7);
+  const second = 'Later, a walk through familiar streets offers a different view of the same neighbourhood. '.repeat(7);
+  await page.route('**/api/feeds?*', route => route.fulfill({ json: { cached: false, items: [{
+    title: 'A day in two paragraphs', source: 'Synthetic', link: 'https://example.com/article', pubDate: '2026-09-08T11:00:00Z',
+    contentHtml: `${first}<br> \n<br>${second}`,
+  }] } }));
+  await page.goto('/');
+  const article = page.locator('article').filter({ hasText: 'A day in two paragraphs' });
+  const content = article.locator('.prose');
+  const expand = article.getByRole('button', { name: 'Continue reading', exact: true });
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  const collapsedText = await content.innerText();
+  await expand.click();
+  await expect(article.getByRole('button', { name: 'Show less', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  await expect(content).toContainText(second.trim());
+  await page.evaluate(() => document.fonts.ready);
+  const spacing = await content.evaluate(element => {
+    const textNodes = Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+    const firstRange = document.createRange();
+    firstRange.selectNodeContents(textNodes[0]);
+    const firstRects = Array.from(firstRange.getClientRects());
+    const secondRange = document.createRange();
+    secondRange.selectNodeContents(textNodes[1]);
+    return {
+      gap: secondRange.getClientRects()[0].top - firstRects[firstRects.length - 1].bottom,
+      lineHeight: parseFloat(getComputedStyle(element).lineHeight),
+      breaks: element.querySelectorAll('br').length,
+    };
+  });
+  await info.attach('paragraph-spacing', { body: JSON.stringify(spacing), contentType: 'application/json' });
+  await info.attach('expanded', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  expect(spacing.gap).toBeGreaterThanOrEqual(spacing.lineHeight);
+  await article.getByRole('button', { name: 'Show less', exact: true }).click();
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  expect(await content.innerText()).toBe(collapsedText);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await info.attach('collapsed', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });
 
 test('malicious article HTML cannot create executable elements or links', async ({ page }) => {
