@@ -70,6 +70,12 @@ test('loading remains visible through initial response, partial articles, and re
   const progress = page.getByRole('progressbar', { name: 'Feed loading progress' });
   await expect(progress).toHaveAttribute('max', '3');
   await expect(progress).toHaveAttribute('value', '0');
+  const placeholders = page.locator('.feed-skeleton-item');
+  await expect(placeholders).toHaveCount(3);
+  for (const placeholder of await placeholders.all()) {
+    await expect(placeholder).toBeVisible();
+    expect(await placeholder.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(120);
+  }
   await expect(page.getByRole('button', { name: 'Refresh feeds', exact: true })).toBeDisabled();
   await page.evaluate(() => document.fonts.ready);
   expect(await page.getByRole('banner').evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(145);
@@ -94,6 +100,7 @@ test('loading remains visible through initial response, partial articles, and re
   await expect(progress).toHaveAttribute('value', '1');
   await expect(page.getByRole('banner').getByText('1 of 3 feeds checked', { exact: true })).toBeVisible();
   await expect(page.locator('main article')).toHaveCount(1);
+  await expect(placeholders).toHaveCount(3);
   await capture(page, info.project.name, 'partial');
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -105,11 +112,13 @@ test('loading remains visible through initial response, partial articles, and re
   await page.evaluate(() => window.feedLoadingTest.finish());
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   await expect(progress).toHaveCount(0);
+  await expect(placeholders).toHaveCount(0);
   await capture(page, info.project.name, 'complete');
   const refresh = page.getByRole('button', { name: 'Refresh feeds', exact: true });
   await refresh.click();
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);
   await expect(page.getByRole('banner').getByText('Refreshing feeds', { exact: true })).toBeVisible();
+  await expect(placeholders).toHaveCount(3);
   await expect(refresh).toBeDisabled();
   await refresh.press('Enter');
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);
@@ -120,6 +129,7 @@ test('loading remains visible through initial response, partial articles, and re
   await expect(refresh).toBeEnabled();
   await expect(refresh).toBeFocused();
   await expect(progress).toHaveCount(0);
+  await expect(placeholders).toHaveCount(0);
 });
 
 test('a failed refresh does not announce successful completion in the manager', async ({ page }, info) => {
@@ -168,7 +178,35 @@ test('saved articles remain readable when a refresh fails', async ({ page }, inf
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
   await expect(page.getByRole('main').getByText('Unable to refresh. Showing saved items from today.', { exact: true })).toBeVisible();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
   await capture(page, info.project.name, 'saved-fallback');
+});
+
+test('refresh preserves an expanded article while skeletons appear and disappear', async ({ page }) => {
+  const expandedResult: FeedStreamChunk = {
+    ...firstResult,
+    items: firstResult.items.map(item => ({
+      ...item,
+      contentHtml: `<p>${'An article stays readable during refresh. '.repeat(30)}</p><p>The end of the story.</p>`,
+    })),
+  };
+  await controlFeedResponses(page);
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
+  await send(page, [metadata, expandedResult, ...remaining, done]);
+  await page.evaluate(() => window.feedLoadingTest.finish());
+  await page.getByRole('button', { name: 'Continue reading', exact: true }).click();
+  const disclosure = page.getByRole('button', { name: 'Show less', exact: true });
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Refresh feeds', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(3);
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('The end of the story.', { exact: true })).toBeVisible();
+  await send(page, [metadata, expandedResult, ...remaining, done]);
+  await page.evaluate(() => window.feedLoadingTest.finish());
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('an interrupted stream ends progress and marks unfinished feeds', async ({ page }, info) => {
@@ -179,6 +217,7 @@ test('an interrupted stream ends progress and marks unfinished feeds', async ({ 
   await page.evaluate(() => window.feedLoadingTest.finish());
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   await expect(page.getByRole('dialog').getByText('Not checked', { exact: true })).toHaveCount(2);
@@ -194,6 +233,7 @@ test('loading stays clear in dark mode with reduced motion', async ({ page }, in
   await send(page, [metadata]);
   await expect(page.getByRole('banner').getByText('Loading feeds', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Feed loading progress' })).toBeVisible();
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(3);
   const movingElements = await page.locator('main, header').evaluateAll(roots => roots.flatMap(root => [root, ...root.querySelectorAll('*')]).filter(element => {
     const style = getComputedStyle(element);
     return style.animationName !== 'none' && style.animationDuration.split(',').some(duration => parseFloat(duration) > 0.01);
@@ -230,6 +270,7 @@ test('disabled sources do not leave loading visuals running', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'No feeds enabled' })).toBeVisible();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Refresh feeds', exact: true })).toBeDisabled();
 });
 
@@ -242,6 +283,7 @@ test('a failed initial request offers a working reader retry', async ({ page }, 
   await expect(page.getByRole('heading', { name: 'Unable to load feeds', exact: true })).toBeVisible();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
+  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
   await capture(page, info.project.name, 'initial-failure');
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);

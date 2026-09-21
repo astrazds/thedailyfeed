@@ -160,7 +160,7 @@ export function FeedContent() {
 
   let content: ReactNode;
   if (loading && items.length === 0) {
-    content = <FeedSkeleton />;
+    content = null;
   } else if (activity.type === 'failed' ||
     (items.length === 0 && (activity.type === 'partial' || activity.type === 'interrupted'))) {
     content = (
@@ -208,6 +208,7 @@ export function FeedContent() {
         {refreshNotice === 'snapshot-fallback' && (
           <RefreshNotice onRefresh={refreshFeeds} />
         )}
+        {loading && <FeedSkeleton />}
         {content}
       </FeedContentContainer>
       <FeedManagerButton isOpen={isManagerOpen} onOpen={openFeedManager} />
