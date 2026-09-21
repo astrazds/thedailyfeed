@@ -1,6 +1,6 @@
 {
   "name": "thedailyfeed",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "A focused RSS reader for today's articles.",
   "private": true,
   "repository": {

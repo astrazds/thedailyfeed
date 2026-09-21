@@ -105,8 +105,9 @@ from whether every source succeeded.
 
 Only the active reader or manager context announces feed activity. Form messages
 use a separate status region. The refresh control stays mounted while disabled
-so completing a request preserves keyboard focus. The compact initial placeholder
-disappears when articles become available, while progress continues in the header.
+so completing a request preserves keyboard focus. Three decorative article-shaped
+placeholders remain above available articles throughout loading and refresh.
+The placeholders disappear when loading ends, while retained articles stay mounted.
 
 The non-stream JSON compatibility path has no individual feed outcomes. It
 assigns the same aggregate status and item count to every enabled source. The

@@ -1,6 +1,6 @@
 # Technical Documentation - The Daily Feed
 
-This document reflects the 1.2.5 implementation as of September 19, 2026.
+This document reflects the 1.2.6 implementation as of September 21, 2026.
 
 ## System Overview
 
@@ -57,7 +57,7 @@ The version commands only validate or update local release metadata.
     - `FeedManagerButton` (stateless floating trigger)
     - `FeedManagerModal` (lazy-loaded native dialog)
     - `FeedHeader`
-    - progressive article list and initial loading skeletons
+    - progressive article list and loading skeletons
   - `OfflineIndicator`
   - `InstallPrompt`
 
@@ -309,10 +309,11 @@ belong to `FeedContent`, `FeedHeader`, and `FeedManagerList`.
 | `failed` | **Unable to load feeds**, with retry when no usable fallback exists. |
 
 The hook's initial `booting` flag shows loading before browser subscriptions are
-read. One compact, three-line decorative placeholder appears only while loading
-without articles. The reader shows native progress as a two-pixel line along
-the header border, with compact activity text. The manager retains its detailed
-activity panel. The main region has `aria-busy` during loading. Progress stays visible
+read. Three decorative article-shaped placeholders appear above available articles
+throughout loading and refresh. They disappear when loading ends. The reader shows
+native progress as a two-pixel line along the header border, with compact activity
+text. The manager retains its detailed activity panel. The main region has
+`aria-busy` during loading. Progress stays visible
 when reduced motion is enabled. Available snapshot articles can appear during
 refresh; the first network result replaces that preview even if it is empty.
 
