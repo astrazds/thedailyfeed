@@ -18,6 +18,8 @@ There are no accounts, unread counts, or subscriptions to a service.
 Expo and React Native render the web application. The existing Next.js server
 serves the exported app and its same-origin feed API. This phase targets web
 browsers. Android and iOS builds are not part of this release.
+The [web acceptance record](docs/migrations/expo-web-acceptance.md) describes
+browser coverage and the remaining physical-device checks.
 
 <p align="center">
   <img src="docs/assets/reader-desktop.png" alt="The Daily Feed showing synthetic articles from Field Notes, Small Hours, and Open Workshop">
@@ -60,9 +62,10 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
 - Read today's items in your browser's timezone, newest first. Articles appear
   progressively as each source finishes. Expand long excerpts or open the original.
 - Choose the **Refresh feeds** icon to check your sources again. A thin header
-  progress line and feed count track loading while available articles stay
-  readable. Open **Manage feeds** to see which sources are still checking or
-  need another try.
+  progress line, rotating icon, pulsing placeholders, and feed count track
+  loading while available articles stay readable. Open **Manage feeds** to see
+  which sources are still checking or need another try. Loading animations
+  respect your reduced-motion preference.
 - If sources fail or remain unchecked, use **Refresh feeds** or **Try again**
   in the reader, or **Try all feeds again** in the manager. A checked source may
   have failed or timed out; **Not checked** means no result arrived for it.

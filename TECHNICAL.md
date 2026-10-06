@@ -46,6 +46,7 @@ The version commands only validate or update local release metadata.
 - `mobile/src/useSubscriptions.ts` publishes the canonical `Feed[]` inventory. Its web adapter calls `runFeedManagerOperation` in `lib/feed-storage.ts` for complete storage mutations.
 - `mobile/src/useReader.ts` owns cancellation, transport, and snapshot effects. `lib/feed-set-lifecycle.ts` owns progressive results, terminal state, and offline fallback.
 - `lib/feed-load-activity.ts` derives shared activity and announcement copy for the reader and manager.
+- `mobile/src/LoadingMotion.web.tsx` and its CSS own loading animations and live reduced-motion preferences. The base adapter is static for native platforms.
 - `mobile/src/ArticleCard.tsx` renders article content with `@native-html/render`. `article-content.web.ts` runs DOMPurify and DOM normalization before the bounded parsed-tree renderer.
 - `lib/types.ts` owns article and progress-event types. `lib/feed-response-adapter.ts` serializes server dates, and `lib/feed-stream-parser.ts` validates untrusted wire data.
 - `lib/feed-request.ts` owns cached and missing feed orchestration. The backend retrieval and safety pipeline remains shared by feed loading and validation.
@@ -318,6 +319,10 @@ or persisting data. Reader and manager controls use the same outcomes.
 Three decorative article placeholders appear during loading. The header keeps
 a compact progress line. Only the active reader or manager announces feed
 activity. Subscription operation messages use a separate status region.
+The web motion adapter rotates the refresh and manager icons and pulses
+placeholder contents while their borders stay stationary. CSS media queries
+disable motion when the reduced-motion preference is active, including changes
+during a request. Existing lifecycle state controls when motion stops.
 
 ### Feed manager
 
@@ -435,10 +440,13 @@ can seed feed records. Its backend address and snapshot are not imported.
   `esbuild` binary setup while explicitly blocking `sharp` and `unrs-resolver`
   lifecycle scripts. Transitive overrides pin compatible fixes for selected
   dependencies.
-- Node stays on the reviewed Node 24 LTS line. `@types/node` stays on 24,
-  TypeScript stays on 5.9, and ESLint stays on 9 until the corresponding Node
-  26, TypeScript 7, and ESLint 10 integrations are supported by this Next.js
-  toolchain.
+- Node stays on the reviewed Node 24 LTS line. In the root server package,
+  `@types/node` stays on 24, TypeScript stays on 5.9, and ESLint stays on 9 until
+  the corresponding Node 26, TypeScript 7, and ESLint 10 integrations are
+  supported by this Next.js toolchain.
+- The Expo package has its own npm lockfile and dependency versions. Its current
+  TypeScript range is `~6.0.3` and its Node type range is `^22.0.0`. Those type
+  declarations do not select a different server runtime.
 
 ### Containers and GitHub Actions
 
@@ -504,15 +512,16 @@ describes browser setup and synthetic screenshot updates.
 | `mise run build` | Expo web export, Next production webpack compilation, and emitted PWA artifact contracts. |
 | `mise run browser` | Playwright against production output in desktop and narrow viewports. |
 | `npm test --prefix mobile` | Expo transport, article, and browser-profile unit tests. |
-| `STYLE_TARGET_URL=http://localhost:3000 npm run verify:style --prefix mobile` | Sealed original-reader pixel comparison for selected states, viewports, and themes. Requires a running production server. |
+| `pnpm verify:expo-browser` | Starts the built web host, runs sealed style comparisons with pinned font rendering, and checks article rendering and real HTTP. |
 | `pnpm verify:web-runtime` | Installed-worker upgrade, retained subscriptions, actual offline reload, bundled fonts, snapshot rejection, and empty API caches. |
 | `mise run verify` | Locked installs, Compose validation, metadata, lint, types, both unit suites, build, browser checks, offline runtime, and an unpublished Docker image. It does not enable API integration mode. |
 
-The browser suite uses fresh storage, intercepted synthetic feed responses,
+The Chromium browser suite uses fresh storage, intercepted synthetic feed responses,
 blocked external requests, and blocked service workers. It covers reader layout,
 hostile HTML, progressive loading, refresh failures, saved fallback, interrupted
 streams, manager forms and focus, subscription failures and retry, and OPML
-round trips. Loading cases also cover dark appearance and reduced motion.
+round trips. Loading cases sample rotation and opacity over time, check live
+reduced-motion changes without refetching, and cover completion and failure.
 Python 3 independently parses exported OPML in the Node tests.
 
 `pnpm verify:web-runtime` exercises the emitted worker in a browser with service
@@ -524,7 +533,9 @@ unrelated snapshots, and confirms that API responses are absent from caches.
 
 The isolated UI suite and runtime check do not prove live publisher behavior,
 production proxy configuration, native devices, or every browser's install UI.
-See the migration evidence for the checks run against a particular revision.
+The [web acceptance record](docs/migrations/expo-web-acceptance.md) records
+additional live HTTP, Firefox, and WebKit checks for a particular revision.
+Those one-off checks are separate from the repository's Chromium CI gate.
 
 Production builds use webpack for Serwist injection after the Metro export.
 Development uses Metro for the client and Next's development server for APIs.

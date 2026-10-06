@@ -79,6 +79,11 @@ server-only outcome details. `lib/feed-stream-parser.ts` validates incoming
 JSON/NDJSON before it reaches client state. Sharing TypeScript types does not
 make network input trusted.
 
+The Expo transport applies one 32 MiB response-byte budget before decoding.
+A source result contains complete articles and can exceed a small per-line
+allowance. The response budget also bounds unfinished records and JSON fallback.
+It is a client resource policy, not a guarantee that every server result fits.
+
 ## Feed retrieval keeps safety checks in one pipeline
 
 Fetching and parsing share destination validation, redirect checks,
@@ -119,6 +124,9 @@ use a separate status region. The refresh control stays mounted while disabled
 so completing a request preserves keyboard focus. Three decorative article-shaped
 placeholders remain above available articles throughout loading and refresh.
 The placeholders disappear when loading ends, while retained articles stay mounted.
+The web motion adapter consumes the same loading state. Media queries stop
+rotation and placeholder pulses when reduced motion is enabled, without a
+separate loading lifecycle or another feed request.
 
 The non-stream JSON compatibility path has no individual feed outcomes. It
 assigns the same aggregate status and item count to every enabled source. The
@@ -133,8 +141,10 @@ without putting HTTP policy into feed parsing or browser storage.
 
 ## Known implementation gaps
 
-This migration phase targets web. Native storage, file access, networking,
-release configuration, and device accessibility need separate work and proof.
+The web frontend migration is implemented. Native storage, file access,
+networking, motion, release configuration, and device accessibility need
+separate work and proof. The [native work list](../mobile/README.md#native-platform-work)
+identifies the current adapters and missing behavior.
 A browser run cannot establish Android or iOS behavior.
 
 The old hourly retrieval timer is removed to follow [VISION.md](../VISION.md).
@@ -142,7 +152,9 @@ Requests run on opening, enabled-source changes, and explicit refresh. An open
 edition stays visible across midnight until the next retrieval. A server cache
 hit may still reuse feed data until its TTL expires.
 
-Browser verification uses synthetic publisher content. Worker upgrade and actual
+The repository's Chromium UI suite uses synthetic publisher content. Worker upgrade and actual
 offline reload have a separate production runtime check. Neither check proves
 an installation's HTTPS proxy, live publisher availability, or every browser's
 PWA installation flow. See [testing scope](../TECHNICAL.md#testing).
+The separate [web acceptance record](migrations/expo-web-acceptance.md) includes
+live HTTP and additional browser-engine checks with their limits.

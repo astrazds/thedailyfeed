@@ -16,6 +16,9 @@ const markdownFiles = [
   'SECURITY.md',
   'PRIVACY.md',
   'docs/architecture-decisions.md',
+  'docs/migrations/expo-web.md',
+  'docs/migrations/expo-web-acceptance.md',
+  'mobile/README.md',
   'public/fonts/README.md',
 ] as const;
 

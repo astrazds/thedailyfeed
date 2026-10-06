@@ -44,7 +44,7 @@ mise run browser-install
 mise run browser -- --trace on
 ```
 
-Both desktop and narrow projects use disposable browser storage and synthetic
+Both Chromium desktop and narrow projects use disposable browser storage and synthetic
 feeds. External requests and service workers are blocked. These tests cover
 reader and manager scenarios with synthetic fixtures. They do not exercise live
 feed fetching or service-worker operation.
@@ -56,6 +56,10 @@ responses are absent from worker caches. Set `RUNTIME_PREVIOUS_URL` to a running
 previous production build to exercise its real worker instead of the synthetic
 predecessor. These checks do not prove native platforms or production ingress.
 See [testing scope](TECHNICAL.md#testing) for the complementary gates and gaps.
+Additional browser-engine and live HTTP checks are recorded separately in the
+[web acceptance record](docs/migrations/expo-web-acceptance.md). They are not
+part of the default CI command. Record the engine, device or emulation, data
+source, and worker policy when reporting another acceptance run.
 
 To update the reader images in `docs/assets/`, run:
 
