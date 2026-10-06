@@ -19,6 +19,12 @@ html = html.replace(/<meta name="viewport"[^>]+>/, '<meta name="viewport" conten
 html = html.replace('</head>', `<meta name="description" content="A minimalist RSS reader that displays only today's feed items. Clean, focused, distraction-free reading.">
 <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a1816" media="(prefers-color-scheme: dark)">
+<style>
+html, body { background-color: #faf8f5; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  html, body { background-color: #1a1816; color-scheme: dark; }
+}
+</style>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="The Daily Feed">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
