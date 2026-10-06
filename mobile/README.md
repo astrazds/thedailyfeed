@@ -88,3 +88,8 @@ exercise feed-only migration when the canonical subscription key is absent.
 The comparison covers these selected reader states. The integrated browser
 suite separately covers canonical storage and manager behavior. Neither test
 establishes native device rendering.
+
+The root `pnpm verify:expo-browser` gate pins grayscale font rendering through
+`tests/style-fontconfig.conf`. This matches the sealed Linux screenshots and
+prevents host subpixel settings from changing the comparison. The baseline and
+zero-pixel threshold remain unchanged.

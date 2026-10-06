@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
 
 const probe = createServer();
 await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
@@ -20,7 +21,12 @@ try {
   if (!ready) throw new Error('Production web host did not start.');
   for (const script of ['verify:style', 'verify:articles', 'verify:web']) {
     const child = spawn('npm', ['run', script, '--prefix', 'mobile'], {
-      stdio: 'inherit', env: { ...process.env, STYLE_TARGET_URL: origin, EXPO_WEB_URL: script === 'verify:web' ? fixtureOrigin : origin },
+      stdio: 'inherit', env: {
+        ...process.env,
+        ...(script === 'verify:style' ? { FONTCONFIG_FILE: fileURLToPath(new URL('../mobile/tests/style-fontconfig.conf', import.meta.url)) } : {}),
+        STYLE_TARGET_URL: origin,
+        EXPO_WEB_URL: script === 'verify:web' ? fixtureOrigin : origin,
+      },
     });
     const code = await new Promise((resolve, reject) => { child.on('exit', resolve); child.on('error', reject); });
     if (code !== 0) throw new Error(`${script} failed with exit ${code}.`);

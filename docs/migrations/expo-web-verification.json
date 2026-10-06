@@ -272,5 +272,24 @@
       "No active workspace transcript was available; audit used source and recorded artifacts."
     ],
     "scope": "Native platform execution and deployment remain outside the web phase."
+  },
+  "fontRendering": {
+    "firstCiRun": "https://github.com/astrazds/thedailyfeed/actions/runs/37407215528",
+    "failure": "CI changed all 16 screenshots despite 74 browser passes. RGB subpixel rendering is the inferred cause from the local reproduction; the CI fontconfig value was not recorded.",
+    "reproduction": "FONTCONFIG_FILE set rgba=rgb locally. Ready mobile light changed 32362 pixels, matching CI.",
+    "fix": "The root visual gate sets FONTCONFIG_FILE to mobile/tests/style-fontconfig.conf with rgba=none.",
+    "result": "All 16 sealed comparisons return 0 changed pixels even with an inherited RGB host configuration.",
+    "baselineChanged": false,
+    "thresholdChanged": false,
+    "completeGateResult": "verification status=success",
+    "completeGateLogSha256": "fdc3850c2636c464fa5e65cd1921856b8263abdeb1d17ffe4d9291251a37a446",
+    "inheritedConfiguration": {
+      "observedAt": "2026-10-06T03:13:57.116080+00:00",
+      "process": 55625,
+      "command": "sh scripts/verify-ci.sh ",
+      "FONTCONFIG_FILE": "/workspace/scratch/expo-web/font-probe/rgb.conf",
+      "fontconfig": "<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"urn:fontconfig:fonts.dtd\">\n<fontconfig>\n  <include>/etc/fonts/fonts.conf</include>\n  <match target=\"pattern\"><edit name=\"rgba\" mode=\"assign\"><const>rgb</const></edit></match>\n</fontconfig>\n",
+      "fontconfigSha256": "9283177db47b25542227229c73746a9ace0669b87f2cf51e423199e1e726af75"
+    }
   }
 }
