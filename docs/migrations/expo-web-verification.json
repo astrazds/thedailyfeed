@@ -240,5 +240,37 @@
     "browser-final.log": "7999aec190eee4fe8e2bf57cc66d0d8dcc649adec9ac8646a3745f0535c21645",
     "browser-fix.log": "05b06d13a8e515360df88946216b94cc29cd9138a058d7a67d3e7a96eba5ff3b",
     "container/pwa.log": "4fc033f01050949281f14f695bab78a5411f350af1ca6ea2994b97f3d4135c7e"
+  },
+  "implementationCommit": "01946151b436e69492caf4e5f6918a8833a16110",
+  "containerProcess": {
+    "uid": 1001,
+    "gid": 65533,
+    "rootWrite": "EROFS",
+    "noNewPrivs": "1",
+    "capEff": "0000000000000000",
+    "cloudCAEmbedded": false
+  },
+  "containerApi": [
+    {
+      "url": "http://localhost:3130/api/metrics",
+      "status": 404,
+      "cacheControl": "no-store",
+      "body": "{\"error\":\"Not found\"}"
+    },
+    {
+      "url": "http://localhost:3130/api/feeds/validate",
+      "status": 400,
+      "cacheControl": "no-store",
+      "body": "{\"error\":\"Invalid feed URL. Only HTTP and HTTPS URLs are allowed.\"}"
+    }
+  ],
+  "review": {
+    "code": "Independent production review found missing list roles, fixed and independently rechecked. No remaining confirmed P0-P2 findings.",
+    "trailModel": "gpt-6-astra",
+    "limitations": [
+      "No different model family was available.",
+      "No active workspace transcript was available; audit used source and recorded artifacts."
+    ],
+    "scope": "Native platform execution and deployment remain outside the web phase."
   }
 }
