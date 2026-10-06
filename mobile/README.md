@@ -29,3 +29,17 @@ The reader imports the existing pure lifecycle and parser directly. The hook own
 One AsyncStorage snapshot is capped at 256,000 UTF-8 bytes. Its identity includes the server address, enabled feed URLs, and timezone. The day must match today. Article markup passes through a bounded parsed tree before native rendering. Scripts, embedded media, publisher styles, event attributes, unsafe URL schemes, and private destination literals are removed. DNS-based destination checks remain a backend responsibility.
 
 The proof omits feed management, OPML import and export, and native release configuration. It is versioned independently at 0.1.0.
+
+## Compare reader styling
+
+Start Expo with `npm run web`. In another terminal, run the comparison.
+
+```sh
+STYLE_TARGET_URL=http://localhost:8081 npm run verify:style
+```
+
+The comparison covers ready articles, expanded rich text, initial loading, and an empty day. Each case runs at 390 × 844 and 1280 × 900 in light and dark themes. It uses fixed UTC time and synthetic feeds. Screenshots and pixel differences go to `artifacts/style`.
+
+The original Next reader screenshots are in `tests/style-baseline`. The manifest records their source commit and Chromium version. It also seals the fixture and comparison script. The check rejects changed baselines, changed comparison code, a different browser version, and any nonzero pixel difference. Baseline browser logs include the existing service worker registration error caused by blocking service workers. Expo captures require no uncaught errors or external requests.
+
+This comparison covers the reader. The floating control opens the MVP connection editor. The original feed manager and native device rendering require separate proofs.
