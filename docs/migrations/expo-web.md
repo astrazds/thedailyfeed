@@ -2,6 +2,11 @@
 
 The web application uses the Expo Metro export and React Native components. Next remains the same-origin API and static-file host. Native device support is a later phase.
 
+The web implementation is complete. The [release 1.2.8 acceptance record](expo-web-acceptance.md)
+adds loading-motion, large-response, live HTTP, and cross-browser evidence.
+Physical iPhone Safari verification remains outstanding. The [native work list](../../mobile/README.md#native-platform-work)
+describes the separate device phase.
+
 ## Chosen boundaries
 
 The existing `Feed` record remains the subscription model. It retains IDs, names, enabled state, and creation dates. `runFeedManagerOperation` remains the durable mutation owner. The web application reads the existing `rss-feeds` and `rss-offline-feed-snapshots-v1` keys directly. A valid empty inventory remains empty. A missing inventory can import subscriptions from the earlier Expo proof once. Foreign-server snapshots are not imported.
@@ -20,8 +25,8 @@ Bundling React Native Web through Next would retain two frontend compiler contra
 
 ## Verification boundary
 
-Completion requires the production root, existing manager operations, data continuity, streaming behavior, article safety, accessibility, reader visual baselines, actual offline reload, service-worker upgrade, development hot updates, and the hardened container. Native builds and live deployment are not evidence supplied by this phase.
+The initial migration verified the production root, existing manager operations, data continuity, streaming behavior, article safety, accessibility, reader visual baselines, actual offline reload, service-worker upgrade, development hot updates, and the hardened container. Native builds and live deployment were outside that initial verification.
 
-The [decision trail](expo-web-decisions.tsv) records choices and verification evidence as the implementation progresses.
+The [initial decision trail](expo-web-decisions.tsv) records the choices and verification evidence from the release 1.2.7 migration.
 
-The [verification record](expo-web-verification.json) preserves final gate results, the frozen reader comparison, article and HTTP checks, and container runtime evidence. The first full browser run found disabled refresh regressions. A focused recheck passed after the fix, followed by all 74 browser cases in the complete gate. The independent review also found missing article list roles, which were fixed and rechecked.
+The [initial verification record](expo-web-verification.json) preserves the release 1.2.7 gate results, frozen reader comparison, article and HTTP checks, and container runtime evidence. It is historical evidence, not a current test-count inventory. The first full browser run found disabled refresh regressions. A focused recheck passed after the fix, followed by all 74 browser cases in that gate. The independent review also found missing article list roles, which were fixed and rechecked.

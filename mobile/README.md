@@ -2,8 +2,8 @@
 
 This package owns The Daily Feed's reader and feed manager. It uses Expo,
 React Native views, `@native-html/render`, and `expo/fetch`. The first migration
-phase targets web browsers. Android, iOS, Hermes, and native networking need
-separate verification.
+phase targets web browsers. Android and iOS need the platform implementations
+and device verification listed under [native platform work](#native-platform-work).
 
 ## Run the integrated application
 
@@ -70,6 +70,29 @@ It fails closed without a DOM. Dialog focus, OPML file selection and download,
 worker registration, installation, and connection notices have web adapters.
 The retained non-web adapters do not establish native feature parity.
 
+## Native platform work
+
+The shared reader, manager, and bounded article renderer exist. Before an iOS
+or Android release, complete and verify these platform capabilities:
+
+- Implement subscription persistence in `src/subscriptions.ts` and offline
+  snapshot storage in `src/snapshots.ts`. Their current native adapters return
+  no saved data and do not persist changes.
+- Configure an absolute API origin for native networking. `src/useReader.ts`
+  currently requests the browser-relative `/api/feeds?stream=1` URL. Verify
+  streamed responses, cancellation, and recovery on devices.
+- Implement file selection and sharing for OPML in `src/manager/transfer.tsx`.
+  The current adapter reports that transfer is available on web.
+- Add native loading motion and reduced-motion support. `src/LoadingMotion.tsx`
+  currently renders its children without animation.
+- Configure native build identities, signing, and distribution. No EAS build
+  profiles are committed. Test article rendering, navigation, accessibility,
+  persistence, and offline recovery on actual devices.
+
+The [web acceptance record](../docs/migrations/expo-web-acceptance.md) covers
+Chromium, Firefox, and WebKit. WebKit with an iPhone-sized viewport is browser
+emulation, not physical iOS Safari or a native application test.
+
 ## Compare reader styling
 
 The sealed original-reader screenshots live in `tests/style-baseline`. They
@@ -79,7 +102,8 @@ Each case uses fixed UTC time, synthetic feeds, light and dark themes, and
 
 ```sh
 cd mobile
-STYLE_TARGET_URL=http://localhost:3000 npm run verify:style
+FONTCONFIG_FILE="$PWD/tests/style-fontconfig.conf" \
+  STYLE_TARGET_URL=http://localhost:3000 npm run verify:style
 ```
 
 The comparison rejects changed baseline hashes, changed comparison code, a

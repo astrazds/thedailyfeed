@@ -131,6 +131,8 @@ After an install or update:
   **Manage feeds** shows source outcomes. A healthy homepage alone does not
   establish feed retrieval or unbuffered delivery. Refresh may reuse the server
   cache; it does not force every publisher to be fetched again.
+- Check loading motion with normal and reduced-motion preferences. Confirm that
+  a large valid feed result does not stop later sources from completing.
 - Keep `ALLOW_PRIVATE_NETWORKS=false`. Metrics should remain unavailable unless
   you deliberately configure bearer authentication and restrict access.
 
@@ -144,6 +146,9 @@ can update. Verify an installed client after the update, then disconnect the
 browser and reload with a same-day snapshot. Confirm the shell, fonts, and saved
 articles load. Offline availability depends on a completed prior worker install
 and an eligible snapshot.
+Use a persistent disposable profile to check that subscriptions, including
+disabled sources, survive closing and reopening the browser. Browser emulation
+does not establish physical-device installation or standalone behavior.
 
 ## Recovery and data
 
