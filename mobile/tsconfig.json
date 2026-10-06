@@ -1,0 +1,16 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true, "types": ["node"] },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../lib/types.ts",
+    "../lib/feed-stream-parser.ts",
+    "../lib/feed-set-lifecycle.ts",
+    "../lib/feed-load-activity.ts",
+    "../lib/date-utils.ts",
+    "../lib/feed-content-normalization.ts",
+    "../lib/feed-content-sanitizer-policy.ts",
+    "../lib/url-validator.ts"
+  ]
+}
