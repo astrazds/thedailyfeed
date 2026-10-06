@@ -13,12 +13,18 @@ export interface PreparedArticle {
   truncated: boolean;
 }
 export interface ReaderPalette {
-  background: string;
-  paper: string;
-  ink: string;
-  muted: string;
-  line: string;
-  accent: string;
+  readonly background: string;
+  readonly foreground: string;
+  readonly muted: string;
+  readonly subtle: string;
+  readonly accent: string;
+  readonly accentSolid: string;
+  readonly accentForeground: string;
+  readonly border: string;
+  readonly controlBorder: string;
+  readonly codeBackground: string;
+  readonly blockquoteBorder: string;
+  readonly error: string;
 }
 export const DEMO_FEEDS: ReaderFeed[] = [
   { url: "https://slow-journal.example/feed", name: "The Slow Journal" },

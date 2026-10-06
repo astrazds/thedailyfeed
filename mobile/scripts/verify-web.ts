@@ -147,11 +147,6 @@ async function main() {
       });
       const timezoneArticleDate = new Date();
       timezoneArticleDate.setUTCHours(23, 30, 0, 0);
-      const timezoneDateLabel = timezoneArticleDate.toLocaleDateString("en-US", {
-        timeZone: "UTC",
-        month: "short",
-        day: "numeric",
-      });
       await page.route("**/json/api/feeds?stream=1", async (route) => {
         const response = await route.fetch();
         const payload = await response.json();
@@ -160,11 +155,11 @@ async function main() {
       });
       await scenario(page, "json");
       await expect(page.getByTestId("article-card").first()).toContainText(
-        `The Slow Journal · ${timezoneDateLabel} · 11:30 PM`,
+        "The Slow Journal · 11:30 PM",
       );
       await page.unroute("**/json/api/feeds?stream=1");
       checks.push(
-        "Article date and time used configured UTC instead of the device's Australia/Sydney timezone.",
+        "Article time used configured UTC instead of the device's Australia/Sydney timezone.",
       );
       await scenario(page, "interrupted");
       await expect(page.getByText(first, { exact: true })).toBeVisible();
@@ -202,7 +197,11 @@ async function main() {
       await page.reload();
       await expect(page.getByText(second, { exact: true })).toBeVisible();
       await expect(
-        page.getByText("Showing saved items from today.", { exact: true }),
+        page
+          .getByText("Unable to refresh. Showing saved items from today.", {
+            exact: true,
+          })
+          .and(page.locator(':not([role="status"])')),
       ).toBeVisible();
       checks.push(
         "Reload during network failure restored the matching completed snapshot.",

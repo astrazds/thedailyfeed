@@ -7,7 +7,7 @@ This experimental reader uses React Native views, `@native-html/render`, and `ex
 3. Run `npm run web` in another terminal.
 4. Open `http://localhost:8081`.
 
-You see today's synthetic articles arrive one source at a time. Select **Continue reading** to expand an article. Select **Sources** to set the server address, feed URLs, and timezone. Select **Dark** to change the theme.
+You see today's synthetic articles arrive one source at a time. Select **Continue reading** to expand an article. Select **Manage feeds** to set the server address, feed URLs, and timezone. The reader follows your system theme. Use the theme control in the editor to override it for this visit.
 
 To use your server, enter its HTTPS origin and your enabled feed URLs. The server must provide `POST /api/feeds?stream=1`. For browser use, configure ingress CORS to permit the Expo web origin, POST, and the Content-Type header. The existing Next backend remains unchanged. Native devices require a reachable server address rather than localhost.
 
