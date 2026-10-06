@@ -60,6 +60,77 @@ async function capture(page: import('@playwright/test').Page, project: string, s
   }
 }
 
+async function motionSamples(locator: import('@playwright/test').Locator, property: 'transform' | 'opacity') {
+  return locator.evaluate(async (element, property) => {
+    const samples: string[] = [];
+    const start = performance.now();
+    await new Promise<void>(resolve => {
+      function sample() {
+        samples.push(getComputedStyle(element)[property]);
+        if (performance.now() - start >= 240) resolve();
+        else requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+    return [...new Set(samples)];
+  }, property);
+}
+
+async function expectNoRunningMotion(page: import('@playwright/test').Page) {
+  await expect.poll(() => page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0);
+}
+
+test('refresh rotation and skeleton pulse continue through partial results and stop at completion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await controlFeedResponses(page);
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
+  await send(page, [metadata]);
+  const rotation = page.getByTestId('refresh').locator('[data-loading-motion="rotate"]');
+  const pulse = page.getByTestId('feed-skeleton-item').first().locator('[data-loading-motion="pulse"]');
+  expect((await motionSamples(rotation, 'transform')).length).toBeGreaterThan(1);
+  expect((await motionSamples(pulse, 'opacity')).length).toBeGreaterThan(1);
+  expect(await motionSamples(page.getByTestId('feed-skeleton-item').first(), 'opacity')).toEqual(['1']);
+  await send(page, [firstResult]);
+  await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
+  expect((await motionSamples(rotation, 'transform')).length).toBeGreaterThan(1);
+  expect((await motionSamples(pulse, 'opacity')).length).toBeGreaterThan(1);
+  await send(page, [...remaining, done]);
+  await page.evaluate(() => window.feedLoadingTest.finish());
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
+  expect(await motionSamples(rotation, 'transform')).toEqual(['none']);
+  await expectNoRunningMotion(page);
+});
+
+test('live motion preferences control reader and manager without reloading feeds, and failure stops motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await controlFeedResponses(page);
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
+  await send(page, [metadata]);
+  await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
+  const rotation = page.getByTestId('refresh').locator('[data-loading-motion="rotate"]');
+  const pulse = page.getByTestId('feed-skeleton-item').first().locator('[data-loading-motion="pulse"]');
+  const manager = page.getByRole('dialog').locator('[data-loading-motion="rotate"]');
+  expect((await motionSamples(manager, 'transform')).length).toBeGreaterThan(1);
+  expect(await manager.evaluate(element => element.getAnimations({ subtree: true }).filter(animation => animation.playState === 'running').length)).toBe(1);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  expect(await motionSamples(rotation, 'transform')).toEqual(['none']);
+  expect(await motionSamples(pulse, 'opacity')).toEqual(['1']);
+  expect(await motionSamples(manager, 'transform')).toEqual(['none']);
+  await expectNoRunningMotion(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  expect((await motionSamples(rotation, 'transform')).length).toBeGreaterThan(1);
+  expect((await motionSamples(pulse, 'opacity')).length).toBeGreaterThan(1);
+  expect((await motionSamples(manager, 'transform')).length).toBeGreaterThan(1);
+  expect(await page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
+  await page.evaluate(() => window.feedLoadingTest.fail());
+  await expect(manager).toHaveCount(0);
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
+  expect(await motionSamples(rotation, 'transform')).toEqual(['none']);
+  await expectNoRunningMotion(page);
+});
+
 test('loading remains visible through initial response, partial articles, and refresh', async ({ page }, info) => {
   await controlFeedResponses(page);
   await page.goto('/');
@@ -240,6 +311,11 @@ test('loading stays clear in dark mode with reduced motion', async ({ page }, in
   }).map(element => element.tagName));
   expect(movingElements).toEqual([]);
   await capture(page, info.project.name, 'dark-reduced-motion');
+  await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
+  expect(await motionSamples(page.getByTestId('refresh').locator('[data-loading-motion="rotate"]'), 'transform')).toEqual(['none']);
+  expect(await motionSamples(page.getByTestId('feed-skeleton-item').first().locator('[data-loading-motion="pulse"]'), 'opacity')).toEqual(['1']);
+  expect(await motionSamples(page.getByRole('dialog').locator('[data-loading-motion="rotate"]'), 'transform')).toEqual(['none']);
+  await expectNoRunningMotion(page);
   await send(page, [firstResult, ...remaining, done]);
   await page.evaluate(() => window.feedLoadingTest.finish());
 });
@@ -259,7 +335,12 @@ test('a completed response with failed sources stays visibly partial', async ({ 
 });
 
 test('disabled sources do not leave loading visuals running', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await controlFeedResponses(page);
   await page.goto('/');
+  await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
+  await send(page, [metadata]);
+  expect((await motionSamples(page.getByTestId('refresh').locator('[data-loading-motion="rotate"]'), 'transform')).length).toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   const dialog = page.getByRole('dialog');
   for (const feed of subscriptions) {
@@ -272,6 +353,7 @@ test('disabled sources do not leave loading visuals running', async ({ page }) =
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Refresh feeds', exact: true })).toBeDisabled();
+  await expectNoRunningMotion(page);
 });
 
 

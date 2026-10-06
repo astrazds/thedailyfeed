@@ -1,0 +1,24 @@
+.feed-loading-motion {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+@keyframes feed-loading-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes feed-loading-pulse {
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .feed-loading-motion[data-active="true"][data-loading-motion="rotate"] {
+    animation: feed-loading-rotate 0.9s linear infinite;
+  }
+
+  .feed-loading-motion[data-active="true"][data-loading-motion="pulse"] {
+    animation: feed-loading-pulse 1.4s ease-in-out infinite;
+  }
+}
