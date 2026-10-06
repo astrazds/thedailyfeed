@@ -3,7 +3,7 @@ export interface ReaderFeed {
   name: string;
 }
 export interface ReaderConfig {
-  apiOrigin: string;
+  configuredFeedCount: number;
   feeds: ReaderFeed[];
   timeZone: string;
 }
@@ -26,12 +26,3 @@ export interface ReaderPalette {
   readonly blockquoteBorder: string;
   readonly error: string;
 }
-export const DEMO_FEEDS: ReaderFeed[] = [
-  { url: "https://slow-journal.example/feed", name: "The Slow Journal" },
-  { url: "https://field-notes.example/feed", name: "Field Notes" },
-];
-export const DEFAULT_CONFIG: ReaderConfig = {
-  apiOrigin: "http://localhost:8787",
-  feeds: DEMO_FEEDS,
-  timeZone: "UTC",
-};

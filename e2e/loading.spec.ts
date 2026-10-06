@@ -30,7 +30,7 @@ async function controlFeedResponses(page: import('@playwright/test').Page) {
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
       if (url.pathname !== '/api/feeds') return originalFetch(input, init);
       window.feedLoadingTest.requests += 1;
-      const body = new ReadableStream<Uint8Array>({ start(controller) { active = controller; } });
+      const body = new ReadableStream<Uint8Array>({ start(controller) { active = controller; }, cancel() { active = null; } });
       return new Response(body, { headers: { 'Content-Type': 'application/x-ndjson' } });
     };
   });
@@ -65,12 +65,12 @@ test('loading remains visible through initial response, partial articles, and re
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
   await send(page, [metadata]);
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'true');
   await expect(page.getByRole('banner').getByText('Loading feeds', { exact: true })).toBeVisible();
   const progress = page.getByRole('progressbar', { name: 'Feed loading progress' });
-  await expect(progress).toHaveAttribute('max', '3');
-  await expect(progress).toHaveAttribute('value', '0');
-  const placeholders = page.locator('.feed-skeleton-item');
+  await expect(progress).toHaveAttribute('aria-valuemax', '3');
+  await expect(progress).toHaveAttribute('aria-valuenow', '0');
+  const placeholders = page.getByTestId('feed-skeleton-item');
   await expect(placeholders).toHaveCount(3);
   for (const placeholder of await placeholders.all()) {
     await expect(placeholder).toBeVisible();
@@ -96,21 +96,21 @@ test('loading remains visible through initial response, partial articles, and re
   await capture(page, info.project.name, 'initial');
   await send(page, [firstResult]);
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'true');
-  await expect(progress).toHaveAttribute('value', '1');
-  await expect(page.getByRole('banner').getByText('1 of 3 feeds checked', { exact: true })).toBeVisible();
-  await expect(page.locator('main article')).toHaveCount(1);
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'true');
+  await expect(progress).toHaveAttribute('aria-valuenow', '1');
+  await expect(page.getByRole('banner')).toContainText('1 of 3 feeds checked');
+  await expect(page.getByRole('main').getByTestId('article-card')).toHaveCount(1);
   await expect(placeholders).toHaveCount(3);
   await capture(page, info.project.name, 'partial');
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog').getByRole('progressbar', { name: 'Feed loading progress' })).toHaveAttribute('value', '1');
+  await expect(page.getByRole('dialog').getByRole('progressbar', { name: 'Feed loading progress' })).toHaveAttribute('aria-valuenow', '1');
   await expect(page.getByRole('dialog').getByText('Checking', { exact: true })).toHaveCount(2);
   await capture(page, info.project.name, 'manager-pending');
   await page.getByRole('button', { name: 'Close feed manager' }).click();
   await send(page, [...remaining, done]);
   await page.evaluate(() => window.feedLoadingTest.finish());
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(progress).toHaveCount(0);
   await expect(placeholders).toHaveCount(0);
   await capture(page, info.project.name, 'complete');
@@ -149,7 +149,7 @@ test('a failed refresh does not announce successful completion in the manager', 
   await dialog.getByRole('button', { name: 'Try all feeds again', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);
   await page.evaluate(() => window.feedLoadingTest.fail());
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(dialog.getByText('Feed refresh complete.', { exact: true })).toHaveCount(0);
   await expect(dialog.getByRole('status', { name: 'Feed activity', exact: true }).filter({ hasText: /unable|failed|interrupted/i })).toHaveCount(1);
   await expect(dialog.getByRole('heading', { name: 'Feeds (3)', exact: true })).toBeFocused();
@@ -177,8 +177,8 @@ test('saved articles remain readable when a refresh fails', async ({ page }, inf
   await page.getByRole('button', { name: 'Close feed manager' }).click();
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
   await expect(page.getByRole('main').getByText('Unable to refresh. Showing saved items from today.', { exact: true })).toBeVisible();
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
   await capture(page, info.project.name, 'saved-fallback');
 });
 
@@ -195,17 +195,17 @@ test('refresh preserves an expanded article while skeletons appear and disappear
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
   await send(page, [metadata, expandedResult, ...remaining, done]);
   await page.evaluate(() => window.feedLoadingTest.finish());
-  await page.getByRole('button', { name: 'Continue reading', exact: true }).click();
-  const disclosure = page.getByRole('button', { name: 'Show less', exact: true });
+  await page.getByRole('button', { name: /^Continue reading / }).click();
+  const disclosure = page.getByRole('button', { name: /^Show less / });
   await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('button', { name: 'Refresh feeds', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(3);
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(3);
   await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByText('The end of the story.', { exact: true })).toBeVisible();
   await send(page, [metadata, expandedResult, ...remaining, done]);
   await page.evaluate(() => window.feedLoadingTest.finish());
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
   await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
 });
 
@@ -215,9 +215,9 @@ test('an interrupted stream ends progress and marks unfinished feeds', async ({ 
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
   await send(page, [metadata, firstResult]);
   await page.evaluate(() => window.feedLoadingTest.finish());
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   await expect(page.getByRole('dialog').getByText('Not checked', { exact: true })).toHaveCount(2);
@@ -233,8 +233,8 @@ test('loading stays clear in dark mode with reduced motion', async ({ page }, in
   await send(page, [metadata]);
   await expect(page.getByRole('banner').getByText('Loading feeds', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Feed loading progress' })).toBeVisible();
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(3);
-  const movingElements = await page.locator('main, header').evaluateAll(roots => roots.flatMap(root => [root, ...root.querySelectorAll('*')]).filter(element => {
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(3);
+  const movingElements = await page.locator('[role=main], [role=banner]').evaluateAll(roots => roots.flatMap(root => [root, ...root.querySelectorAll('*')]).filter(element => {
     const style = getComputedStyle(element);
     return style.animationName !== 'none' && style.animationDuration.split(',').some(duration => parseFloat(duration) > 0.01);
   }).map(element => element.tagName));
@@ -251,7 +251,7 @@ test('a completed response with failed sources stays visibly partial', async ({ 
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
   await send(page, [metadata, firstResult, ...remaining.map(chunk => ({ ...chunk, status: 'timeout' as const })), done]);
   await page.evaluate(() => window.feedLoadingTest.finish());
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Feed activity', exact: true }).filter({ hasText: /2 feeds.*(did not|failed|unavailable|could not)|2 of 3.*(failed|unavailable)|could not.*2/i })).toHaveCount(1);
@@ -263,14 +263,14 @@ test('disabled sources do not leave loading visuals running', async ({ page }) =
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   const dialog = page.getByRole('dialog');
   for (const feed of subscriptions) {
-    const row = dialog.getByRole('heading', { name: feed.name, exact: true }).locator('../..').locator('..');
+    const row = dialog.getByTestId(`feed-row-${feed.id}`);
     await row.getByRole('button', { name: 'Disable', exact: true }).click();
   }
   await page.getByRole('button', { name: 'Close feed manager' }).click();
   await expect(page.getByRole('heading', { name: 'No feeds enabled' })).toBeVisible();
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Refresh feeds', exact: true })).toBeDisabled();
 });
 
@@ -281,9 +281,9 @@ test('a failed initial request offers a working reader retry', async ({ page }, 
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
   await page.evaluate(() => window.feedLoadingTest.fail());
   await expect(page.getByRole('heading', { name: 'Unable to load feeds', exact: true })).toBeVisible();
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('progressbar')).toHaveCount(0);
-  await expect(page.locator('.feed-skeleton-item')).toHaveCount(0);
+  await expect(page.getByTestId('feed-skeleton-item')).toHaveCount(0);
   await capture(page, info.project.name, 'initial-failure');
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(2);
@@ -291,5 +291,5 @@ test('a failed initial request offers a working reader retry', async ({ page }, 
   await send(page, [metadata, firstResult, ...remaining, done]);
   await page.evaluate(() => window.feedLoadingTest.finish());
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
-  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
 });

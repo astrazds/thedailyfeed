@@ -15,11 +15,14 @@ WORKDIR /app
 # Install dependencies
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
+COPY mobile/package.json mobile/package-lock.json ./mobile/
+RUN npm ci --prefix mobile
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/mobile/node_modules ./mobile/node_modules
 COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.

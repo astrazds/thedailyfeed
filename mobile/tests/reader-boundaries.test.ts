@@ -1,54 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { consumeFeedResponse } from "../src/transport";
-import { encodeSnapshot, decodeSnapshot } from "../src/snapshot";
-import { DEFAULT_CONFIG } from "../src/contracts";
 const item = {
   title: "Today",
   source: "Demo",
   link: "https://news.example/a",
   pubDate: "2026-10-06T08:00:00.000Z",
 };
-const now = new Date("2026-10-06T09:00:00Z");
-test("Snapshot binds day, timezone, feeds and API origin", () => {
-  const snapshot = encodeSnapshot(DEFAULT_CONFIG, [item], now);
-  assert.deepEqual(decodeSnapshot(snapshot, DEFAULT_CONFIG, now)?.items, [
-    item,
-  ]);
-  assert.equal(
-    decodeSnapshot(snapshot, DEFAULT_CONFIG, new Date("2026-10-07")),
-    null,
-  );
-  assert.equal(
-    decodeSnapshot(
-      snapshot,
-      { ...DEFAULT_CONFIG, apiOrigin: "https://different.example" },
-      now,
-    ),
-    null,
-  );
-  assert.equal(
-    decodeSnapshot(
-      snapshot,
-      { ...DEFAULT_CONFIG, timeZone: "Australia/Sydney" },
-      now,
-    ),
-    null,
-  );
-  assert.equal(
-    decodeSnapshot(snapshot, { ...DEFAULT_CONFIG, feeds: [] }, now),
-    null,
-  );
-  assert.equal(
-    encodeSnapshot(
-      DEFAULT_CONFIG,
-      [{ ...item, contentHtml: "x".repeat(256_000) }],
-      now,
-    ),
-    null,
-  );
-  assert.equal(decodeSnapshot("{bad", DEFAULT_CONFIG, now), null);
-});
 test("Transport stops at done and decodes split UTF-8 lines", async () => {
   const meta = {
     type: "meta",

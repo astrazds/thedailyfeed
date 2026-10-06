@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetch } from "expo/fetch";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   beginFeedSetLifecycle,
   applyFeedSetStreamChunk,
@@ -11,27 +10,34 @@ import {
 import type { FeedSetLifecycleTransition } from "../../lib/feed-set-lifecycle";
 import type { ReaderConfig } from "./contracts";
 import { consumeFeedResponse } from "./transport";
-import {
-  SNAPSHOT_KEY,
-  configIdentity,
-  decodeSnapshot,
-  encodeSnapshot,
-} from "./snapshot";
-export function useReader(config: ReaderConfig) {
+import { loadSnapshot, saveSnapshot } from "./snapshots";
+
+export function useReader(config: ReaderConfig, ready = true) {
+  const identity = JSON.stringify([
+    config.timeZone,
+    [...new Set(config.feeds.map((feed) => feed.url))].sort(),
+  ]);
+  const latestConfig = useRef(config);
+  useEffect(() => {
+    latestConfig.current = config;
+  });
   const [model, setModel] = useState(
     () =>
       beginFeedSetLifecycle({
         feeds: config.feeds,
         timeZone: config.timeZone,
+        configuredFeedCount: config.configuredFeedCount,
         snapshot: null,
       }).readModel,
   );
   const [storageNotice, setStorageNotice] = useState(false);
   const generation = useRef(0);
-  const displayedIdentity = useRef(configIdentity(config));
+  const displayedIdentity = useRef(identity);
   const controller = useRef<AbortController | null>(null);
   const writes = useRef(Promise.resolve());
   const refresh = useCallback(async () => {
+    if (!ready) return;
+    const config = latestConfig.current;
     const request = ++generation.current;
     controller.current?.abort();
     const abort = new AbortController();
@@ -42,9 +48,9 @@ export function useReader(config: ReaderConfig) {
     let transition = beginFeedSetLifecycle({
       feeds: config.feeds,
       timeZone: config.timeZone,
+      configuredFeedCount: config.configuredFeedCount,
       snapshot: null,
     });
-    const identity = configIdentity(config);
     const sameConfig = displayedIdentity.current === identity;
     displayedIdentity.current = identity;
     setModel((previous) => ({
@@ -57,10 +63,7 @@ export function useReader(config: ReaderConfig) {
     }));
     setStorageNotice(false);
     try {
-      snapshot = decodeSnapshot(
-        await AsyncStorage.getItem(SNAPSHOT_KEY),
-        config,
-      );
+      snapshot = await loadSnapshot(config);
     } catch {
       if (current()) setStorageNotice(true);
     }
@@ -68,6 +71,7 @@ export function useReader(config: ReaderConfig) {
     transition = beginFeedSetLifecycle({
       feeds: config.feeds,
       timeZone: config.timeZone,
+      configuredFeedCount: config.configuredFeedCount,
       snapshot,
     });
     const publish = (next: FeedSetLifecycleTransition) => {
@@ -75,17 +79,13 @@ export function useReader(config: ReaderConfig) {
       transition = next;
       setModel(next.readModel);
       for (const effect of next.effects) {
-        const encoded = encodeSnapshot(config, effect.items);
         writes.current = writes.current
           .catch(() => undefined)
           .then(async () => {
             if (!current()) return;
-            if (!encoded) {
-              setStorageNotice(true);
-              return;
-            }
             try {
-              await AsyncStorage.setItem(SNAPSHOT_KEY, encoded);
+              const saved = await saveSnapshot(config, effect.items);
+              if (current() && !saved) setStorageNotice(true);
             } catch {
               if (current()) setStorageNotice(true);
             }
@@ -95,21 +95,18 @@ export function useReader(config: ReaderConfig) {
     publish(transition);
     if (!config.feeds.length) return;
     try {
-      const response = await fetch(
-        `${config.apiOrigin.replace(/\/$/, "")}/api/feeds?stream=1`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/x-ndjson, application/json",
-          },
-          body: JSON.stringify({
-            feedUrls: config.feeds.map((feed) => feed.url),
-            timeZone: config.timeZone,
-          }),
-          signal: abort.signal,
+      const response = await fetch("/api/feeds?stream=1", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/x-ndjson, application/json",
         },
-      );
+        body: JSON.stringify({
+          feedUrls: config.feeds.map((feed) => feed.url),
+          timeZone: config.timeZone,
+        }),
+        signal: abort.signal,
+      });
       if (!current()) return;
       const json = await consumeFeedResponse(
         response,
@@ -134,7 +131,7 @@ export function useReader(config: ReaderConfig) {
         }),
       );
     }
-  }, [config]);
+  }, [identity, ready]);
   useEffect(() => {
     void refresh();
     return () => {
@@ -142,5 +139,17 @@ export function useReader(config: ReaderConfig) {
       controller.current?.abort();
     };
   }, [refresh]);
-  return { model, refresh, storageNotice };
+  const names = new Map(config.feeds.map((feed) => [feed.url, feed.name]));
+  return {
+    model: {
+      ...model,
+      configuredFeedCount: config.configuredFeedCount,
+      feedStatuses: model.feedStatuses.map((status) => ({
+        ...status,
+        feedName: names.get(status.feedUrl) ?? status.feedName,
+      })),
+    },
+    refresh,
+    storageNotice,
+  };
 }

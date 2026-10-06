@@ -16,17 +16,18 @@ or the publishers you read.
 | Operational logs and metrics | The server logs redacted operational events and keeps process-local metrics. Operators control log retention; the reverse proxy may retain client IPs. |
 
 External article links open publisher sites under their policies. Feed URLs can
-contain access tokens: treat private subscriptions and OPML exports as sensitive.
+contain access tokens. Treat private subscriptions and OPML exports as sensitive.
 Do not assume URL redaction makes third-party feeds anonymous. DNS and feed
 publishers see requests from the server; image hosts see requests from browsers.
 
 Fonts are shipped with the application, so reading and building do not require
-Google Fonts requests. API responses use `no-store` and are not cached by the
+Google Fonts requests. The Expo application calls the feed API on the same
+origin as the page. API responses use `no-store` and are not cached by the
 service worker. Offline article snapshots are a separate browser-local feature.
 Snapshot storage is bounded and may omit articles to stay within its size limits.
 Disabling or deleting a feed changes future requests but does not erase every
 older snapshot that contains that source. The current app requests feeds on
-opening, subscription events, explicit refresh, and an hourly timer while open.
+opening, enabled-source changes, and explicit refresh. It does not poll while open.
 
 Export OPML before clearing site data if you want to retain subscriptions.
 Clearing browser site storage also removes snapshots and PWA caches; exported

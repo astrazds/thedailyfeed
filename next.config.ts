@@ -1,33 +1,35 @@
-import type { NextConfig } from "next";
+import { existsSync, readFileSync } from 'node:fs';
+import type { NextConfig } from 'next';
 import withSerwistInit from '@serwist/next';
-
 import { buildNextHeaderRules } from './lib/platform-policy';
 
+const metroOrigin = process.env.EXPO_DEV_ORIGIN;
 const nextConfig: NextConfig = {
-  // Production optimizations
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  
-  // Docker optimization (standalone output)
   output: 'standalone',
-  
-  // Turbopack config (required for Next.js 16)
   turbopack: {},
-  
-  // Image optimization
-  images: {
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256],
-    dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-  },
-  
-  // Security headers
   async headers() {
     return buildNextHeaderRules();
+  },
+  async rewrites() {
+    if (process.env.NODE_ENV === 'development' && metroOrigin) {
+      return {
+        beforeFiles: [
+          { source: '/', destination: `${metroOrigin}/` },
+          { source: '/assets/:path*', destination: `${metroOrigin}/assets/:path*` },
+          { source: '/_expo/:path*', destination: `${metroOrigin}/_expo/:path*` },
+        ],
+        afterFiles: [],
+        fallback: [{ source: '/:path*', destination: `${metroOrigin}/:path*` }],
+      };
+    }
+    return [
+      { source: '/', destination: '/expo/index.html' },
+      { source: '/_expo/:path*', destination: '/expo/_expo/:path*' },
+      { source: '/assets/:path*', destination: '/expo/assets/:path*' },
+    ];
   },
 };
 
@@ -35,8 +37,12 @@ const withSerwist = withSerwistInit({
   swSrc: 'app/sw.ts',
   swDest: 'public/sw.js',
   disable: process.env.NODE_ENV === 'development',
-  register: true,
+  register: false,
   cacheOnNavigation: false,
+  additionalPrecacheEntries: existsSync('.expo-precache.json')
+    ? JSON.parse(readFileSync('.expo-precache.json', 'utf8'))
+    : undefined,
+  exclude: [/./],
 });
 
 export default withSerwist(nextConfig);

@@ -29,6 +29,9 @@ test('platform policy declares Feed set no-store and distinct route and asset he
   assert.deepEqual([...surfaces.keys()], [
     'baseline',
     'app-shell',
+    'expo-shell',
+    'expo-assets',
+    'expo-fonts',
     'api',
     'service-worker',
     'manifest',
@@ -43,6 +46,11 @@ test('platform policy declares Feed set no-store and distinct route and asset he
   const appShellHeaders = headersFor(surfaces.get('app-shell')?.headers ?? []);
   assert.match(appShellHeaders.get('Content-Security-Policy') ?? '', /img-src 'self' data: blob: https: http:/);
   assert.match(appShellHeaders.get('Content-Security-Policy') ?? '', /media-src 'none'/);
+
+  assert.deepEqual(headersFor(surfaces.get('expo-shell')?.headers ?? []), appShellHeaders);
+  for (const name of ['expo-assets', 'expo-fonts'] as const) {
+    assert.equal(headersFor(surfaces.get(name)?.headers ?? []).get('Cache-Control'), 'public, max-age=31536000, immutable');
+  }
 
   const serviceWorkerHeaders = headersFor(surfaces.get('service-worker')?.headers ?? []);
   assert.equal(serviceWorkerHeaders.get('Content-Type'), 'application/javascript; charset=utf-8');

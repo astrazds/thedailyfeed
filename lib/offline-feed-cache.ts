@@ -119,18 +119,18 @@ function isQuotaExceededError(error: unknown): boolean {
   );
 }
 
-function tryWriteSnapshots(snapshots: StoredSnapshot[]): boolean {
+function tryWriteSnapshots(snapshots: StoredSnapshot[]): 'saved' | 'quota' | 'failed' {
   try {
     localStorage.setItem(OFFLINE_FEED_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshots));
-    return true;
+    return 'saved';
   } catch (error) {
     if (!isQuotaExceededError(error)) {
       const err = error instanceof Error ? error : new Error('Unknown offline snapshot write error');
       logger.error('Failed to write offline feed snapshots', err);
-      return true;
+      return 'failed';
     }
 
-    return false;
+    return 'quota';
   }
 }
 
@@ -169,32 +169,35 @@ function readAllSnapshots(): StoredSnapshot[] {
   }
 }
 
-function writeAllSnapshots(snapshots: StoredSnapshot[]): void {
+function writeAllSnapshots(snapshots: StoredSnapshot[]): boolean {
   if (typeof window === 'undefined') {
-    return;
+    return false;
   }
 
   const cappedSnapshots = pruneSnapshotsToLimits(snapshots);
-  if (tryWriteSnapshots(cappedSnapshots)) {
-    return;
-  }
+  const initial = tryWriteSnapshots(cappedSnapshots);
+  if (initial === 'saved') return true;
+  if (initial === 'failed') return false;
 
   for (let count = cappedSnapshots.length - 1; count >= 0; count -= 1) {
     const reduced = cappedSnapshots.slice(0, count);
-    if (tryWriteSnapshots(reduced)) {
+    const result = tryWriteSnapshots(reduced);
+    if (result === 'failed') return false;
+    if (result === 'saved') {
       logger.warn('Pruned offline feed snapshots after localStorage quota failure');
-      return;
+      return count > 0;
     }
   }
 
   logger.warn('Unable to persist offline feed snapshots due to localStorage quota');
+  return false;
 }
 
 export function saveOfflineFeedSnapshot(
   feedUrls: string[],
   timeZone: string,
   items: FeedApiResponse['items']
-): void {
+): boolean {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
   const cacheKey = getSnapshotCacheKey(feedUrls, normalizedTimeZone);
   const nextSnapshot = trimSnapshotToByteLimit({
@@ -207,7 +210,7 @@ export function saveOfflineFeedSnapshot(
 
   const existing = readAllSnapshots().filter((entry) => entry.cacheKey !== cacheKey);
   const next = [nextSnapshot, ...existing];
-  writeAllSnapshots(next);
+  return writeAllSnapshots(next);
 }
 
 export function loadOfflineFeedSnapshot(

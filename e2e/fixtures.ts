@@ -20,9 +20,8 @@ export const test = base.extend<{ synthetic: void }>({
   synthetic: [async ({ context, page }, use) => {
     await page.clock.setFixedTime(new Date('2026-09-08T12:00:00Z'));
     await context.addInitScript(({ key, feeds }) => {
-      localStorage.setItem(key, JSON.stringify(feeds));
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(feeds));
     }, { key: STORAGE_KEY_FEEDS, feeds: subscriptions });
-    // All browser API traffic is intercepted; external traffic is blocked.
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.origin !== 'http://127.0.0.1:3100') return route.abort();

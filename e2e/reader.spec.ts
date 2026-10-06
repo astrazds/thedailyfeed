@@ -71,11 +71,11 @@ test('adjacent line breaks do not stack into a large blank gap', async ({ page }
     contentHtml: `<p>Before the spacer.</p>${stackedBreaks}<p>After the spacer.</p>`,
   }] } }));
   await page.goto('/');
-  const article = page.locator('article').filter({ hasText: 'Line-broken comparison' });
+  const article = page.getByRole('article').filter({ hasText: 'Line-broken comparison' });
   await expect(article.getByText('Before the spacer.')).toBeVisible();
   await expect(article.getByText('After the spacer.')).toBeVisible();
   expect(await article.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(800);
-  await expect(article.locator('br')).toHaveCount(2);
+  await expect(article.getByTestId('br')).toHaveCount(2);
 });
 
 test('line breaks preserve separate text lines and nonbreaking spaces', async ({ page }) => {
@@ -84,7 +84,7 @@ test('line breaks preserve separate text lines and nonbreaking spaces', async ({
     contentHtml: '<p>one<br>two<br>three<br>four</p><p>before<br>&nbsp;<br>after</p>',
   }] } }));
   await page.goto('/');
-  const paragraphs = page.locator('article .prose p');
+  const paragraphs = page.getByTestId('article-content').getByTestId('p');
   await expect(paragraphs.first()).toBeVisible();
   expect(await paragraphs.first().innerText()).toBe('one\ntwo\nthree\nfour');
   expect(await paragraphs.nth(1).innerText()).toBe('before\n\u00a0\nafter');
@@ -98,32 +98,38 @@ test('expanded articles preserve a blank line between publisher paragraphs', asy
     contentHtml: `${first}<br> \n<br>${second}`,
   }] } }));
   await page.goto('/');
-  const article = page.locator('article').filter({ hasText: 'A day in two paragraphs' });
-  const content = article.locator('.prose');
-  const expand = article.getByRole('button', { name: 'Continue reading', exact: true });
+  const article = page.getByRole('article').filter({ hasText: 'A day in two paragraphs' });
+  const content = article.getByTestId('article-content');
+  const expand = article.getByRole('button', { name: /^Continue reading / });
   await expect(expand).toHaveAttribute('aria-expanded', 'false');
   const collapsedText = await content.innerText();
   await expand.click();
-  await expect(article.getByRole('button', { name: 'Show less', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  await expect(article.getByRole('button', { name: /^Show less / })).toHaveAttribute('aria-expanded', 'true');
   await expect(content).toContainText(second.trim());
   await page.evaluate(() => document.fonts.ready);
   const spacing = await content.evaluate(element => {
-    const textNodes = Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (node.textContent?.trim()) textNodes.push(node);
+    }
+    const firstNode = textNodes.find(node => node.textContent?.startsWith('A quiet morning'))!;
+    const secondNode = textNodes.find(node => node.textContent?.startsWith('Later, a walk'))!;
     const firstRange = document.createRange();
-    firstRange.selectNodeContents(textNodes[0]);
+    firstRange.selectNodeContents(firstNode);
     const firstRects = Array.from(firstRange.getClientRects());
     const secondRange = document.createRange();
-    secondRange.selectNodeContents(textNodes[1]);
+    secondRange.selectNodeContents(secondNode);
     return {
       gap: secondRange.getClientRects()[0].top - firstRects[firstRects.length - 1].bottom,
-      lineHeight: parseFloat(getComputedStyle(element).lineHeight),
-      breaks: element.querySelectorAll('br').length,
+      lineHeight: parseFloat(getComputedStyle(firstNode.parentElement!).lineHeight),
     };
   });
   await info.attach('paragraph-spacing', { body: JSON.stringify(spacing), contentType: 'application/json' });
   await info.attach('expanded', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   expect(spacing.gap).toBeGreaterThanOrEqual(spacing.lineHeight);
-  await article.getByRole('button', { name: 'Show less', exact: true }).click();
+  await article.getByRole('button', { name: /^Show less / }).click();
   await expect(expand).toHaveAttribute('aria-expanded', 'false');
   expect(await content.innerText()).toBe(collapsedText);
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -137,7 +143,7 @@ test('malicious article HTML cannot create executable elements or links', async 
   }] } }));
   await page.goto('/');
   await expect(page.getByText('Safe text', { exact: true })).toBeVisible();
-  const article = page.locator('article');
+  const article = page.getByRole('article');
   await expect(article.locator('script, iframe, [onerror], a[href^="javascript:"]')).toHaveCount(0);
   expect(await page.evaluate(() => 'pwned' in window)).toBe(false);
 });

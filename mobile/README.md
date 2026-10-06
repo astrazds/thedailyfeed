@@ -1,45 +1,95 @@
-# Run the Expo reader proof
+# Work on the Expo web application
 
-This experimental reader uses React Native views, `@native-html/render`, and `expo/fetch`. The browser proof tests real delayed HTTP responses. It does not verify Android, iOS, Hermes, or native networking.
+This package owns The Daily Feed's reader and feed manager. It uses Expo,
+React Native views, `@native-html/render`, and `expo/fetch`. The first migration
+phase targets web browsers. Android, iOS, Hermes, and native networking need
+separate verification.
 
-1. Run `npm ci` in `mobile`.
-2. Run `npm run fixture` in one terminal.
-3. Run `npm run web` in another terminal.
-4. Open `http://localhost:8081`.
+## Run the integrated application
 
-You see today's synthetic articles arrive one source at a time. Select **Continue reading** to expand an article. Select **Manage feeds** to set the server address, feed URLs, and timezone. The reader follows your system theme. Use the theme control in the editor to override it for this visit.
-
-To use your server, enter its HTTPS origin and your enabled feed URLs. The server must provide `POST /api/feeds?stream=1`. For browser use, configure ingress CORS to permit the Expo web origin, POST, and the Content-Type header. The existing Next backend remains unchanged. Native devices require a reachable server address rather than localhost.
-
-Run the repeatable checks with these commands.
+Run these commands from the repository root.
 
 ```sh
-npm run typecheck
-npx expo install --check
-npm test
-npx playwright install chromium
-npm run verify:web
-npm run export:web
+mise install
+mise run install
+mise run dev
 ```
 
-The browser script starts missing development servers and writes synthetic screenshots and verification results to ignored `artifacts/`. It tests progressive rendering, interrupted streams, terminal errors, JSON fallback, cancellation, same-day offline reload, stale snapshots, configured timezones, expansion, and unsafe markup. Its fixture endpoints also expose `/normal`, `/interrupted`, `/terminal`, `/json`, `/offline`, `/slow`, and `/partial` before `/api/feeds`.
+Open `http://localhost:3000`. The root command starts Expo Metro and Next
+together. Next serves the API and proxies the development client so requests
+stay on the page's origin. The standalone `npm run web` command starts Metro
+only and does not provide the API.
 
-The reader imports the existing pure lifecycle and parser directly. The hook owns cancellation and request generations. Only completed responses save a snapshot. Interrupted responses never save. A completed partial response saves its successful articles, matching the existing reader. Storage errors leave network reading available.
+Open **Manage feeds** to add, edit, enable, disable, or delete subscriptions.
+The manager also imports and exports OPML. The browser's timezone selects
+what counts as today. The reader follows the system theme. There is no
+connection-address or timezone editor in the deployed application.
 
-One AsyncStorage snapshot is capped at 256,000 UTF-8 bytes. Its identity includes the server address, enabled feed URLs, and timezone. The day must match today. Article markup passes through a bounded parsed tree before native rendering. Scripts, embedded media, publisher styles, event attributes, unsafe URL schemes, and private destination literals are removed. DNS-based destination checks remain a backend responsibility.
+## Build and verify
 
-The proof omits feed management, OPML import and export, and native release configuration. It is versioned independently at 0.1.0.
+Run focused Expo checks from the repository root.
+
+```sh
+npm run typecheck --prefix mobile
+npm test --prefix mobile
+mise run build
+mise run browser
+pnpm verify:web-runtime
+```
+
+`mise run build` exports this package, copies its output into the host's public
+assets, and builds Next with the revisioned service worker. `mise run browser`
+uses synthetic feeds and blocks external requests and workers. The separate
+runtime check enables workers and verifies an installed-worker upgrade,
+retained subscriptions, offline shell and article reload, bundled fonts, and
+the absence of cached API responses. Neither check deploys the application.
+
+`mise run verify` is the full repository gate. It also checks metadata, both
+packages, and an unpublished hardened Docker image. See the root
+[testing reference](../TECHNICAL.md#testing) for API integration coverage and
+[contribution guide](../CONTRIBUTING.md) for synthetic screenshot capture.
+
+## Data and platform ownership
+
+`useSubscriptions` exposes the canonical `Feed[]` inventory and complete
+subscription commands. Its web adapter reuses `lib/feed-storage.ts` and the
+`rss-feeds` key. Existing IDs, dates, order, names, and disabled records survive.
+A valid empty inventory remains empty. Only an absent canonical key permits
+feed-only migration from the old Expo proof configuration.
+
+`useReader` reuses the shared lifecycle and wire parser. Its hook owns request
+cancellation and ignores obsolete generations. Only completed responses save
+snapshots. Web snapshots use `lib/offline-feed-cache.ts` and the existing
+`rss-offline-feed-snapshots-v1` key, including bounded multiple-feed-set storage.
+Storage failures leave network reading available. Refresh runs on opening,
+enabled-source changes, and explicit actions. There is no polling timer.
+
+The browser article adapter sanitizes with DOMPurify, normalizes the DOM, and
+passes the result through a bounded parsed tree before React Native rendering.
+It fails closed without a DOM. Dialog focus, OPML file selection and download,
+worker registration, installation, and connection notices have web adapters.
+The retained non-web adapters do not establish native feature parity.
 
 ## Compare reader styling
 
-Start Expo with `npm run web`. In another terminal, run the comparison.
+The sealed original-reader screenshots live in `tests/style-baseline`. They
+cover ready articles, expanded rich text, initial loading, and an empty day.
+Each case uses fixed UTC time, synthetic feeds, light and dark themes, and
+390 × 844 and 1280 × 900 viewports.
 
 ```sh
-STYLE_TARGET_URL=http://localhost:8081 npm run verify:style
+cd mobile
+STYLE_TARGET_URL=http://localhost:3000 npm run verify:style
 ```
 
-The comparison covers ready articles, expanded rich text, initial loading, and an empty day. Each case runs at 390 × 844 and 1280 × 900 in light and dark themes. It uses fixed UTC time and synthetic feeds. Screenshots and pixel differences go to `artifacts/style`.
+The comparison rejects changed baseline hashes, changed comparison code, a
+different Chromium version, and any nonzero pixel difference. The fixtures
+exercise feed-only migration when the canonical subscription key is absent.
+The comparison covers these selected reader states. The integrated browser
+suite separately covers canonical storage and manager behavior. Neither test
+establishes native device rendering.
 
-The original Next reader screenshots are in `tests/style-baseline`. The manifest records their source commit and Chromium version. It also seals the fixture and comparison script. The check rejects changed baselines, changed comparison code, a different browser version, and any nonzero pixel difference. Baseline browser logs include the existing service worker registration error caused by blocking service workers. Expo captures require no uncaught errors or external requests.
-
-This comparison covers the reader. The floating control opens the MVP connection editor. The original feed manager and native device rendering require separate proofs.
+The root `pnpm verify:expo-browser` gate pins grayscale font rendering through
+`tests/style-fontconfig.conf`. This matches the sealed Linux screenshots and
+prevents host subpixel settings from changing the comparison. The baseline and
+zero-pixel threshold remain unchanged.

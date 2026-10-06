@@ -79,3 +79,43 @@ test("malformed input remains balanced and cannot introduce attributes or active
     "<p><strong>One &lt;img src=x onerror=alert(1)&gt;<p>Two</p></strong></p>",
   );
 });
+
+test("clips a prose preview at a word boundary without cutting inline markup", () => {
+  const prose = "Readable words ".repeat(50);
+  const result = prepareArticle(
+    `<p><em>${prose}</em><strong>tail</strong></p>`,
+    base,
+  );
+  assert.equal(
+    result.preview,
+    `<p><em>${prose.slice(0, 599).trimEnd()}…</em></p>`,
+  );
+  assert.equal(result.truncated, true);
+});
+
+test("retains nested lists, quote paragraphs, code whitespace and image-only articles", () => {
+  const rich =
+    "<ol><li>First<ul><li>Nested</li></ul></li><li>Second</li></ol><blockquote><p>One</p><p>Two</p></blockquote><pre><code>  first\n    second &lt;third&gt;</code></pre>";
+  assert.deepEqual(prepareArticle(rich, base), {
+    full: rich,
+    preview: rich,
+    truncated: false,
+  });
+  const image = '<img src="https://journal.example/photo.png" alt="A garden">';
+  assert.deepEqual(prepareArticle(image, base), {
+    full: '<img alt="A garden" src="https://journal.example/photo.png">',
+    preview: '<img alt="A garden" src="https://journal.example/photo.png">',
+    truncated: false,
+  });
+});
+
+test("web article preparation fails closed when the browser DOM is absent", async () => {
+  const { prepareArticle: prepareWebArticle } = await import(
+    "../src/article-content.web"
+  );
+  assert.deepEqual(prepareWebArticle("<p>Untrusted</p>", base), {
+    full: "",
+    preview: "",
+    truncated: false,
+  });
+});

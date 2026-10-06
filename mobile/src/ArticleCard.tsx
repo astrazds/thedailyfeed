@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import {
   Linking,
   Platform,
@@ -27,11 +27,47 @@ import type { ReaderPalette } from "./contracts";
 import { readerFaces } from "./reader-theme";
 
 const headingTags = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
-const headingModels = Object.fromEntries(
-  headingTags.map((tag) => {
-    const model: HTMLElementModel<string, HTMLContentModel> =
-      defaultHTMLElementModels[tag];
-    return [tag, model.extend({ contentModel: HTMLContentModel.textual })];
+const articleModels = Object.fromEntries(
+  Object.entries(defaultHTMLElementModels).map(([tag, source]) => {
+    const model = source as HTMLElementModel<string, HTMLContentModel>;
+    return [
+      tag,
+      model.extend({
+        ...(/^h[1-6]$/.test(tag)
+          ? { contentModel: HTMLContentModel.textual }
+          : {}),
+        getReactNativeProps(tnode, generated, element) {
+          const original = model.getReactNativeProps?.(
+            tnode,
+            generated,
+            element,
+          );
+          if (Platform.OS !== "web") return original;
+          const { lang, dir, href } = tnode.attributes;
+          return {
+            ...original,
+            native: {
+              ...original?.native,
+              ...(tag === "ul" || tag === "ol"
+                ? { role: "list" as const }
+                : {}),
+              ...(tag === "li" ? { role: "listitem" as const } : {}),
+              ...(lang ? { lang } : {}),
+              ...(dir ? { dir } : {}),
+              ...(tag === "a" && href
+                ? {
+                    href,
+                    hrefAttrs: {
+                      target: "_blank",
+                      rel: "noopener noreferrer nofollow",
+                    },
+                  }
+                : {}),
+            },
+          };
+        },
+      }),
+    ];
   }),
 );
 const HeadingRenderer: CustomTextualRenderer = ({
@@ -91,10 +127,16 @@ type WebTextStyle = TextStyle & {
   wordSpacing?: number;
   textUnderlineOffset?: number;
   textDecorationThickness?: number;
+  overflowWrap?: "anywhere";
 };
 const webProse: WebTextStyle =
   Platform.OS === "web"
-    ? { wordSpacing: 0.8, textUnderlineOffset: 3, textDecorationThickness: 1 }
+    ? {
+        wordSpacing: 0.8,
+        textUnderlineOffset: 3,
+        textDecorationThickness: 1,
+        overflowWrap: "anywhere",
+      }
     : {};
 const webLink: WebTextStyle =
   Platform.OS === "web"
@@ -147,6 +189,7 @@ export function ArticleCard({
   timeZone: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
   const content = useMemo(() => {
     const plainDescription = (item.description ?? "")
       .replace(/&/g, "&amp;")
@@ -165,13 +208,19 @@ export function ArticleCard({
   const defaultTextProps = useMemo(
     () => ({
       selectable: true,
-      style: item.contentHtml ? webProse : undefined,
+      style: item.contentHtml
+        ? webProse
+        : Platform.OS === "web"
+          ? ({ overflowWrap: "anywhere" } as WebTextStyle)
+          : undefined,
     }),
     [item.contentHtml],
   );
   const htmlSource = useMemo(
-    () => ({ html: expanded ? content.full : content.preview }),
-    [expanded, content],
+    () => ({
+      html: expanded || !item.contentHtml ? content.full : content.preview,
+    }),
+    [expanded, content, item.contentHtml],
   );
   const styles = useMemo(
     () => ({
@@ -296,10 +345,13 @@ export function ArticleCard({
         markerBoxStyle: { alignSelf: "flex-start" as const },
       },
       a: {
-        onPress: (_event: unknown, href: string) => {
-          const safe = normalizeFeedContentUrl(href, item.link, "link");
-          if (safe) void Linking.openURL(safe).catch(() => {});
-        },
+        onPress:
+          Platform.OS === "web"
+            ? undefined
+            : (_event: unknown, href: string) => {
+                const safe = normalizeFeedContentUrl(href, item.link, "link");
+                if (safe) void Linking.openURL(safe).catch(() => {});
+              },
       },
     }),
     [item.link],
@@ -307,6 +359,7 @@ export function ArticleCard({
   return (
     <View
       testID="article-card"
+      role="article"
       style={{
         maxWidth: 585,
         width: "100%",
@@ -320,12 +373,23 @@ export function ArticleCard({
         disabled={!titleLink}
         accessibilityRole={titleLink ? "link" : undefined}
         accessibilityLabel={item.title}
-        onPress={() => {
-          if (titleLink) void Linking.openURL(titleLink).catch(() => {});
-        }}
+        {...(Platform.OS === "web" && titleLink
+          ? {
+              href: titleLink,
+              hrefAttrs: { target: "_blank", rel: "noopener noreferrer" },
+            }
+          : {})}
+        onPress={
+          Platform.OS === "web"
+            ? undefined
+            : () => {
+                if (titleLink) void Linking.openURL(titleLink).catch(() => {});
+              }
+        }
       >
         <Text
           testID="article-title"
+          selectable
           accessibilityRole="header"
           aria-level={2}
           style={[
@@ -340,26 +404,31 @@ export function ArticleCard({
               textDecorationColor: `rgba(${parseInt(palette.accent.slice(1, 3), 16)}, ${parseInt(palette.accent.slice(3, 5), 16)}, ${parseInt(palette.accent.slice(5, 7), 16)}, 0.55)`,
             },
             webLink,
+            Platform.OS === "web"
+              ? ({ overflowWrap: "anywhere" } as WebTextStyle)
+              : undefined,
           ]}
         >
           {item.title}
         </Text>
       </Pressable>
-      <RenderHTML
-        contentWidth={contentWidth}
-        source={htmlSource}
-        {...styles}
-        systemFonts={systemFonts}
-        customListStyleSpecs={customListStyleSpecs}
-        renderersProps={linkProps}
-        defaultTextProps={defaultTextProps}
-        domVisitors={domVisitors}
-        customHTMLElementModels={headingModels}
-        renderers={headingRenderers}
-        enableExperimentalMarginCollapsing
-        enableCSSInlineProcessing={false}
-      />
-      {content.truncated && (
+      <View nativeID={contentId} testID="article-content">
+        <RenderHTML
+          contentWidth={contentWidth}
+          source={htmlSource}
+          {...styles}
+          systemFonts={systemFonts}
+          customListStyleSpecs={customListStyleSpecs}
+          renderersProps={linkProps}
+          defaultTextProps={defaultTextProps}
+          domVisitors={domVisitors}
+          customHTMLElementModels={articleModels}
+          renderers={headingRenderers}
+          enableExperimentalMarginCollapsing
+          enableCSSInlineProcessing={false}
+        />
+      </View>
+      {item.contentHtml && content.truncated && (
         <View
           style={
             Platform.OS === "web"
@@ -377,6 +446,8 @@ export function ArticleCard({
             accessibilityRole="button"
             accessibilityLabel={`${expanded ? "Show less" : "Continue reading"} ${item.title}`}
             accessibilityState={{ expanded }}
+            aria-expanded={expanded}
+            aria-controls={contentId}
             onPress={() => setExpanded(!expanded)}
             style={[
               {

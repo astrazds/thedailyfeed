@@ -15,14 +15,18 @@ The Daily Feed is a self-hosted RSS reader for the articles published today.
 Choose your feeds, open the page, and read a clean, chronological stream.
 There are no accounts, unread counts, or subscriptions to a service.
 
+Expo and React Native render the web application. The existing Next.js server
+serves the exported app and its same-origin feed API. This phase targets web
+browsers. Android and iOS builds are not part of this release.
+
 <p align="center">
   <img src="docs/assets/reader-desktop.png" alt="The Daily Feed showing synthetic articles from Field Notes, Small Hours, and Open Workshop">
 </p>
 
-The screenshot shows the actual application with synthetic content.
+The screenshot shows the reader design with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.2.6`.
+Current release: `1.2.7`.
 
 ## Install and self-host
 
@@ -88,10 +92,9 @@ publication dates, upstream availability, and publisher content determine what
 appears. Private-network feeds are blocked in production by default.
 
 Refresh requests can reuse the server's feed cache, which lasts one hour by
-default. The current app also checks feeds hourly while the page remains open.
-The [vision](VISION.md) calls for reader-initiated retrieval; the
-[implementation gaps](docs/architecture-decisions.md#known-implementation-gaps)
-record this difference.
+default. The reader loads on opening, when enabled sources change, and on
+explicit refresh. It does not poll on a timer. An open edition stays available
+until the next retrieval.
 
 ## Development
 
@@ -104,6 +107,10 @@ mise run install
 mise run dev
 ```
 
+Open `http://localhost:3000`. The root development command starts Next and
+Expo Metro together. Use this address so the app and API share an origin.
+No backend-address editor or CORS configuration is needed.
+
 For focused checks, use `mise run test`, `mise run lint`, or `mise run typecheck`.
 The full portable gate also needs Docker/Buildx and Chromium system dependencies:
 
@@ -112,8 +119,9 @@ mise run verify
 ```
 
 It installs locked dependencies, validates release metadata, runs lint,
-TypeScript and unit tests, builds Next/PWA output, runs isolated Playwright
-smoke tests, and builds one unpublished Docker image. It never deploys.
+TypeScript and unit tests for the server and Expo app, exports the Expo web
+application, builds Next and the service worker, runs browser and offline-runtime
+checks, and builds one unpublished Docker image. It never deploys.
 
 After `mise run build` and `mise run browser-install`, run `mise run browser`.
 Use `mise run integration` for the API tests that start a local server.

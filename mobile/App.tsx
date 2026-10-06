@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ScrollView,
   View,
   Text,
   Pressable,
-  TextInput,
   StyleSheet,
   Platform,
   type TextStyle,
@@ -15,131 +14,39 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import Svg, { Circle, Path } from "react-native-svg";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getFeedLoadActivity,
   feedActivityAnnouncement,
 } from "../lib/feed-load-activity";
 import { normalizeTimeZone } from "../lib/date-utils";
-import { DEFAULT_CONFIG } from "./src/contracts";
 import type { ReaderConfig } from "./src/contracts";
 import { readerFaces, readerFonts, readerThemes } from "./src/reader-theme";
-import { CONFIG_KEY } from "./src/snapshot";
 import { useReader } from "./src/useReader";
 import { ArticleCard } from "./src/ArticleCard";
-function parseConfig(value: unknown): ReaderConfig | null {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("apiOrigin" in value) ||
-    typeof value.apiOrigin !== "string" ||
-    !("feeds" in value) ||
-    !Array.isArray(value.feeds) ||
-    value.feeds.length > 50 ||
-    !("timeZone" in value) ||
-    typeof value.timeZone !== "string"
-  )
-    return null;
-  try {
-    const origin = new URL(value.apiOrigin);
-    if (
-      !["https:", "http:"].includes(origin.protocol) ||
-      origin.username ||
-      origin.password ||
-      origin.search ||
-      origin.hash
-    )
-      return null;
-    const feeds = value.feeds.flatMap((feed: unknown) => {
-      if (
-        typeof feed !== "object" ||
-        feed === null ||
-        !("url" in feed) ||
-        typeof feed.url !== "string" ||
-        !("name" in feed) ||
-        typeof feed.name !== "string"
-      )
-        return [];
-      const url = new URL(feed.url);
-      if (
-        !["https:", "http:"].includes(url.protocol) ||
-        url.username ||
-        url.password
-      )
-        return [];
-      return [{ url: url.href, name: feed.name }];
-    });
-    if (feeds.length !== value.feeds.length) return null;
-    return {
-      apiOrigin: origin.href.replace(/\/$/, ""),
-      feeds,
-      timeZone: normalizeTimeZone(value.timeZone),
-    };
-  } catch {
-    return null;
-  }
-}
-function Reader({
-  config,
-  onConfig,
-}: {
-  config: ReaderConfig;
-  onConfig: (config: ReaderConfig) => void;
-}) {
+import { useSubscriptions } from "./src/useSubscriptions";
+import { FeedManager } from "./src/FeedManager";
+import { BrowserStatus } from "./src/BrowserStatus";
+import { ErrorBoundary, RecoveryScreen } from "./src/ErrorBoundary";
+import { registerWorker } from "./src/register-worker";
+
+function Reader() {
   const { width } = useWindowDimensions();
   const scheme = useColorScheme();
-  const [themeOverride, setThemeOverride] = useState<"light" | "dark" | null>(
-    null,
-  );
-  const theme = themeOverride ?? (scheme === "dark" ? "dark" : "light");
+  const theme = scheme === "dark" ? "dark" : "light";
   const palette = readerThemes[theme];
-  const { model, refresh, storageNotice } = useReader(config);
+  const subscriptions = useSubscriptions();
+  const [timeZone] = useState(() => normalizeTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone));
+  const config: ReaderConfig = useMemo(() => ({
+    feeds: subscriptions.feeds.filter(feed => feed.enabled),
+    configuredFeedCount: subscriptions.feeds.length,
+    timeZone,
+  }), [subscriptions.feeds, timeZone]);
+  const { model, refresh, storageNotice } = useReader(config, subscriptions.ready);
   const activity = getFeedLoadActivity(model);
   const [settings, setSettings] = useState(false);
-  const [origin, setOrigin] = useState(config.apiOrigin);
-  const [urls, setUrls] = useState(
-    config.feeds.map((feed) => feed.url).join("\n"),
-  );
-  const [zone, setZone] = useState(config.timeZone);
-  const [formError, setFormError] = useState("");
+  const refreshButton = useRef<View>(null);
   const [contentWidth, setContentWidth] = useState(Math.min(width - 48, 585));
-  const openSettings = () => {
-    setOrigin(config.apiOrigin);
-    setUrls(config.feeds.map((feed) => feed.url).join("\n"));
-    setZone(config.timeZone);
-    setSettings(!settings);
-  };
-  const save = async () => {
-    const next = parseConfig({
-      apiOrigin: origin.trim(),
-      timeZone: zone.trim(),
-      feeds: urls
-        .split(/\n/)
-        .map((url) => url.trim())
-        .filter(Boolean)
-        .map((url) => ({
-          url,
-          name: config.feeds.find((feed) => feed.url === url)?.name ?? url,
-        })),
-    });
-    if (!next) {
-      setFormError(
-        "Enter an HTTP or HTTPS server address and valid feed URLs.",
-      );
-      return;
-    }
-    try {
-      await AsyncStorage.setItem(CONFIG_KEY, JSON.stringify(next));
-      setFormError("");
-      onConfig(next);
-      setSettings(false);
-    } catch {
-      onConfig(next);
-      setFormError(
-        "These settings could not be saved. They apply for this visit.",
-      );
-    }
-  };
+  const openSettings = () => setSettings(true);
   const button = (
     label: string,
     action: () => void,
@@ -187,14 +94,16 @@ function Reader({
       : "No articles loaded"
     : config.feeds.length
       ? "No new items today"
-      : "No feeds yet";
+      : config.configuredFeedCount ? "No feeds enabled" : "No feeds yet";
   const emptyDescription = emptyError
     ? activity.type === "failed"
       ? model.error
       : "Try again to load articles from your sources."
     : config.feeds.length
       ? "Your enabled feeds have no items dated today. Manage feeds to review your sources."
-      : "Add an RSS or Atom feed to start building today’s reading list.";
+      : config.configuredFeedCount
+        ? "Enable at least one feed to load today’s items."
+        : "Add an RSS or Atom feed to start building today’s reading list.";
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
       <StatusBar style={theme === "dark" ? "light" : "dark"} />
@@ -208,6 +117,8 @@ function Reader({
         {feedActivityAnnouncement(activity)}
       </Text>
       <ScrollView
+        role="main"
+        aria-busy={model.loading}
         style={Platform.OS === "web" ? { transform: "none" } : undefined}
         contentContainerStyle={styles.page}
       >
@@ -219,10 +130,12 @@ function Reader({
         >
           <View
             testID="feed-header"
+            role="banner"
             style={[styles.header, { borderColor: palette.border }]}
           >
             <Text
               accessibilityRole="header"
+              aria-level={1}
               style={[
                 styles.brand,
                 Platform.OS === "web"
@@ -270,10 +183,17 @@ function Reader({
                 )}
                 <Pressable
                   testID="refresh"
+                  ref={refreshButton}
+                  disabled={model.loading || !config.feeds.length}
                   accessibilityRole="button"
                   accessibilityLabel="Refresh feeds"
-                  onPress={() => {
-                    void refresh();
+                  onPress={async () => {
+                    await refresh();
+                    requestAnimationFrame(() => {
+                      if (typeof document !== "undefined" && document.activeElement === document.body) {
+                        refreshButton.current?.focus();
+                      }
+                    });
                   }}
                   style={[
                     styles.refresh,
@@ -300,7 +220,7 @@ function Reader({
             {(activity.type === "loading" ||
               activity.type === "partial" ||
               activity.type === "interrupted") && (
-              <View style={styles.activity}>
+              <View testID="feed-activity" style={styles.activity}>
                 <Text
                   style={[
                     styles.activityText,
@@ -334,6 +254,12 @@ function Reader({
             )}
             {model.loading && (
               <View
+                accessibilityRole="progressbar"
+                accessibilityLabel="Feed loading progress"
+                accessibilityValue={{ min: 0, max: model.totalFeeds, now: model.completedFeeds }}
+                aria-valuemin={0}
+                aria-valuemax={model.totalFeeds}
+                aria-valuenow={model.completedFeeds}
                 style={[styles.progress, { backgroundColor: palette.border }]}
               >
                 <View
@@ -346,100 +272,6 @@ function Reader({
               </View>
             )}
           </View>
-          {settings && (
-            <View
-              style={[
-                styles.settings,
-                {
-                  backgroundColor: palette.codeBackground,
-                  borderColor: palette.border,
-                },
-              ]}
-            >
-              <Text
-                accessibilityRole="header"
-                style={[styles.settingsTitle, { color: palette.foreground }]}
-              >
-                Your sources
-              </Text>
-              <Text style={[styles.helper, { color: palette.muted }]}>
-                Use the demo server, or connect your self-hosted Daily Feed
-                server.
-              </Text>
-              <Text style={[styles.formLabel, { color: palette.foreground }]}>
-                Server address
-              </Text>
-              <TextInput
-                accessibilityLabel="Server address"
-                testID="api-origin"
-                value={origin}
-                onChangeText={setOrigin}
-                autoCapitalize="none"
-                style={[
-                  styles.input,
-                  {
-                    color: palette.foreground,
-                    borderColor: palette.controlBorder,
-                  },
-                ]}
-              />
-              <Text style={[styles.formLabel, { color: palette.foreground }]}>
-                Feed URLs, one per line
-              </Text>
-              <TextInput
-                accessibilityLabel="Feed URLs"
-                testID="feed-urls"
-                multiline
-                value={urls}
-                onChangeText={setUrls}
-                autoCapitalize="none"
-                style={[
-                  styles.input,
-                  {
-                    color: palette.foreground,
-                    borderColor: palette.controlBorder,
-                    minHeight: 90,
-                  },
-                ]}
-              />
-              <Text style={[styles.formLabel, { color: palette.foreground }]}>
-                Timezone
-              </Text>
-              <TextInput
-                accessibilityLabel="Timezone"
-                value={zone}
-                onChangeText={setZone}
-                style={[
-                  styles.input,
-                  {
-                    color: palette.foreground,
-                    borderColor: palette.controlBorder,
-                  },
-                ]}
-              />
-              {!!formError && (
-                <Text
-                  accessibilityRole="alert"
-                  style={[styles.formLabel, { color: palette.foreground }]}
-                >
-                  {formError}
-                </Text>
-              )}
-              {button(
-                "Save sources",
-                () => {
-                  void save();
-                },
-                "save-settings",
-              )}
-              {button(
-                theme === "dark" ? "Light" : "Dark",
-                () => setThemeOverride(theme === "dark" ? "light" : "dark"),
-                "theme",
-                true,
-              )}
-            </View>
-          )}
           {storageNotice && (
             <Text style={[styles.notice, { color: palette.muted }]}>
               Reading is available. Saving for offline use is unavailable.
@@ -448,7 +280,7 @@ function Reader({
           {activity.type === "fallback" && (
             <View style={styles.fallback}>
               <Text style={[styles.notice, { color: palette.muted }]}>
-                Unable to refresh. Showing saved items from today.
+                {model.items.length ? "Unable to refresh. Showing saved items from today." : "Unable to refresh. Try again to check your feeds."}
               </Text>
               {button(
                 "Try again",
@@ -464,6 +296,8 @@ function Reader({
             [0, 1, 2].map((index) => (
               <View
                 key={index}
+                testID="feed-skeleton-item"
+                aria-hidden={true}
                 style={[styles.skeleton, { borderBottomColor: palette.border }]}
               >
                 <View
@@ -545,6 +379,8 @@ function Reader({
         accessibilityRole="button"
         accessibilityLabel="Manage feeds"
         accessibilityState={{ expanded: settings }}
+        aria-expanded={settings}
+        aria-controls="feed-manager-dialog"
         testID="connection-settings"
         onPress={openSettings}
         style={[
@@ -571,62 +407,39 @@ function Reader({
           <Path d="M19.07 4.93l-4.24 4.24m0 5.66l4.24 4.24M4.93 4.93l4.24 4.24m0 5.66l-4.24 4.24" />
         </Svg>
       </Pressable>
+      {subscriptions.ready && <FeedManager
+        feeds={subscriptions.feeds}
+        apply={subscriptions.apply}
+        isOpen={settings}
+        onClose={() => setSettings(false)}
+        palette={palette}
+        activity={activity}
+        feedStatuses={model.feedStatuses}
+        onRefreshFeeds={refresh}
+      />}
+      <BrowserStatus palette={palette} />
     </SafeAreaView>
   );
 }
-export default function App() {
+function Application() {
   const [fontsLoaded, fontError] = useFonts(readerFonts);
+  useEffect(() => { registerWorker(); }, []);
   const scheme = useColorScheme();
   const palette = readerThemes[scheme === "dark" ? "dark" : "light"];
-  const [config, setConfig] = useState<ReaderConfig | null>(null);
-  useEffect(() => {
-    let live = true;
-    void AsyncStorage.getItem(CONFIG_KEY)
-      .then((raw) => {
-        let saved: ReaderConfig | null = null;
-        try {
-          if (raw) saved = parseConfig(JSON.parse(raw));
-        } catch {}
-        if (live)
-          setConfig(
-            saved ?? {
-              ...DEFAULT_CONFIG,
-              timeZone: normalizeTimeZone(
-                Intl.DateTimeFormat().resolvedOptions().timeZone,
-              ),
-            },
-          );
-      })
-      .catch(() => {
-        if (live)
-          setConfig({
-            ...DEFAULT_CONFIG,
-            timeZone: normalizeTimeZone(
-              Intl.DateTimeFormat().resolvedOptions().timeZone,
-            ),
-          });
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
   return (
     <SafeAreaProvider>
       {fontError ? (
-        <View
-          style={{ flex: 1, backgroundColor: palette.background, padding: 24 }}
-        >
-          <Text accessibilityRole="alert" style={{ color: palette.foreground }}>
-            The reader font could not load. Reload to try again.
-          </Text>
-        </View>
-      ) : config && fontsLoaded ? (
-        <Reader config={config} onConfig={setConfig} />
+        <RecoveryScreen message="The reader font could not load. Reload to try again." />
+      ) : fontsLoaded ? (
+        <Reader />
       ) : (
         <View style={{ flex: 1, backgroundColor: palette.background }} />
       )}
     </SafeAreaProvider>
   );
+}
+export default function App() {
+  return <ErrorBoundary><Application /></ErrorBoundary>;
 }
 const styles = StyleSheet.create({
   announcement: {
@@ -723,31 +536,6 @@ const styles = StyleSheet.create({
     fontFamily: readerFaces.medium,
     fontSize: 16,
     lineHeight: 25.6,
-  },
-  settings: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 20,
-    gap: 12,
-    marginBottom: 25,
-  },
-  settingsTitle: {
-    fontFamily: readerFaces.semibold,
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  formLabel: {
-    fontFamily: readerFaces.regular,
-    fontSize: 16,
-    lineHeight: 25.6,
-  },
-  helper: { fontFamily: readerFaces.regular, fontSize: 13, lineHeight: 21 },
-  input: {
-    fontFamily: readerFaces.regular,
-    borderWidth: 1,
-    borderRadius: 4,
-    padding: 10,
-    minHeight: 44,
   },
   notice: { fontFamily: readerFaces.regular, fontSize: 13, lineHeight: 19.5 },
   fallback: {

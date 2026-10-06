@@ -20,42 +20,53 @@ subscription changes.
 There is one mutation entry point. Separate CRUD exports would let callers
 bypass validation or notification policy.
 
+## Expo owns the application and Next owns hosting
+
+The web application uses the React Native screen tree in `mobile/`. Metro
+exports its document and assets. Next serves that export at `/` and retains the
+existing feed and metrics APIs. This preserves same-origin storage, streaming,
+and deployment without maintaining a second reader.
+
+Browser behavior stays at explicit platform boundaries. The manager's web
+adapter uses `<dialog>` for focus containment and Escape dismissal. OPML file
+selection and download use browser APIs. Article preparation uses DOMPurify and
+DOM normalization before the bounded native HTML renderer. React Native controls
+own the reader and manager layout.
+
+The production build precaches the Expo document, JavaScript, fonts, icons, and
+manifest through the existing `/sw.js` URL. Development starts Metro and Next
+together and does not register a production worker. API responses remain
+`no-store` and do not become an offline worker response cache.
+
 ## Forms own drafts and the modal owns dialog behavior
 
-`components/feed-manager-modal.tsx` composes the manager and owns its native
-dialog, active editor, and focus after inventory changes.
-`components/feed-manager-form.tsx` owns add/edit drafts, field validation,
-linked errors, and submit controls. Its add/edit mode determines the IDs,
-spacing, and controls without exposing those details to callers.
+`mobile/src/FeedManager.tsx` owns selected editors, pending operations, and
+operation messages. `mobile/src/manager/Form.tsx` owns `{ name, url }` drafts,
+field errors, and submit controls. Dismissing the dialog does not unmount those
+owners. A failed save retains the draft.
 
-`components/use-feed-manager-actions.ts` runs validation and storage operations,
-publishes saved subscriptions, and owns failure and progress messages.
-`feed-manager-list.tsx` owns row presentation and delete selection.
-`feed-manager-transfer.tsx` owns the file input and export controls.
-The existing delete-action component owns confirmation and cancellation focus.
+`mobile/src/manager/Modal.web.tsx` owns the browser dialog and returns focus to
+its opener. `FeedRow.tsx` owns row controls and delete confirmation.
+`transfer.web.tsx` owns browser file selection and download around `lib/opml.ts`.
+An edit response carries a session identity so it cannot close a newer editor.
 
-For example, the add caller submits `{ type: 'add', ...draft }` through
-`actions.save`. The form clears its draft only when that promise returns true.
-The edit caller submits `{ type: 'edit', id, ...draft }` and closes the editor
-after success. OPML controls pass a `File` to `actions.importFile`; the action
-formats the storage summary for the stable status region.
+The UI submits typed commands through `useSubscriptions`. The web adapter calls
+`runFeedManagerOperation`, which validates and rereads current storage before
+saving. Successful operations publish the saved inventory. Failed persistence
+does not announce success or replace the visible inventory.
 
-The mounted form owns a complete `{ name, url }` draft. The modal's nullable
-`Feed` selects the editor, so an edit ID cannot exist without its initial data.
-Only one add, edit, or import can be pending. Row actions and refresh remain
-independent, as in the existing interface. Closing the dialog does not unmount
-these owners or discard their drafts.
+## Existing browser data remains canonical
 
-A central reducer was considered. It would require events for every field
-edit, asynchronous completion, file interaction, and focus effect. Local form
-ownership keeps these changes within the form and avoids an additional event
-protocol. The small action coordinator retains the shared operation state.
-This accepts a few focused components in exchange for shorter change paths.
+Web subscriptions keep `rss-feeds`. Web snapshots keep
+`rss-offline-feed-snapshots-v1` and its retention, quota, timezone, and same-day
+rules. Existing IDs, names, dates, disabled records, and inventory order survive.
+An empty saved inventory stays empty.
 
-Browser characterization covers draft retention, field errors, pending forms,
-concurrent editing, focus, storage failure and retry, and OPML round trips.
-`FEED_UI_CAPTURE_DIR` makes `e2e/feed-manager.spec.ts` capture synthetic reader
-and manager states for before/after visual comparison in both viewport sizes.
+The old Expo proof used a different configuration key. When the canonical key
+is absent, valid feed records can seed it once. The proof's server address and
+snapshot do not become production state. The deployed reader always uses its
+own origin. Moving an installation to a new origin still requires user-managed
+subscription transfer.
 
 ## Progress events have one model and an explicit wire boundary
 
@@ -80,7 +91,7 @@ across attempts and retry delays.
 
 `lib/feed-set-lifecycle.ts` coordinates progressive results, snapshot preview,
 offline fallback, terminal state, and persistence effects. React components
-consume its read model through `useFeedStream`.
+consume its read model through `mobile/src/useReader.ts`.
 
 Keeping these transitions together prevents separate UI branches from disagreeing
 about whether results are current, incomplete, or an offline fallback.
@@ -90,11 +101,11 @@ about whether results are current, incomplete, or an offline fallback.
 `lib/feed-load-activity.ts` derives a `FeedLoadActivity` union from lifecycle
 state. Only the `loading` variant carries progress counts. Terminal variants
 distinguish empty, ready, partial, interrupted, fallback, and failed outcomes.
-`components/feed-activity.tsx` renders shared copy and progress. Header-scoped
-styles make the reader activity compact and place its progress on the header
-border; the manager retains the detailed panel. The reader uses
+`mobile/App.tsx` and `mobile/src/FeedManager.tsx` render that shared copy.
+The reader places compact progress on the header border. The manager keeps
+a detailed activity panel. The reader uses
 dedicated failure and snapshot-fallback panels, while the manager uses
-`FeedActivity` for those states. Surrounding components own recovery controls
+the same derived activity for those states. Surrounding components own recovery controls
 and announcement routing. Opening the dialog does not start a separate request.
 
 The lifecycle remains the authority for outcomes. Resolving a refresh Promise
@@ -122,18 +133,16 @@ without putting HTTP policy into feed parsing or browser storage.
 
 ## Known implementation gaps
 
-[VISION.md](../VISION.md) describes product intent. These current behaviors remain
-distinct from that intent or from complete UI recovery:
+This migration phase targets web. Native storage, file access, networking,
+release configuration, and device accessibility need separate work and proof.
+A browser run cannot establish Android or iOS behavior.
 
-- `useFeedStream` retains an hourly refresh timer, while the vision excludes
-  periodic retrieval. The timer can also advance an open edition after midnight.
-  The browser suite does not verify the vision's midnight continuation behavior.
-- A completed request can save an empty snapshot, including when every source
-  failed. A later request failure can reuse that snapshot and say **Showing saved
-  items from today.** even when no articles are visible. The failure and retry
-  remain visible, but that sentence overstates the available content.
-- An earlier edit save can close a subsequently selected editor, and an earlier
-  edit failure can appear there. Correcting this requires correlating responses
-  with editor sessions and covering delayed responses in the browser.
+The old hourly retrieval timer is removed to follow [VISION.md](../VISION.md).
+Requests run on opening, enabled-source changes, and explicit refresh. An open
+edition stays visible across midnight until the next retrieval. A server cache
+hit may still reuse feed data until its TTL expires.
 
-Documentation records these gaps without changing the approved product boundary.
+Browser verification uses synthetic publisher content. Worker upgrade and actual
+offline reload have a separate production runtime check. Neither check proves
+an installation's HTTPS proxy, live publisher availability, or every browser's
+PWA installation flow. See [testing scope](../TECHNICAL.md#testing).

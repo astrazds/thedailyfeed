@@ -5,7 +5,13 @@ import type {
   FeedStreamChunk,
   SerializedFeedItem,
 } from "../../lib/types";
-import { DEMO_FEEDS } from "../src/contracts";
+import { readFile } from "node:fs/promises";
+import { resolve, extname, sep } from "node:path";
+
+const staticRoot = resolve(process.env.FIXTURE_STATIC_DIR ?? "dist");
+const feedUrls = ["https://slow-journal.example/rss", "https://field-notes.example/rss"];
+let activeScenario = "normal";
+let articleDate: string | undefined;
 
 const scenarios = new Set<string>([
   "normal",
@@ -15,6 +21,7 @@ const scenarios = new Set<string>([
   "offline",
   "slow",
   "partial",
+  "done-open",
 ]);
 const articles: SerializedFeedItem[] = [
   {
@@ -69,10 +76,33 @@ const server = createServer(async (request, response) => {
     response.end("ok");
     return;
   }
+  if (pathname === "/__fixture/scenario" && request.method === "POST") {
+    let input = "";
+    for await (const chunk of request) input += chunk;
+    const parsed = JSON.parse(input) as { name: string; articleDate?: string };
+    if (!scenarios.has(parsed.name)) return void response.writeHead(400).end("Unknown scenario");
+    activeScenario = parsed.name;
+    articleDate = parsed.articleDate;
+    response.end("ok");
+    return;
+  }
+  if (pathname === "/api/feeds/validate") {
+    response.setHeader("Content-Type", "application/json");
+    response.end(JSON.stringify({ valid: true }));
+    return;
+  }
   const prefix = pathname.split("/").filter(Boolean)[0];
-  const scenario = scenarios.has(prefix) ? prefix : "normal";
+  const scenario = scenarios.has(prefix) ? prefix : activeScenario;
   if (!pathname.endsWith("/api/feeds")) {
-    response.writeHead(404).end("Not found");
+    const file = resolve(staticRoot, `.${pathname === "/" ? "/index.html" : pathname}`);
+    if (!file.startsWith(staticRoot + sep)) return void response.writeHead(403).end();
+    const mime: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".ttf": "font/ttf", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+    try {
+      response.setHeader("Content-Type", mime[extname(file)] ?? "application/octet-stream");
+      response.end(await readFile(file));
+    } catch {
+      response.writeHead(404).end("Not found");
+    }
     return;
   }
   const body: Buffer[] = [];
@@ -86,8 +116,11 @@ const server = createServer(async (request, response) => {
     body.push(Buffer.from(chunk));
   }
   let timeZone = "UTC";
+  let requestedUrls = feedUrls;
+  const currentArticles = articles.map((article, index) => ({ ...article, pubDate: articleDate ?? new Date(Date.now() - index * 60000).toISOString() }));
   try {
     const parsed: unknown = JSON.parse(Buffer.concat(body).toString());
+    if (typeof parsed === "object" && parsed !== null && "feedUrls" in parsed && Array.isArray(parsed.feedUrls)) requestedUrls = parsed.feedUrls;
     if (
       typeof parsed === "object" &&
       parsed !== null &&
@@ -110,7 +143,7 @@ const server = createServer(async (request, response) => {
     const payload: FeedApiResponse = {
       cached: false,
       timeZone,
-      items: articles,
+      items: currentArticles,
     };
     response
       .writeHead(200, { "Content-Type": "application/json" })
@@ -133,10 +166,10 @@ const server = createServer(async (request, response) => {
       ...base,
       type: "feed_result",
       completedFeeds: 1,
-      feedUrl: DEMO_FEEDS[0].url,
+      feedUrl: requestedUrls[0],
       status: "success",
       itemCount: 1,
-      items: [articles[0]],
+      items: [currentArticles[0]],
     },
     true,
   );
@@ -159,10 +192,10 @@ const server = createServer(async (request, response) => {
     ...base,
     type: "feed_result",
     completedFeeds: 2,
-    feedUrl: DEMO_FEEDS[1].url,
+    feedUrl: requestedUrls[1],
     status: scenario === "partial" ? "error" : "success",
     itemCount: scenario === "partial" ? 0 : 1,
-    items: scenario === "partial" ? [] : [articles[1]],
+    items: scenario === "partial" ? [] : [currentArticles[1]],
   });
   await writeSplit(response, {
     ...base,
@@ -170,10 +203,11 @@ const server = createServer(async (request, response) => {
     completedFeeds: 2,
     totalItemCount: scenario === "partial" ? 1 : 2,
   });
+  if (scenario === "done-open") await delay(15000);
   response.end();
 });
 server.listen(Number(process.env.FIXTURE_PORT ?? 8787), "0.0.0.0", () =>
-  console.log("Feed fixture listening on http://localhost:8787"),
+  console.log(`Feed fixture listening on http://localhost:${process.env.FIXTURE_PORT ?? 8787}`),
 );
 process.on("SIGTERM", () => server.close());
 process.on("SIGINT", () => server.close());

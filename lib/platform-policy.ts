@@ -10,7 +10,10 @@ export type PlatformHeaderSurfaceName =
   | 'service-worker'
   | 'manifest'
   | 'next-static'
-  | 'next-static-media';
+  | 'next-static-media'
+  | 'expo-shell'
+  | 'expo-assets'
+  | 'expo-fonts';
 
 export type PlatformHeaderSurfacePolicy = {
   readonly name: PlatformHeaderSurfaceName;
@@ -185,6 +188,9 @@ export const platformPolicy = {
       source: '/',
       headers: appShellHeaders,
     },
+    { name: 'expo-shell', source: '/expo/index.html', headers: appShellHeaders },
+    { name: 'expo-assets', source: '/_expo/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }, ...staticAssetHeaders] },
+    { name: 'expo-fonts', source: '/assets/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }, ...staticAssetHeaders] },
     {
       name: 'api',
       source: '/api/:path*',

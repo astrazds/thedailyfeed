@@ -99,4 +99,10 @@ docs
 e2e
 playwright.config.ts
 
-mobile
+mobile/node_modules
+mobile/.expo
+mobile/dist
+mobile/artifacts
+mobile/tests
+public/expo
+.expo-precache.json

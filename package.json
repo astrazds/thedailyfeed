@@ -1,6 +1,6 @@
 {
   "name": "thedailyfeed",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "A focused RSS reader for today's articles.",
   "private": true,
   "repository": {
@@ -13,8 +13,8 @@
     "pnpm": ">=11.24.0 <12"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build --webpack && pnpm verify:pwa-build",
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build-expo-web.mjs && next build --webpack && pnpm verify:pwa-build",
     "deploy:compose": "sh scripts/deploy-compose.sh",
     "start": "next start",
     "lint": "eslint",
@@ -22,7 +22,9 @@
     "version:check": "node scripts/version-policy.mjs check",
     "version:bump": "node scripts/version-policy.mjs bump",
     "verify:pwa-build": "tsx scripts/verify-pwa-build.mts",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "verify:web-runtime": "tsx scripts/verify-web-runtime.mts",
+    "verify:expo-browser": "node scripts/verify-expo-browser.mjs"
   },
   "dependencies": {
     "date-fns": "^4.4.0",
@@ -37,13 +39,11 @@
     "@playwright/test": "1.63.0",
     "@serwist/cli": "9.5.12",
     "@serwist/next": "9.5.12",
-    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.3",
-    "tailwindcss": "4.3.3",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"
   }

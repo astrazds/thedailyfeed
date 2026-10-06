@@ -1,7 +1,7 @@
 # The Daily Feed
 
-A self-hosted Next.js RSS reader for today's articles, using the reader's
-timezone. Subscriptions and offline reading belong to the browser profile.
+A self-hosted Expo and React Native RSS reader for the web. Articles use the
+reader's timezone. Subscriptions and offline reading belong to the browser profile.
 
 ## Project references
 
@@ -20,22 +20,26 @@ Read the sections relevant to the change rather than loading every document:
 - `lib/feed-request.ts`: cache/missing-feed orchestration. Fetching and parsing
   live in `lib/feed-fetcher.ts` and `lib/rss.ts`; extend that pipeline.
 - `lib/url-validator.ts`: HTTP(S) destination policy for feeds and article media.
-- `lib/feed-content-normalization.ts` and `lib/feed-html-render.ts`: sanitized HTML
-  rewrite and fail-closed empty markup when the DOM is missing.
+- `lib/feed-content-normalization.ts`: sanitized HTML rewriting. The web article
+  adapter fails closed with empty markup when the DOM is missing.
 - `lib/feed-response-adapter.ts` and `lib/feed-stream-parser.ts`: server wire
   serialization and client validation of untrusted JSON/NDJSON.
 - `lib/feed-set-lifecycle.ts`: progressive results, terminal states, and offline
-  persistence. `components/use-feed-stream.ts` connects this lifecycle to React.
-- `lib/feed-load-activity.ts`: shared activity and announcement copy.
-  `components/feed-activity.tsx` renders copy and progress. Reader and manager
-  components own recovery controls and active-context announcements.
-- `lib/feed-storage.ts`: subscriptions and complete feed-manager mutations.
-- `lib/types.ts`: shared article and wire types; browser imports must not point
+  persistence. `mobile/src/useReader.ts` connects the lifecycle to React.
+- `lib/feed-load-activity.ts`: shared activity and announcement copy. The Expo
+  reader and manager own their controls and active-context announcements.
+- `lib/feed-storage.ts`: canonical subscriptions and complete manager mutations.
+  `mobile/src/useSubscriptions.ts` connects its web adapter to React.
+- `lib/types.ts`: shared article and wire types. Browser imports must not point
   at the server RSS parser for article types.
-- `components/feed-manager-modal.tsx`: native dialog and focus ownership.
-  `feed-manager-form.tsx` owns drafts and validation, `use-feed-manager-actions.ts`
-  owns async operation state, and list/transfer components own their controls.
-- `components/` and `app/globals.css`: reader UI and styling.
+- `mobile/App.tsx`, `mobile/src/ArticleCard.tsx`, and `mobile/src/reader-theme.ts`:
+  the React Native reader and styling.
+- `mobile/src/FeedManager.tsx` and `mobile/src/manager/`: native manager controls,
+  persistent drafts, editor sessions, and narrow web dialog and OPML adapters.
+- `mobile/src/article-content.web.ts`: DOMPurify and DOM normalization before
+  bounded native article rendering.
+- `scripts/build-expo-web.mjs` and `scripts/dev.mjs`: Expo export assembly and
+  same-origin development. Next hosts APIs and exported files, not the reader.
 - `app/sw.ts` and `lib/serwist-runtime-caching.ts`: service-worker behavior.
 
 ## Product and safety boundaries
@@ -45,8 +49,9 @@ Read the sections relevant to the change rather than loading every document:
   process-local state. Accounts, server persistence, and synchronization require
   an explicit product scope change.
 - Preserve timezone-aware "today" filtering and distinct loading, empty, ready,
-  partial, interrupted, failed, and snapshot-fallback reader states. The hourly
-  timer is a documented implementation gap, not a product requirement to preserve.
+  partial, interrupted, failed, and snapshot-fallback reader states. Do not add
+  periodic retrieval. An open edition remains until the next explicit or
+  subscription-driven retrieval.
 - Feed URLs, DNS answers, redirects, XML, article HTML, and transport chunks are
   untrusted input. Preserve HTTP(S)-only fetching, destination and redirect
   checks, and production SSRF blocking. Preserve DOMPurify sanitization,
@@ -76,14 +81,18 @@ XML tests. Run `mise run install` after installing the toolchain.
 - `mise run test`: serial Node/tsx tests in `tests/`. `mise run integration`
   enables the full API integration tests and starts a local Next.js server.
 - `mise run lint` and `mise run typecheck`: lint and application/test type checks.
-- `mise run build`: production webpack build plus the PWA artifact check. Keep
-  webpack here because Serwist's service-worker injection depends on it.
+- `mise run build`: Metro web export, Next production webpack build, and the PWA
+  artifact check. Keep webpack for Serwist service-worker injection.
 - `mise run browser`: Playwright against production output, using the isolated
   synthetic fixtures in `e2e/`. These block external requests and service workers,
   so they do not prove live feed fetching or service-worker operation.
+- `pnpm verify:web-runtime`: production worker upgrade, retained subscriptions,
+  actual offline reload, bundled fonts, and API cache exclusion. This uses a
+  synthetic previous worker unless `RUNTIME_PREVIOUS_URL` names a prior build.
+- `npm test --prefix mobile`: Expo transport, article, and profile tests.
 - `mise run verify` runs [scripts/verify-ci.sh](scripts/verify-ci.sh), the complete gate before commit or
   deployment. It installs dependencies and Chromium, runs default tests and
-  browser checks, and builds an unpublished Docker image. Run `mise run integration`
+  browser and worker runtime checks, and builds an unpublished Docker image. Run `mise run integration`
   separately for opt-in API coverage.
 - Documentation-only changes need `mise run test` for the documentation claim
   checks, `git diff --check`, and diff review of referenced paths. They do not
