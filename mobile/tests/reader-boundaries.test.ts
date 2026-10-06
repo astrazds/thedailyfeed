@@ -55,7 +55,10 @@ test("Transport publishes a large valid feed record, later feeds, and completion
   const seen: FeedStreamChunk[] = [];
   assert.equal(
     await consumeFeedResponse(
-      fragmentedResponse(records.map((record) => JSON.stringify(record)).join("\n"), "application/x-ndjson"),
+      fragmentedResponse(
+        records.map((record) => JSON.stringify(record)).join("\n"),
+        "application/x-ndjson",
+      ),
       (chunk) => seen.push(chunk),
       new AbortController().signal,
     ),
@@ -71,11 +74,20 @@ test("Transport completes multiple valid records exceeding two megabytes togethe
       ...feedResult(index, "x".repeat(180_000)),
       totalFeeds,
     })),
-    { ...meta, type: "done", totalFeeds, completedFeeds: totalFeeds, totalItemCount: totalFeeds },
+    {
+      ...meta,
+      type: "done",
+      totalFeeds,
+      completedFeeds: totalFeeds,
+      totalItemCount: totalFeeds,
+    },
   ];
   const seen: FeedStreamChunk[] = [];
   await consumeFeedResponse(
-    fragmentedResponse(records.map((record) => JSON.stringify(record)).join("\n") + "\n", "application/x-ndjson"),
+    fragmentedResponse(
+      records.map((record) => JSON.stringify(record)).join("\n") + "\n",
+      "application/x-ndjson",
+    ),
     (chunk) => seen.push(chunk),
     new AbortController().signal,
   );
@@ -113,10 +125,13 @@ test("Transport stops at done and decodes split UTF-8 lines", async () => {
   const bytes = new TextEncoder().encode(
     JSON.stringify(meta) + "\n" + JSON.stringify(done) + "\nnot valid",
   );
+  let cancelled = false;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       for (const byte of bytes) controller.enqueue(Uint8Array.of(byte));
-      controller.close();
+    },
+    cancel() {
+      cancelled = true;
     },
   });
   const seen: string[] = [];
@@ -131,6 +146,8 @@ test("Transport stops at done and decodes split UTF-8 lines", async () => {
     new AbortController().signal,
   );
   assert.deepEqual(seen, ["café", "café"]);
+  assert.equal(cancelled, true);
+  assert.equal(stream.locked, false);
 });
 test("Transport JSON fallback and cancellation remain distinct", async () => {
   const response = new Response(
@@ -145,24 +162,111 @@ test("Transport JSON fallback and cancellation remain distinct", async () => {
     ),
     { items: [item], cached: false },
   );
+  assert.equal(response.body?.locked, false);
   const controller = new AbortController();
   controller.abort();
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    cancel() {
+      cancelled = true;
+    },
+  });
   await assert.rejects(
     consumeFeedResponse(
-      new Response("{}"),
+      new Response(body),
       () => assert.fail(),
       controller.signal,
     ),
     /Aborted/,
   );
+  assert.equal(cancelled, true);
+  assert.equal(body.locked, false);
+});
+for (const contentType of ["application/x-ndjson", "application/json"]) {
+  test(`Transport accepts exactly 32 MiB of ${contentType}`, async () => {
+    const data =
+      contentType === "application/x-ndjson"
+        ? {
+            ...meta,
+            type: "done",
+            totalItemCount: 0,
+            completedFeeds: 2,
+            requestId: "café",
+          }
+        : { items: [{ ...item, title: "café" }], cached: false };
+    const suffix = new TextEncoder().encode(JSON.stringify(data));
+    const block = new Uint8Array(1024 * 1024).fill(32);
+    const last = block.slice();
+    last.set(suffix, last.byteLength - suffix.byteLength);
+    let blocks = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        blocks += 1;
+        controller.enqueue(blocks === 32 ? last : block);
+        if (blocks === 32) controller.close();
+      },
+    });
+    const seen: FeedStreamChunk[] = [];
+    const result = await consumeFeedResponse(
+      new Response(body, { headers: { "Content-Type": contentType } }),
+      (chunk) => seen.push(chunk),
+      new AbortController().signal,
+    );
+    if (contentType === "application/x-ndjson") {
+      assert.equal(result, null);
+      assert.deepEqual(seen, [data]);
+    } else {
+      assert.deepEqual(result, data);
+      assert.deepEqual(seen, []);
+    }
+    assert.equal(body.locked, false);
+  });
+  test(`Transport cancels ${contentType} above its byte budget before parsing`, async () => {
+    const block = new TextEncoder().encode("é".repeat(512 * 1024));
+    let blocks = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        blocks += 1;
+        controller.enqueue(blocks <= 32 ? block : Uint8Array.of(32));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    await assert.rejects(
+      consumeFeedResponse(
+        new Response(body, { headers: { "Content-Type": contentType } }),
+        () => assert.fail("Oversized unfinished records must not publish"),
+        new AbortController().signal,
+      ),
+      /Feed response is too large/,
+    );
+    assert.equal(cancelled, true);
+    assert.equal(body.locked, false);
+    assert.ok(blocks <= 34, "Reader must stop pulling after exceeding the budget");
+  });
+}
+test("Transport rejects malformed records and releases the cancelled reader", async () => {
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"type":"unknown"}\n'));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
   await assert.rejects(
     consumeFeedResponse(
-      new Response("x".repeat(256_001), {
+      new Response(body, {
         headers: { "Content-Type": "application/x-ndjson" },
       }),
       () => assert.fail(),
       new AbortController().signal,
     ),
-    /too large/,
+    /Invalid feed stream chunk/,
   );
+  assert.equal(cancelled, true);
+  assert.equal(body.locked, false);
 });

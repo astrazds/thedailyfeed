@@ -3,8 +3,7 @@ import {
   parseFeedStreamLine,
 } from "../../lib/feed-stream-parser";
 import type { FeedApiResponse, FeedStreamChunk } from "../../lib/types";
-const MAX_BYTES = 2_000_000;
-const MAX_LINE = 256_000;
+const MAX_BYTES = 32 * 1024 * 1024;
 export async function consumeFeedResponse(
   response: Response,
   onChunk: (chunk: FeedStreamChunk) => void,
@@ -22,12 +21,8 @@ export async function consumeFeedResponse(
   const acceptLines = (final = false): boolean => {
     const lines = pending.split("\n");
     pending = final ? "" : (lines.pop() ?? "");
-    if (pending.length > MAX_LINE)
-      throw new Error("Feed stream line is too large");
     for (const line of lines) {
       if (!line.trim()) continue;
-      if (line.length > MAX_LINE)
-        throw new Error("Feed stream line is too large");
       const chunk = parseFeedStreamLine(line);
       onChunk(chunk);
       if (chunk.type === "done") return true;

@@ -26,7 +26,7 @@ browsers. Android and iOS builds are not part of this release.
 The screenshot shows the reader design with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.2.7`.
+Current release: `1.2.8`.
 
 ## Install and self-host
 

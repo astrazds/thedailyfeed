@@ -2,6 +2,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import type { FeedLoadActivity } from '../../../lib/feed-load-activity';
 import type { ReaderPalette } from '../contracts';
 import { readerFaces } from '../reader-theme';
+import { LoadingMotion } from '../LoadingMotion';
 
 export function ManagerActivity({ activity, palette }: { activity: FeedLoadActivity; palette: ReaderPalette }) {
   if (activity.type === 'empty') return null;
@@ -12,7 +13,9 @@ export function ManagerActivity({ activity, palette }: { activity: FeedLoadActiv
     borderLeftColor: loading ? palette.accent : palette.error, borderRadius: 8,
     backgroundColor: ready ? 'transparent' : palette.codeBackground }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      {loading && <ActivityIndicator size={22} color={palette.accent} />}
+      {loading && <LoadingMotion kind="rotate" active={loading}>
+        <ActivityIndicator size={22} color={palette.accent} animating={false} hidesWhenStopped={false} />
+      </LoadingMotion>}
       <View style={{ flex: 1, flexDirection: ready ? 'row' : 'column', flexWrap: ready ? 'wrap' : 'nowrap', alignItems: ready ? 'baseline' : 'stretch', columnGap: 12 }}>
         <Text style={{ fontFamily: readerFaces.semibold, fontSize: ready ? 13 : 16, lineHeight: ready ? 20.8 : 25.6,
           color: ready ? palette.background === '#1a1816' ? '#55b979' : '#2b7444' : palette.foreground }}>{activity.title}</Text>

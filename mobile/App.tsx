@@ -28,6 +28,7 @@ import { FeedManager } from "./src/FeedManager";
 import { BrowserStatus } from "./src/BrowserStatus";
 import { ErrorBoundary, RecoveryScreen } from "./src/ErrorBoundary";
 import { registerWorker } from "./src/register-worker";
+import { LoadingMotion } from "./src/LoadingMotion";
 
 function Reader() {
   const { width } = useWindowDimensions();
@@ -203,17 +204,19 @@ function Reader() {
                     },
                   ]}
                 >
-                  <Svg
-                    width={16}
-                    height={16}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={palette.foreground}
-                    strokeWidth={1.8}
-                  >
-                    <Path d="M20 7v5h-5M4 17v-5h5" />
-                    <Path d="M5.1 8a8 8 0 0 1 13.2-2L20 8M4 16l1.7 2A8 8 0 0 0 18.9 16" />
-                  </Svg>
+                  <LoadingMotion kind="rotate" active={model.loading}>
+                    <Svg
+                      width={16}
+                      height={16}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={palette.foreground}
+                      strokeWidth={1.8}
+                    >
+                      <Path d="M20 7v5h-5M4 17v-5h5" />
+                      <Path d="M5.1 8a8 8 0 0 1 13.2-2L20 8M4 16l1.7 2A8 8 0 0 0 18.9 16" />
+                    </Svg>
+                  </LoadingMotion>
                 </Pressable>
               </View>
             </View>
@@ -300,36 +303,38 @@ function Reader() {
                 aria-hidden={true}
                 style={[styles.skeleton, { borderBottomColor: palette.border }]}
               >
-                <View
-                  style={{
-                    width: "75%",
-                    height: 20,
-                    marginBottom: 24,
-                    borderRadius: 3,
-                    backgroundColor: palette.codeBackground,
-                  }}
-                />
-                <View style={{ gap: 13, marginBottom: 24 }}>
-                  {["100%", "94%", "68%"].map((lineWidth) => (
-                    <View
-                      key={lineWidth}
-                      style={{
-                        width: lineWidth as `${number}%`,
-                        height: 16,
-                        borderRadius: 3,
-                        backgroundColor: palette.codeBackground,
-                      }}
-                    />
-                  ))}
-                </View>
-                <View
-                  style={{
-                    width: "28%",
-                    height: 14,
-                    borderRadius: 3,
-                    backgroundColor: palette.codeBackground,
-                  }}
-                />
+                <LoadingMotion kind="pulse" active={model.loading}>
+                  <View
+                    style={{
+                      width: "75%",
+                      height: 20,
+                      marginBottom: 24,
+                      borderRadius: 3,
+                      backgroundColor: palette.codeBackground,
+                    }}
+                  />
+                  <View style={{ gap: 13, marginBottom: 24 }}>
+                    {["100%", "94%", "68%"].map((lineWidth) => (
+                      <View
+                        key={lineWidth}
+                        style={{
+                          width: lineWidth as `${number}%`,
+                          height: 16,
+                          borderRadius: 3,
+                          backgroundColor: palette.codeBackground,
+                        }}
+                      />
+                    ))}
+                  </View>
+                  <View
+                    style={{
+                      width: "28%",
+                      height: 14,
+                      borderRadius: 3,
+                      backgroundColor: palette.codeBackground,
+                    }}
+                  />
+                </LoadingMotion>
               </View>
             ))}
           {model.items.map((item) => (

@@ -1,6 +1,6 @@
 # Technical documentation for The Daily Feed
 
-This document reflects the 1.2.7 implementation as of October 6, 2026.
+This document reflects the 1.2.8 implementation as of October 6, 2026.
 
 ## System overview
 
@@ -347,8 +347,11 @@ a feed request. Cross-tab storage notifications are scoped to subscriptions.
 There is no hourly refresh timer. An open edition remains visible across midnight
 until a later retrieval applies the current date.
 
-The transport bounds response and line sizes, decodes split UTF-8, and supports
-validated JSON fallback. A stream `done` or validated JSON response produces a
+The transport accepts up to 32 MiB of response bytes, decodes split UTF-8, and
+supports validated JSON fallback. This client resource limit also bounds an
+unfinished stream record. It is not a guarantee that every possible server
+response fits: serialization can repeat metadata and expand escaped content.
+A stream `done` or validated JSON response produces a
 snapshot persistence effect, including partial or empty results. Bare stream
 closure ends loading without saving. Unfinished sources appear as **Not checked**.
 Storage errors leave network results readable.
