@@ -1,0 +1,244 @@
+{
+  "verifiedAt": "2026-10-06T03:02:20+00:00",
+  "version": "1.2.7",
+  "baseCommit": "30326300dac9a61ff1cd2f803e3506bf9947ba19",
+  "scope": "Web only; synthetic feed fixtures; no native device build or deployment.",
+  "completeGate": {
+    "command": "sh scripts/verify-ci.sh",
+    "result": "verification status=success",
+    "environment": "Node 24; pnpm 11.24.0; cloud proxy CA mounted as a Docker build secret; normalized source file permissions. Portable repository gate unchanged."
+  },
+  "tests": {
+    "root": {
+      "passed": 144,
+      "skipped": 5,
+      "skipReason": "Opt-in API tests run separately"
+    },
+    "expo": {
+      "passed": 20
+    },
+    "optInApi": {
+      "passed": 5,
+      "command": "RUN_INTEGRATION_TESTS=true pnpm exec tsx --test --test-concurrency=1 tests/feeds-api.integration.test.mts"
+    },
+    "browser": {
+      "passed": 74,
+      "projects": [
+        "desktop",
+        "narrow"
+      ]
+    }
+  },
+  "readerVisualComparison": {
+    "baseline": "mobile/tests/style-baseline",
+    "chromiumVersion": "153.0.8010.12",
+    "threshold": 0,
+    "includeAA": true,
+    "pass": true,
+    "results": [
+      {
+        "id": "ready-short-mobile-light",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "ready-short-mobile-dark",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "ready-short-desktop-light",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "ready-short-desktop-dark",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "expanded-rich-mobile-light",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "expanded-rich-mobile-dark",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "expanded-rich-desktop-light",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "expanded-rich-desktop-dark",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "initial-loading-mobile-light",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "initial-loading-mobile-dark",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "initial-loading-desktop-light",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "initial-loading-desktop-dark",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "empty-today-mobile-light",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "empty-today-mobile-dark",
+        "changedPixels": 0,
+        "totalPixels": 329160,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "empty-today-desktop-light",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      },
+      {
+        "id": "empty-today-desktop-dark",
+        "changedPixels": 0,
+        "totalPixels": 1152000,
+        "changedPercent": 0,
+        "pass": true
+      }
+    ]
+  },
+  "articles": {
+    "checks": [
+      "390: headings, language, direction, native anchors, nested formatting and preformatted text",
+      "390: line breaks, bounded spacing and full plain descriptions",
+      "390: disclosure relationships and content restoration",
+      "390: hostile HTML, malformed markup, size limits, large images and long-token layout",
+      "1280: headings, language, direction, native anchors, nested formatting and preformatted text",
+      "1280: line breaks, bounded spacing and full plain descriptions",
+      "1280: disclosure relationships and content restoration",
+      "1280: hostile HTML, malformed markup, size limits, large images and long-token layout"
+    ],
+    "errors": [],
+    "forbiddenRequests": []
+  },
+  "realHttp": {
+    "checks": [
+      "First article rendered over real HTTP while the delayed second source was still loading.",
+      "Split NDJSON and split UTF-8 bytes decoded without losing caf\u00e9.",
+      "Expansion retained rich text and rejected executable markup and the private image.",
+      "Article time used the browser's Australia/Sydney timezone.",
+      "Interrupted EOF retained progressive content without persisting an incomplete result.",
+      "Terminal stream error retained progressive content without persisting an incomplete result.",
+      "JSON fallback rendered and persisted the complete response.",
+      "Reload during network failure restored the matching legacy-format completed snapshot.",
+      "A stale-day snapshot was rejected during network failure.",
+      "Done after a failed source persisted the successful article.",
+      "A subscription change cancelled the prior real HTTP request and produced one copy of each article.",
+      "The full manager used canonical subscriptions, and the changed feed set survived reload.",
+      "A done record completed the request without waiting for the HTTP connection to close.",
+      "Snapshot storage failure left reading available and displayed its persistence warning."
+    ],
+    "pageErrors": [],
+    "privateRequests": [],
+    "screenshots": [
+      "reader-mobile.png",
+      "reader-desktop.png"
+    ]
+  },
+  "containerRuntime": {
+    "previousWorker": "previous production Serwist",
+    "upgrade": "pass",
+    "retainedSubscriptions": 2,
+    "precachedAssets": 19,
+    "offlineShellAndArticle": "pass",
+    "unrelatedAndStaleSnapshot": "rejected",
+    "apiCacheEntries": 0,
+    "browserErrors": []
+  },
+  "containerHardening": {
+    "image": "sha256:1c3187ed738f1da6edce1984d56d00ce4fa9cdb0f412c387e31845ddb6e1ab07",
+    "user": "nextjs",
+    "readOnly": true,
+    "capDrop": [
+      "ALL"
+    ],
+    "securityOptions": [
+      "no-new-privileges:true"
+    ],
+    "memoryBytes": 536870912,
+    "pidsLimit": 256,
+    "nanoCpus": 1000000000,
+    "tmpfs": {
+      "/app/.next/cache": "rw,nosuid,nodev,size=128m,uid=1001,gid=1001,mode=1770",
+      "/tmp": "rw,noexec,nosuid,nodev,size=64m"
+    },
+    "ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "3130"
+        }
+      ]
+    }
+  },
+  "development": {
+    "sameOriginApi": 400,
+    "hmr": true,
+    "workers": 0,
+    "sockets": [
+      "ws://localhost:3122/hot",
+      "ws://localhost:3122/message"
+    ],
+    "errors": []
+  },
+  "rawLogSha256": {
+    "full-gate.log": "0c85873d395ebe52f8ed413d1a36d97090db3c2c5a283884453fe29ad9a6af2a",
+    "integration-final.log": "3a9d3363c0d4ef86e5cb0ef9ecab5517519be7eca0dde4e82b5900446927a78c",
+    "browser-final.log": "7999aec190eee4fe8e2bf57cc66d0d8dcc649adec9ac8646a3745f0535c21645",
+    "browser-fix.log": "05b06d13a8e515360df88946216b94cc29cd9138a058d7a67d3e7a96eba5ff3b",
+    "container/pwa.log": "4fc033f01050949281f14f695bab78a5411f350af1ca6ea2994b97f3d4135c7e"
+  }
+}

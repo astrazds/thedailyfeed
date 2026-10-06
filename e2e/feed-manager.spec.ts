@@ -28,8 +28,8 @@ test('manager preserves drafts across close and returns focus after editing', as
   const edit = dialog.getByRole('form', { name: 'Edit Field Notes' });
   await expect(edit.getByLabel('Feed name', { exact: true })).toBeFocused();
   await edit.getByLabel('Feed name', { exact: true }).fill('Edited source');
-  await expect(dialog.getByRole('button', { name: 'Add feed', exact: true })).toHaveClass(/neutral-action/);
-  await expect(edit.getByRole('button', { name: 'Save changes', exact: true })).toHaveClass(/primary-action/);
+  await expect(dialog.getByRole('button', { name: 'Add feed', exact: true })).toHaveCSS('background-color', 'rgb(245, 241, 234)');
+  await expect(edit.getByRole('button', { name: 'Save changes', exact: true })).toHaveCSS('background-color', 'rgb(193, 119, 103)');
   await capture('edit');
   await page.keyboard.press('Escape');
   await open.click();
@@ -37,7 +37,7 @@ test('manager preserves drafts across close and returns focus after editing', as
   await edit.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Feeds (3)', exact: true })).toBeFocused();
   await expect(dialog.getByLabel('Feed name', { exact: true })).toHaveValue('Draft source');
-  await expect(dialog.getByRole('button', { name: 'Add feed', exact: true })).toHaveClass(/primary-action/);
+  await expect(dialog.getByRole('button', { name: 'Add feed', exact: true })).toHaveCSS('background-color', 'rgb(193, 119, 103)');
   await dialog.getByRole('button', { name: 'Delete', exact: true }).first().click();
   const confirmation = dialog.getByRole('group', { name: 'Confirm deletion of Field Notes' });
   await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
@@ -56,7 +56,7 @@ test('manager validates fields and retains a pending form until validation finis
   await page.getByRole('button', { name: 'Manage feeds', exact: true }).last().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByText('Add feed', { exact: true }).first().click();
-  const add = dialog.locator('details').first();
+  const add = dialog.getByTestId('add-feed-section');
   const name = add.getByLabel('Feed name', { exact: true });
   const url = add.getByLabel('Feed URL', { exact: true });
   await dialog.getByRole('button', { name: 'Add feed', exact: true }).click();

@@ -1,6 +1,10 @@
 # Deployment
 
-This guide covers running The Daily Feed 1.2.6 in production with source-built containers and a trusted HTTPS reverse proxy.
+This guide covers running The Daily Feed 1.2.7 in production with source-built containers and a trusted HTTPS reverse proxy.
+
+The container serves the Expo web export at `/` and keeps the existing Next.js
+API routes on the same origin. Metro runs only during development. There is no
+separate Expo service to deploy and no CORS configuration for the reader.
 
 ## Portable Compose hosting
 
@@ -46,7 +50,7 @@ proxy error logs, which can include request details, and configure log rotation.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `APP_PORT` | `3000` | Loopback host port; container port stays 3000. |
-| `APP_VERSION` | `1.2.6` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.2.7` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Set by the deployment wrapper from Git. |
 | `TZ` | `UTC` | Container timezone. |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` | Operational logging. |
@@ -134,6 +138,13 @@ Use the same Compose file, environment file, and project name for inspection
 that you used for deployment. Avoid sharing resolved environments, credentials,
 raw logs, or private feed content when reporting a problem.
 
+The web migration keeps `rss-feeds` and `rss-offline-feed-snapshots-v1` on the
+existing origin. Keep `/sw.js` at its existing URL and scope so installed clients
+can update. Verify an installed client after the update, then disconnect the
+browser and reload with a same-day snapshot. Confirm the shell, fonts, and saved
+articles load. Offline availability depends on a completed prior worker install
+and an eligible snapshot.
+
 ## Recovery and data
 
 Before updating, retain the previous source revision and image along with a
@@ -157,7 +168,8 @@ that browser data to another device. See [PRIVACY.md](PRIVACY.md).
 point used by [GitHub Actions](.github/workflows/ci.yml). It requires Node 24,
 the pinned pnpm release, Python 3, Docker/Compose/Buildx, and Chromium system
 dependencies. It installs dependencies and Chromium, validates release metadata,
-runs lint, type checks and tests, builds Next/PWA output, runs synthetic browser
+runs lint, type checks and tests for both packages, exports Expo, builds Next
+and the service worker, runs synthetic browser and production offline-runtime
 checks, and builds a local Docker image.
 
 The supplied CI workflow uses read-only repository permissions and performs

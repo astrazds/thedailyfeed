@@ -35,6 +35,9 @@ printf 'metadata version=%s commit=%s\n' "$APP_VERSION" "$APP_COMMIT"
 docker compose --env-file /dev/null -f compose.yml config --quiet
 
 pnpm install --frozen-lockfile
+npm ci --prefix mobile
+npm run typecheck --prefix mobile
+npm test --prefix mobile
 pnpm version:check
 pnpm lint
 pnpm exec tsc --noEmit
@@ -47,6 +50,8 @@ else
   pnpm exec playwright install chromium
 fi
 pnpm test:browser
+pnpm verify:web-runtime
+pnpm verify:expo-browser
 
 # The default Docker driver builds into its local image store without a registry push.
 image_ref="thedailyfeed-ci:$APP_COMMIT"

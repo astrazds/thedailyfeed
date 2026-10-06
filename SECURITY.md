@@ -15,15 +15,18 @@ Security fixes target the latest release. Self-hosters should review updates and
 run behind a trusted HTTPS reverse proxy with rate and request-body limits.
 Keep `ALLOW_PRIVATE_NETWORKS=false`; it is an SSRF escape hatch, not a routine
 compatibility option. Article HTML drops localhost and private IP literals in
-image and link destinations. A missing DOM returns empty markup, not raw HTML.
+image and link destinations. The Expo web adapter runs DOMPurify before
+normalization and bounded React Native HTML rendering. A missing DOM returns
+empty markup.
 Metrics are unavailable in production until a private bearer token is
 configured and should also be restricted at ingress.
 
 Feed progress and retries use the same destination checks, cancellation, and
 timeout budgets as initial retrieval. A visible failure is not a reason to
-enable private-network access. Browser test fixtures block external traffic and
-service workers; passing those tests does not establish production ingress or
-service-worker security. See the [verification scope](TECHNICAL.md#testing).
+enable private-network access. Reader and manager browser fixtures block external
+traffic and service workers. A separate production runtime check enables the
+worker and verifies offline shell loading and the absence of cached API responses.
+Neither test establishes production ingress security. See the [verification scope](TECHNICAL.md#testing).
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for hardened hosting and
 [TECHNICAL.md](TECHNICAL.md) for the application's security boundaries.

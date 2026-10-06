@@ -83,3 +83,6 @@ public/swe-worker-*.js.map
 
 # Python offline validation
 __pycache__/
+
+/public/expo/
+/.expo-precache.json

@@ -36,7 +36,7 @@ before(async () => {
 
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const workdir = path.resolve(currentDir, '..');
-  serverProcess = spawn('pnpm', ['run', 'dev', '--port', String(PORT)], {
+  serverProcess = spawn(process.execPath, ['scripts/dev.mjs', '--port', String(PORT)], {
     cwd: workdir,
     stdio: 'inherit',
     env: {
@@ -53,12 +53,13 @@ after(async () => {
     return;
   }
 
-  if (!serverProcess) {
+  if (!serverProcess || serverProcess.exitCode !== null || serverProcess.signalCode !== null) {
     return;
   }
 
+  const stopped = new Promise<void>((resolve) => serverProcess!.once('exit', () => resolve()));
   serverProcess.kill('SIGTERM');
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await stopped;
 });
 
 test('validates feed URLs via /api/feeds/validate', { skip: !RUN_INTEGRATION_TESTS }, async () => {

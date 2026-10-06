@@ -8,6 +8,9 @@ logs, or browser snapshots; reproduce problems with synthetic content.
 Use the toolchain and tasks in `mise.toml`. Start with the development
 instructions in [README.md](README.md). Keep browser-local storage formats,
 HTTP/NDJSON contracts, feed safety controls, and the existing visual design.
+The application lives in `mobile/` and uses Expo with React Native. Next owns
+API routes and production static hosting. Keep browser-only dialog, file,
+storage, sanitizer, and worker behavior in narrow web adapters.
 [TECHNICAL.md](TECHNICAL.md) describes the architecture and boundaries.
 
 For defects, first reproduce the problem through the affected user path with
@@ -45,6 +48,13 @@ Both desktop and narrow projects use disposable browser storage and synthetic
 feeds. External requests and service workers are blocked. These tests cover
 reader and manager scenarios with synthetic fixtures. They do not exercise live
 feed fetching or service-worker operation.
+After a production build, run `pnpm verify:web-runtime` for the separate worker
+check. It starts a production server, upgrades an installed synthetic worker,
+retains browser subscriptions, disconnects the browser, and reloads the Expo
+shell with a same-day snapshot and bundled fonts. It also checks that API
+responses are absent from worker caches. Set `RUNTIME_PREVIOUS_URL` to a running
+previous production build to exercise its real worker instead of the synthetic
+predecessor. These checks do not prove native platforms or production ingress.
 See [testing scope](TECHNICAL.md#testing) for the complementary gates and gaps.
 
 To update the reader images in `docs/assets/`, run:
