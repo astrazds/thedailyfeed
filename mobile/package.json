@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "verify:web": "tsx scripts/verify-web.ts",
-    "export:web": "expo export --platform web"
+    "export:web": "expo export --platform web",
+    "verify:style": "tsx scripts/verify-style.ts compare"
   },
   "dependencies": {
     "@native-html/render": "1.0.3",
@@ -23,12 +24,17 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
     "@types/node": "^22.0.0",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "~19.2.2",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
     "tsx": "^4.21.0",
     "typescript": "~6.0.3"
   }

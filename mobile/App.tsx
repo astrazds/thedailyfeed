@@ -6,41 +6,27 @@ import {
   Pressable,
   TextInput,
   StyleSheet,
+  Platform,
+  type TextStyle,
   useWindowDimensions,
   useColorScheme,
-  Platform,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { useFonts } from "expo-font";
+import Svg, { Circle, Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getFeedLoadActivity } from "../lib/feed-load-activity";
+import {
+  getFeedLoadActivity,
+  feedActivityAnnouncement,
+} from "../lib/feed-load-activity";
 import { normalizeTimeZone } from "../lib/date-utils";
 import { DEFAULT_CONFIG } from "./src/contracts";
-import type { ReaderConfig, ReaderPalette } from "./src/contracts";
+import type { ReaderConfig } from "./src/contracts";
+import { readerFaces, readerFonts, readerThemes } from "./src/reader-theme";
 import { CONFIG_KEY } from "./src/snapshot";
 import { useReader } from "./src/useReader";
 import { ArticleCard } from "./src/ArticleCard";
-const light: ReaderPalette = {
-  background: "#f7f5ef",
-  paper: "#fffdf8",
-  ink: "#282d25",
-  muted: "#74796d",
-  line: "#dedfd4",
-  accent: "#45623d",
-};
-const dark: ReaderPalette = {
-  background: "#1d221c",
-  paper: "#252b24",
-  ink: "#ebeadd",
-  muted: "#a4ad9a",
-  line: "#40483c",
-  accent: "#c1d4a7",
-};
-const serif = Platform.select({
-  ios: "Georgia",
-  android: "serif",
-  default: "Georgia",
-});
 function parseConfig(value: unknown): ReaderConfig | null {
   if (
     typeof value !== "object" ||
@@ -102,10 +88,11 @@ function Reader({
 }) {
   const { width } = useWindowDimensions();
   const scheme = useColorScheme();
-  const [theme, setTheme] = useState<"light" | "dark">(
-    scheme === "dark" ? "dark" : "light",
+  const [themeOverride, setThemeOverride] = useState<"light" | "dark" | null>(
+    null,
   );
-  const palette = theme === "dark" ? dark : light;
+  const theme = themeOverride ?? (scheme === "dark" ? "dark" : "light");
+  const palette = readerThemes[theme];
   const { model, refresh, storageNotice } = useReader(config);
   const activity = getFeedLoadActivity(model);
   const [settings, setSettings] = useState(false);
@@ -115,7 +102,13 @@ function Reader({
   );
   const [zone, setZone] = useState(config.timeZone);
   const [formError, setFormError] = useState("");
-  const contentWidth = Math.min(width - 44, 700);
+  const [contentWidth, setContentWidth] = useState(Math.min(width - 48, 585));
+  const openSettings = () => {
+    setOrigin(config.apiOrigin);
+    setUrls(config.feeds.map((feed) => feed.url).join("\n"));
+    setZone(config.timeZone);
+    setSettings(!settings);
+  };
   const save = async () => {
     const next = parseConfig({
       apiOrigin: origin.trim(),
@@ -147,7 +140,12 @@ function Reader({
       );
     }
   };
-  const button = (label: string, action: () => void, id: string) => (
+  const button = (
+    label: string,
+    action: () => void,
+    id: string,
+    neutral = false,
+  ) => (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -155,70 +153,212 @@ function Reader({
       onPress={action}
       style={({ pressed }) => [
         styles.button,
-        { borderColor: palette.line, opacity: pressed ? 0.6 : 1 },
+        {
+          backgroundColor: neutral
+            ? palette.codeBackground
+            : palette.accentSolid,
+          opacity: pressed ? 0.6 : 1,
+        },
+        neutral && {
+          borderColor: palette.controlBorder,
+          borderWidth: 1,
+          minHeight: 44,
+          paddingHorizontal: 16,
+        },
       ]}
     >
-      <Text style={{ color: palette.ink, fontSize: 13 }}>{label}</Text>
+      <Text
+        style={[
+          styles.buttonText,
+          { color: neutral ? palette.foreground : palette.accentForeground },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
+  const emptyError =
+    activity.type === "failed" ||
+    activity.type === "partial" ||
+    activity.type === "interrupted";
+  const emptyTitle = emptyError
+    ? activity.type === "failed"
+      ? activity.title
+      : "No articles loaded"
+    : config.feeds.length
+      ? "No new items today"
+      : "No feeds yet";
+  const emptyDescription = emptyError
+    ? activity.type === "failed"
+      ? model.error
+      : "Try again to load articles from your sources."
+    : config.feeds.length
+      ? "Your enabled feeds have no items dated today. Manage feeds to review your sources."
+      : "Add an RSS or Atom feed to start building today’s reading list.";
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
       <StatusBar style={theme === "dark" ? "light" : "dark"} />
-      <ScrollView contentContainerStyle={styles.page}>
-        <View style={styles.shell}>
-          <View style={[styles.masthead, { borderColor: palette.line }]}>
-            <Text style={[styles.brand, { color: palette.ink }]}>
-              The Daily Feed<Text style={{ color: palette.accent }}>.</Text>
+      <Text
+        testID="status"
+        role="status"
+        accessibilityLabel="Feed activity"
+        accessibilityLiveRegion={settings ? "none" : "polite"}
+        style={styles.announcement}
+      >
+        {feedActivityAnnouncement(activity)}
+      </Text>
+      <ScrollView
+        style={Platform.OS === "web" ? { transform: "none" } : undefined}
+        contentContainerStyle={styles.page}
+      >
+        <View
+          style={styles.shell}
+          onLayout={({ nativeEvent }) =>
+            setContentWidth(Math.min(nativeEvent.layout.width - 48, 585))
+          }
+        >
+          <View
+            testID="feed-header"
+            style={[styles.header, { borderColor: palette.border }]}
+          >
+            <Text
+              accessibilityRole="header"
+              style={[
+                styles.brand,
+                Platform.OS === "web"
+                  ? ({ lineHeight: "1.3" } as unknown as TextStyle)
+                  : undefined,
+                { color: palette.foreground },
+              ]}
+            >
+              The Daily Feed
             </Text>
-            <View style={styles.actions}>
-              {button(
-                theme === "dark" ? "Light" : "Dark",
-                () => setTheme(theme === "dark" ? "light" : "dark"),
-                "theme",
-              )}
-              {button(
-                "Sources",
-                () => {
-                  setOrigin(config.apiOrigin);
-                  setUrls(config.feeds.map((feed) => feed.url).join("\n"));
-                  setZone(config.timeZone);
-                  setSettings(!settings);
-                },
-                "connection-settings",
-              )}
-            </View>
-          </View>
-          <View style={styles.intro}>
-            <Text style={[styles.eyebrow, { color: palette.muted }]}>
-              {new Date()
-                .toLocaleDateString("en", {
+            <View style={styles.meta}>
+              <Text
+                style={[
+                  styles.date,
+                  {
+                    color: palette.muted,
+                    fontSize: width <= 480 ? 12 : 14,
+                    lineHeight: width <= 480 ? 19.2 : 22.4,
+                  },
+                ]}
+              >
+                {new Date().toLocaleDateString("en-US", {
                   timeZone: config.timeZone,
                   weekday: "long",
                   month: "long",
                   day: "numeric",
-                })
-                .toUpperCase()}
-            </Text>
-            <Text
-              accessibilityRole="header"
-              style={[styles.today, { color: palette.ink }]}
-            >
-              Today
-            </Text>
-            <Text style={[styles.subtitle, { color: palette.muted }]}>
-              A little less noise. A little more perspective.
-            </Text>
+                  year: "numeric",
+                })}{" "}
+                · {model.items.length}{" "}
+                {model.items.length === 1 ? "item" : "items"}
+              </Text>
+              <View style={styles.headerActions}>
+                {!model.loading && model.isCached && !model.refreshNotice && (
+                  <Text
+                    style={[
+                      styles.cached,
+                      {
+                        color: palette.subtle,
+                        backgroundColor: palette.codeBackground,
+                      },
+                    ]}
+                  >
+                    Cached
+                  </Text>
+                )}
+                <Pressable
+                  testID="refresh"
+                  accessibilityRole="button"
+                  accessibilityLabel="Refresh feeds"
+                  onPress={() => {
+                    void refresh();
+                  }}
+                  style={[
+                    styles.refresh,
+                    {
+                      opacity:
+                        model.loading || activity.type === "empty" ? 0.55 : 1,
+                    },
+                  ]}
+                >
+                  <Svg
+                    width={16}
+                    height={16}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke={palette.foreground}
+                    strokeWidth={1.8}
+                  >
+                    <Path d="M20 7v5h-5M4 17v-5h5" />
+                    <Path d="M5.1 8a8 8 0 0 1 13.2-2L20 8M4 16l1.7 2A8 8 0 0 0 18.9 16" />
+                  </Svg>
+                </Pressable>
+              </View>
+            </View>
+            {(activity.type === "loading" ||
+              activity.type === "partial" ||
+              activity.type === "interrupted") && (
+              <View style={styles.activity}>
+                <Text
+                  style={[
+                    styles.activityText,
+                    {
+                      color:
+                        activity.type === "loading"
+                          ? palette.muted
+                          : palette.error,
+                    },
+                  ]}
+                >
+                  {activity.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.activityText,
+                    {
+                      color:
+                        activity.type === "loading"
+                          ? palette.muted
+                          : palette.error,
+                    },
+                  ]}
+                >
+                  {activity.type === "loading" && (
+                    <Text style={{ marginRight: 8 }}>·</Text>
+                  )}
+                  {activity.detail}
+                </Text>
+              </View>
+            )}
+            {model.loading && (
+              <View
+                style={[styles.progress, { backgroundColor: palette.border }]}
+              >
+                <View
+                  style={{
+                    height: 2,
+                    backgroundColor: palette.accent,
+                    width: `${(model.completedFeeds / Math.max(1, model.totalFeeds)) * 100}%`,
+                  }}
+                />
+              </View>
+            )}
           </View>
           {settings && (
             <View
               style={[
                 styles.settings,
-                { backgroundColor: palette.paper, borderColor: palette.line },
+                {
+                  backgroundColor: palette.codeBackground,
+                  borderColor: palette.border,
+                },
               ]}
             >
               <Text
                 accessibilityRole="header"
-                style={[styles.settingsTitle, { color: palette.ink }]}
+                style={[styles.settingsTitle, { color: palette.foreground }]}
               >
                 Your sources
               </Text>
@@ -226,7 +366,9 @@ function Reader({
                 Use the demo server, or connect your self-hosted Daily Feed
                 server.
               </Text>
-              <Text style={{ color: palette.ink }}>Server address</Text>
+              <Text style={[styles.formLabel, { color: palette.foreground }]}>
+                Server address
+              </Text>
               <TextInput
                 accessibilityLabel="Server address"
                 testID="api-origin"
@@ -235,10 +377,13 @@ function Reader({
                 autoCapitalize="none"
                 style={[
                   styles.input,
-                  { color: palette.ink, borderColor: palette.line },
+                  {
+                    color: palette.foreground,
+                    borderColor: palette.controlBorder,
+                  },
                 ]}
               />
-              <Text style={{ color: palette.ink }}>
+              <Text style={[styles.formLabel, { color: palette.foreground }]}>
                 Feed URLs, one per line
               </Text>
               <TextInput
@@ -251,24 +396,32 @@ function Reader({
                 style={[
                   styles.input,
                   {
-                    color: palette.ink,
-                    borderColor: palette.line,
+                    color: palette.foreground,
+                    borderColor: palette.controlBorder,
                     minHeight: 90,
                   },
                 ]}
               />
-              <Text style={{ color: palette.ink }}>Timezone</Text>
+              <Text style={[styles.formLabel, { color: palette.foreground }]}>
+                Timezone
+              </Text>
               <TextInput
                 accessibilityLabel="Timezone"
                 value={zone}
                 onChangeText={setZone}
                 style={[
                   styles.input,
-                  { color: palette.ink, borderColor: palette.line },
+                  {
+                    color: palette.foreground,
+                    borderColor: palette.controlBorder,
+                  },
                 ]}
               />
               {!!formError && (
-                <Text accessibilityRole="alert" style={{ color: palette.ink }}>
+                <Text
+                  accessibilityRole="alert"
+                  style={[styles.formLabel, { color: palette.foreground }]}
+                >
                   {formError}
                 </Text>
               )}
@@ -279,40 +432,12 @@ function Reader({
                 },
                 "save-settings",
               )}
-            </View>
-          )}
-          <View style={[styles.activity, { borderColor: palette.line }]}>
-            <View style={{ flex: 1 }}>
-              <Text
-                testID="status"
-                accessibilityLiveRegion="polite"
-                style={{ color: palette.ink, fontSize: 13 }}
-              >
-                {activity.title}
-              </Text>
-              <Text
-                style={{ color: palette.muted, fontSize: 12, marginTop: 5 }}
-              >
-                {activity.detail}
-              </Text>
-            </View>
-            {button(
-              model.loading ? "Refresh again" : "Refresh",
-              () => {
-                void refresh();
-              },
-              "refresh",
-            )}
-          </View>
-          {model.loading && (
-            <View style={[styles.progress, { backgroundColor: palette.line }]}>
-              <View
-                style={{
-                  height: 2,
-                  backgroundColor: palette.accent,
-                  width: `${Math.max(5, (model.completedFeeds / Math.max(1, model.totalFeeds)) * 100)}%`,
-                }}
-              />
+              {button(
+                theme === "dark" ? "Light" : "Dark",
+                () => setThemeOverride(theme === "dark" ? "light" : "dark"),
+                "theme",
+                true,
+              )}
             </View>
           )}
           {storageNotice && (
@@ -320,6 +445,59 @@ function Reader({
               Reading is available. Saving for offline use is unavailable.
             </Text>
           )}
+          {activity.type === "fallback" && (
+            <View style={styles.fallback}>
+              <Text style={[styles.notice, { color: palette.muted }]}>
+                Unable to refresh. Showing saved items from today.
+              </Text>
+              {button(
+                "Try again",
+                () => {
+                  void refresh();
+                },
+                "retry-snapshot",
+                true,
+              )}
+            </View>
+          )}
+          {model.loading &&
+            [0, 1, 2].map((index) => (
+              <View
+                key={index}
+                style={[styles.skeleton, { borderBottomColor: palette.border }]}
+              >
+                <View
+                  style={{
+                    width: "75%",
+                    height: 20,
+                    marginBottom: 24,
+                    borderRadius: 3,
+                    backgroundColor: palette.codeBackground,
+                  }}
+                />
+                <View style={{ gap: 13, marginBottom: 24 }}>
+                  {["100%", "94%", "68%"].map((lineWidth) => (
+                    <View
+                      key={lineWidth}
+                      style={{
+                        width: lineWidth as `${number}%`,
+                        height: 16,
+                        borderRadius: 3,
+                        backgroundColor: palette.codeBackground,
+                      }}
+                    />
+                  ))}
+                </View>
+                <View
+                  style={{
+                    width: "28%",
+                    height: 14,
+                    borderRadius: 3,
+                    backgroundColor: palette.codeBackground,
+                  }}
+                />
+              </View>
+            ))}
           {model.items.map((item) => (
             <ArticleCard
               key={`${item.link}|${item.pubDate.toISOString()}|${item.source}`}
@@ -329,40 +507,77 @@ function Reader({
               timeZone={config.timeZone}
             />
           ))}
-          {!model.loading && !model.items.length && (
-            <View style={styles.empty}>
-              <Text style={[styles.emptyTitle, { color: palette.ink }]}>
-                {activity.type === "failed"
-                  ? "Your reading can wait a moment."
-                  : "A quiet day so far."}
-              </Text>
-              <Text
-                style={{
-                  color: palette.muted,
-                  textAlign: "center",
-                  lineHeight: 23,
-                }}
-              >
-                {activity.type === "failed"
-                  ? "Check your connection and refresh to try again."
-                  : "New articles from your sources will appear here."}
-              </Text>
-            </View>
-          )}
-          <View style={[styles.footer, { borderColor: palette.line }]}>
-            <Text style={{ color: palette.muted, fontSize: 12 }}>
-              Just today. Just your sources.
-            </Text>
-            <Text style={{ color: palette.muted, fontSize: 11, marginTop: 7 }}>
-              The Daily Feed
-            </Text>
-          </View>
+          {!model.loading &&
+            !model.items.length &&
+            activity.type !== "fallback" && (
+              <View style={styles.empty}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.emptyTitle, { color: palette.foreground }]}
+                >
+                  {emptyTitle}
+                </Text>
+                <Text
+                  style={[
+                    styles.emptyDescription,
+                    Platform.OS === "web"
+                      ? ({ textWrap: "pretty" } as TextStyle)
+                      : null,
+                    { color: palette.muted },
+                  ]}
+                >
+                  {emptyDescription}
+                </Text>
+                {button(
+                  emptyError ? "Try again" : "Manage feeds",
+                  emptyError
+                    ? () => {
+                        void refresh();
+                      }
+                    : openSettings,
+                  "empty-action",
+                )}
+              </View>
+            )}
         </View>
       </ScrollView>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Manage feeds"
+        accessibilityState={{ expanded: settings }}
+        testID="connection-settings"
+        onPress={openSettings}
+        style={[
+          styles.manager,
+          Platform.OS === "web" ? { transform: "translateZ(0)" } : undefined,
+          {
+            backgroundColor: palette.codeBackground,
+            borderColor: palette.controlBorder,
+          },
+        ]}
+      >
+        <Svg
+          width={24}
+          height={24}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={palette.foreground}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <Circle cx={12} cy={12} r={3} />
+          <Path d="M12 1v6m0 6v6m-6-6h6m6 0h-6" />
+          <Path d="M19.07 4.93l-4.24 4.24m0 5.66l4.24 4.24M4.93 4.93l4.24 4.24m0 5.66l-4.24 4.24" />
+        </Svg>
+      </Pressable>
     </SafeAreaView>
   );
 }
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts(readerFonts);
+  const scheme = useColorScheme();
+  const palette = readerThemes[scheme === "dark" ? "dark" : "light"];
   const [config, setConfig] = useState<ReaderConfig | null>(null);
   useEffect(() => {
     let live = true;
@@ -397,60 +612,118 @@ export default function App() {
   }, []);
   return (
     <SafeAreaProvider>
-      {config ? (
+      {fontError ? (
+        <View
+          style={{ flex: 1, backgroundColor: palette.background, padding: 24 }}
+        >
+          <Text accessibilityRole="alert" style={{ color: palette.foreground }}>
+            The reader font could not load. Reload to try again.
+          </Text>
+        </View>
+      ) : config && fontsLoaded ? (
         <Reader config={config} onConfig={setConfig} />
       ) : (
-        <View style={{ flex: 1, backgroundColor: light.background }} />
+        <View style={{ flex: 1, backgroundColor: palette.background }} />
       )}
     </SafeAreaProvider>
   );
 }
 const styles = StyleSheet.create({
-  page: { alignItems: "center", paddingHorizontal: 22, minHeight: "100%" },
-  shell: { maxWidth: 700, width: "100%" },
-  masthead: {
-    paddingVertical: 25,
-    borderBottomWidth: 1,
+  announcement: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    overflow: "hidden",
+    opacity: 0,
+  },
+  page: { alignItems: "center", minHeight: "100%" },
+  shell: {
+    maxWidth: 720,
+    width: "100%",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  header: { paddingBottom: 16, borderBottomWidth: 1, marginBottom: 32 },
+  brand: {
+    fontFamily: readerFaces.bold,
+    fontSize: 24,
+    lineHeight: 31.2,
+    marginBottom: 8,
+    maxWidth: 520,
+  },
+  meta: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  brand: {
-    fontFamily: serif,
-    fontSize: 23,
-    fontWeight: "700",
-    letterSpacing: -0.9,
+  date: {
+    fontFamily: readerFaces.regular,
+    flex: 1,
+    maxWidth: 520,
+    minWidth: 0,
   },
-  actions: { flexDirection: "row", gap: 7 },
-  button: {
-    minHeight: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  cached: {
+    fontFamily: readerFaces.regular,
+    fontSize: 12,
+    lineHeight: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  refresh: {
+    width: 44,
+    height: 44,
     borderRadius: 6,
-    justifyContent: "center",
-    alignSelf: "flex-start",
-  },
-  intro: { paddingTop: 44, paddingBottom: 35 },
-  eyebrow: { fontSize: 10, letterSpacing: 1.8, fontWeight: "600" },
-  today: {
-    fontFamily: serif,
-    fontSize: 64,
-    letterSpacing: -2.5,
-    lineHeight: 78,
-    marginTop: 10,
-  },
-  subtitle: { fontFamily: serif, fontSize: 17, lineHeight: 25 },
-  activity: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    gap: 12,
+    justifyContent: "center",
   },
-  progress: { height: 2 },
+  activity: {
+    marginTop: 4,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "baseline",
+    columnGap: 8,
+    rowGap: 2,
+  },
+  activityText: {
+    fontFamily: readerFaces.regular,
+    fontSize: 12,
+    lineHeight: 16.8,
+  },
+  progress: {
+    position: "absolute",
+    bottom: -1,
+    left: 0,
+    width: "100%",
+    height: 2,
+  },
+  manager: {
+    position: "absolute",
+    top: 24,
+    right: 24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow:
+      "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+  },
+  button: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 4,
+    alignSelf: "center",
+    justifyContent: "center",
+  },
+  buttonText: {
+    fontFamily: readerFaces.medium,
+    fontSize: 16,
+    lineHeight: 25.6,
+  },
   settings: {
     borderWidth: 1,
     borderRadius: 8,
@@ -458,16 +731,48 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 25,
   },
-  settingsTitle: { fontFamily: serif, fontSize: 27 },
-  helper: { fontSize: 13, lineHeight: 21 },
-  input: { borderWidth: 1, borderRadius: 4, padding: 10, minHeight: 44 },
-  notice: { fontSize: 12, marginTop: 15 },
-  empty: { paddingVertical: 70, alignItems: "center", gap: 14 },
-  emptyTitle: { fontFamily: serif, fontSize: 24, textAlign: "center" },
-  footer: {
-    marginTop: 24,
-    borderTopWidth: 1,
-    paddingVertical: 30,
+  settingsTitle: {
+    fontFamily: readerFaces.semibold,
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  formLabel: {
+    fontFamily: readerFaces.regular,
+    fontSize: 16,
+    lineHeight: 25.6,
+  },
+  helper: { fontFamily: readerFaces.regular, fontSize: 13, lineHeight: 21 },
+  input: {
+    fontFamily: readerFaces.regular,
+    borderWidth: 1,
+    borderRadius: 4,
+    padding: 10,
+    minHeight: 44,
+  },
+  notice: { fontFamily: readerFaces.regular, fontSize: 13, lineHeight: 19.5 },
+  fallback: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 24,
     alignItems: "center",
   },
+  empty: { paddingVertical: 48 },
+  emptyTitle: {
+    fontFamily: readerFaces.semibold,
+    fontSize: 20,
+    lineHeight: 26,
+    maxWidth: 440,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyDescription: {
+    fontFamily: readerFaces.regular,
+    fontSize: 16,
+    lineHeight: 25.6,
+    maxWidth: 585,
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  skeleton: { marginBottom: 48, paddingBottom: 48, borderBottomWidth: 1 },
 });
