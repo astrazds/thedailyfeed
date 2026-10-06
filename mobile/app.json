@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "The Daily Feed",
+    "slug": "daily-feed-proof",
+    "version": "0.1.0",
+    "platforms": ["ios", "android", "web"],
+    "web": { "bundler": "metro" },
+    "ios": { "supportsTablet": true },
+    "android": { "package": "dev.dailyfeed.proof" }
+  }
+}
