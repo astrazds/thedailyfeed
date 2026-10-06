@@ -1,6 +1,6 @@
 # Technical documentation for The Daily Feed
 
-This document reflects the 1.2.8 implementation as of October 6, 2026.
+This document reflects the 1.2.9 implementation as of October 6, 2026.
 
 ## System overview
 
