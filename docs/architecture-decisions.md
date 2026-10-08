@@ -45,9 +45,9 @@ operation messages. `mobile/src/manager/Form.tsx` owns `{ name, url }` drafts,
 field errors, and submit controls. Dismissing the dialog does not unmount those
 owners. A failed save retains the draft.
 
-`mobile/src/manager/Modal.web.tsx` owns the browser dialog and returns focus to
+`mobile/src/manager/Modal.tsx` owns the browser dialog and returns focus to
 its opener. `FeedRow.tsx` owns row controls and delete confirmation.
-`transfer.web.tsx` owns browser file selection and download around `lib/opml.ts`.
+`transfer.tsx` owns browser file selection and download around `lib/opml.ts`.
 An edit response carries a session identity so it cannot close a newer editor.
 
 The UI submits typed commands through `useSubscriptions`. The web adapter calls
@@ -141,11 +141,9 @@ without putting HTTP policy into feed parsing or browser storage.
 
 ## Known implementation gaps
 
-The web frontend migration is implemented. Native storage, file access,
-networking, motion, release configuration, and device accessibility need
-separate work and proof. The [native work list](../mobile/README.md#native-platform-work)
-identifies the current adapters and missing behavior.
-A browser run cannot establish Android or iOS behavior.
+The Expo web frontend is the only application. Android and iOS builds are
+outside the [supported platform](../mobile/README.md#supported-platform).
+Native fallback implementations and build identities have been removed.
 
 The old hourly retrieval timer is removed to follow [VISION.md](../VISION.md).
 Requests run on opening, enabled-source changes, and explicit refresh. An open

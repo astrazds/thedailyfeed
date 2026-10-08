@@ -19,8 +19,8 @@ async function healthy() {
 }
 async function startFixture() {
   if (await healthy()) return;
-  fixture = spawn("npm", ["run", "fixture"], {
-    cwd: process.cwd(), stdio: "inherit", detached: true,
+  fixture = spawn(process.execPath, ["--import", "tsx", "scripts/fixture.ts"], {
+    cwd: process.cwd(), stdio: "inherit",
     env: { ...process.env, FIXTURE_PORT: new URL(appUrl).port || "8787" },
   });
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -164,5 +164,5 @@ async function main() {
   } finally { await browser.close(); }
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => {
-  if (fixture?.pid) { try { process.kill(-fixture.pid, "SIGTERM"); } catch {} }
+  fixture?.kill('SIGTERM');
 });

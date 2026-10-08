@@ -73,5 +73,5 @@ it does not promise retention of every live article or image.
 Worker upgrades ran on a controlled origin. Deployment metadata, host health,
 and operator logs belong to each installation's acceptance record, outside this
 repository. Follow [installation checks](../../DEPLOYMENT.md#checking-an-installation)
-for those checks and the [native work list](../../mobile/README.md#native-platform-work)
-for the next platform phase.
+for those checks and the [supported platform](../../mobile/README.md#supported-platform)
+for the current product boundary.

@@ -1,6 +1,6 @@
 # Technical documentation for The Daily Feed
 
-This document reflects the 1.2.9 implementation as of October 6, 2026.
+This document reflects the 1.2.10 implementation as of October 6, 2026.
 
 ## System overview
 
@@ -17,8 +17,8 @@ and browser-local subscription and snapshot storage. The server keeps a bounded
 per-feed memory cache, structured logs, and process-local metrics. There is no
 account or subscription database. OPML import and export run in the browser.
 
-This phase targets web only. Native builds, device networking, native storage,
-and native accessibility need separate implementation and verification.
+The application targets web only. It has no native fallback implementations
+or Android and iOS build identities.
 
 ## Release versioning
 
@@ -42,12 +42,12 @@ The version commands only validate or update local release metadata.
 
 - `mobile/App.tsx` composes the React Native reader, manager, recovery controls, and browser status.
 - `mobile/src/FeedManager.tsx` owns manager operations and editor sessions. `mobile/src/manager/Form.tsx` owns drafts and validation messages.
-- `mobile/src/manager/Modal.web.tsx` uses the browser dialog for focus containment and dismissal. `mobile/src/manager/transfer.web.tsx` owns OPML file selection and download.
+- `mobile/src/manager/Modal.tsx` uses the browser dialog for focus containment and dismissal. `mobile/src/manager/transfer.tsx` owns OPML file selection and download.
 - `mobile/src/useSubscriptions.ts` publishes the canonical `Feed[]` inventory. Its web adapter calls `runFeedManagerOperation` in `lib/feed-storage.ts` for complete storage mutations.
 - `mobile/src/useReader.ts` owns cancellation, transport, and snapshot effects. `lib/feed-set-lifecycle.ts` owns progressive results, terminal state, and offline fallback.
 - `lib/feed-load-activity.ts` derives shared activity and announcement copy for the reader and manager.
-- `mobile/src/LoadingMotion.web.tsx` and its CSS own loading animations and live reduced-motion preferences. The base adapter is static for native platforms.
-- `mobile/src/ArticleCard.tsx` renders article content with `@native-html/render`. `article-content.web.ts` runs DOMPurify and DOM normalization before the bounded parsed-tree renderer.
+- `mobile/src/LoadingMotion.tsx` and its CSS own loading animations and live reduced-motion preferences.
+- `mobile/src/ArticleCard.tsx` renders article content with `@native-html/render`. `article-content.ts` runs DOMPurify and DOM normalization before the bounded parsed-tree renderer.
 - `lib/types.ts` owns article and progress-event types. `lib/feed-response-adapter.ts` serializes server dates, and `lib/feed-stream-parser.ts` validates untrusted wire data.
 - `lib/feed-request.ts` owns cached and missing feed orchestration. The backend retrieval and safety pipeline remains shared by feed loading and validation.
 
@@ -56,8 +56,8 @@ The version commands only validate or update local release metadata.
 `mobile/App.tsx` mounts a React Native safe-area provider, bundled fonts, and an
 error boundary. The reader contains the header, progress, article cards, empty
 and recovery states, and the floating manager trigger. The manager stays
-mounted when dismissed so drafts survive reopening. `BrowserStatus.web.tsx`
-owns browser install and connection notices. `register-worker.web.ts` registers
+mounted when dismissed so drafts survive reopening. `BrowserStatus.tsx`
+owns browser install and connection notices. `register-worker.ts` registers
 `/sw.js` in production.
 
 ### Build and hosting

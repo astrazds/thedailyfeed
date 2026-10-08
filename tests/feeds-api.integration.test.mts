@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,7 +36,7 @@ before(async () => {
 
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const workdir = path.resolve(currentDir, '..');
-  serverProcess = spawn(process.execPath, ['scripts/dev.mjs', '--port', String(PORT)], {
+  serverProcess = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', String(PORT)], {
     cwd: workdir,
     stdio: 'inherit',
     env: {
@@ -58,7 +58,11 @@ after(async () => {
   }
 
   const stopped = new Promise<void>((resolve) => serverProcess!.once('exit', () => resolve()));
-  serverProcess.kill('SIGTERM');
+  if (process.platform === 'win32' && serverProcess.pid) {
+    execFileSync('taskkill', ['/pid', String(serverProcess.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    serverProcess.kill('SIGTERM');
+  }
   await stopped;
 });
 

@@ -64,7 +64,6 @@ const {
   deserializeFeedItems,
   mergeAndSortFeedItems,
   parseFeedStreamLine,
-  parseFeedStreamText,
 } = (await import(parserPath)) as ParserModule;
 const { DEFAULT_FEEDS, getFeeds } = (await import(feedStoragePath)) as FeedStorageModule;
 const { STORAGE_KEY_FEEDS } = (await import(constantsPath)) as ConstantsModule;
@@ -145,15 +144,7 @@ beforeEach(() => {
   installBrowserStorage();
 });
 
-test('parses NDJSON stream chunks across partial reads and validates item shapes', () => {
-  const meta = {
-    type: 'meta',
-    requestId: 'request-1',
-    cached: false,
-    timeZone: 'UTC',
-    totalFeeds: 1,
-    completedFeeds: 0,
-  };
+test('validates item shapes in NDJSON feed results', () => {
   const feedResult = {
     type: 'feed_result',
     requestId: 'request-1',
@@ -169,15 +160,7 @@ test('parses NDJSON stream chunks across partial reads and validates item shapes
       { title: 'invalid', link: 42, pubDate: 'not-a-date', source: 'Example' },
     ],
   };
-  const feedResultJson = JSON.stringify(feedResult);
-
-  let parsed = parseFeedStreamText('', `${JSON.stringify(meta)}\n${feedResultJson.slice(0, 12)}`);
-  assert.equal(parsed.chunks.length, 1);
-  assert.equal(parsed.remaining, feedResultJson.slice(0, 12));
-
-  parsed = parseFeedStreamText(parsed.remaining, `${feedResultJson.slice(12)}\n`);
-  assert.equal(parsed.chunks.length, 1);
-  const chunk = parsed.chunks[0];
+  const chunk = parseFeedStreamLine(JSON.stringify(feedResult));
   assert.equal(chunk.type, 'feed_result');
   if (chunk.type === 'feed_result') {
     assert.equal(chunk.items.length, 1);

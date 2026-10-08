@@ -37,7 +37,8 @@ export function FeedForm({ feed, isEditing, palette, pending, disabled, failure,
   const nameRef = useRef<TextInput>(null);
   const urlRef = useRef<TextInput>(null);
   const { width } = useWindowDimensions();
-  useEffect(() => { if (feed) focusLater(() => nameRef.current); }, [feed?.id]);
+  const feedId = feed?.id;
+  useEffect(() => { if (feedId !== undefined) focusLater(() => nameRef.current); }, [feedId]);
   const submit = async () => {
     if (disabled) return;
     const next = validate(draft);

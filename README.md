@@ -15,9 +15,9 @@ The Daily Feed is a self-hosted RSS reader for the articles published today.
 Choose your feeds, open the page, and read a clean, chronological stream.
 There are no accounts, unread counts, or subscriptions to a service.
 
-Expo and React Native render the web application. The existing Next.js server
-serves the exported app and its same-origin feed API. This phase targets web
-browsers. Android and iOS builds are not part of this release.
+Expo and React Native render the only frontend. Next.js serves the exported
+app and its same-origin feed API. The application targets web browsers and
+installed PWAs. Android and iOS builds are outside the product scope.
 The [web acceptance record](docs/migrations/expo-web-acceptance.md) describes
 browser coverage and the remaining physical-device checks.
 
@@ -28,7 +28,7 @@ browser coverage and the remaining physical-device checks.
 The screenshot shows the reader design with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.2.9`.
+Current release: `1.2.10`.
 
 ## Install and self-host
 

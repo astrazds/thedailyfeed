@@ -8,10 +8,10 @@ export const readerFaces = {
 } as const;
 
 export const readerFonts = {
-  [readerFaces.regular]: require("../../public/fonts/roboto-serif-400.ttf"),
-  [readerFaces.medium]: require("../../public/fonts/roboto-serif-500.ttf"),
-  [readerFaces.semibold]: require("../../public/fonts/roboto-serif-600.ttf"),
-  [readerFaces.bold]: require("../../public/fonts/roboto-serif-700.ttf"),
+  [readerFaces.regular]: require("../assets/fonts/roboto-serif-400.ttf"),
+  [readerFaces.medium]: require("../assets/fonts/roboto-serif-500.ttf"),
+  [readerFaces.semibold]: require("../assets/fonts/roboto-serif-600.ttf"),
+  [readerFaces.bold]: require("../assets/fonts/roboto-serif-700.ttf"),
 };
 
 export const readerThemes: Readonly<Record<"light" | "dark", ReaderPalette>> = {

@@ -1,9 +1,8 @@
 # Work on the Expo web application
 
 This package owns The Daily Feed's reader and feed manager. It uses Expo,
-React Native views, `@native-html/render`, and `expo/fetch`. The first migration
-phase targets web browsers. Android and iOS need the platform implementations
-and device verification listed under [native platform work](#native-platform-work).
+React Native views, `@native-html/render`, and `expo/fetch`. This is the only
+frontend. It targets web browsers, including installed PWAs.
 
 ## Run the integrated application
 
@@ -68,26 +67,13 @@ The browser article adapter sanitizes with DOMPurify, normalizes the DOM, and
 passes the result through a bounded parsed tree before React Native rendering.
 It fails closed without a DOM. Dialog focus, OPML file selection and download,
 worker registration, installation, and connection notices have web adapters.
-The retained non-web adapters do not establish native feature parity.
+Each capability has one browser implementation.
 
-## Native platform work
+## Supported platform
 
-The shared reader, manager, and bounded article renderer exist. Before an iOS
-or Android release, complete and verify these platform capabilities:
-
-- Implement subscription persistence in `src/subscriptions.ts` and offline
-  snapshot storage in `src/snapshots.ts`. Their current native adapters return
-  no saved data and do not persist changes.
-- Configure an absolute API origin for native networking. `src/useReader.ts`
-  currently requests the browser-relative `/api/feeds?stream=1` URL. Verify
-  streamed responses, cancellation, and recovery on devices.
-- Implement file selection and sharing for OPML in `src/manager/transfer.tsx`.
-  The current adapter reports that transfer is available on web.
-- Add native loading motion and reduced-motion support. `src/LoadingMotion.tsx`
-  currently renders its children without animation.
-- Configure native build identities, signing, and distribution. No EAS build
-  profiles are committed. Test article rendering, navigation, accessibility,
-  persistence, and offline recovery on actual devices.
+The application targets web only. Android and iOS builds are outside the
+current product scope. Native fallback implementations and build identities
+are not retained. React Native remains the UI framework.
 
 The [web acceptance record](../docs/migrations/expo-web-acceptance.md) covers
 Chromium, Firefox, and WebKit. WebKit with an iPhone-sized viewport is browser

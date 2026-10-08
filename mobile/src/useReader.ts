@@ -132,13 +132,14 @@ export function useReader(config: ReaderConfig, ready = true) {
       );
     }
   }, [identity, ready]);
+  const cancel = useCallback(() => {
+    ++generation.current;
+    controller.current?.abort();
+  }, []);
   useEffect(() => {
     void refresh();
-    return () => {
-      ++generation.current;
-      controller.current?.abort();
-    };
-  }, [refresh]);
+    return cancel;
+  }, [refresh, cancel]);
   const names = new Map(config.feeds.map((feed) => [feed.url, feed.name]));
   return {
     model: {

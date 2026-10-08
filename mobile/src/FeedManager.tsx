@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { FeedLimitError, FeedStorageError, type Feed, type FeedImportEntry, type FeedImportSummary, type FeedManagerOperationResult } from '../../lib/feed-storage';
 import { feedActivityAnnouncement, type FeedLoadActivity } from '../../lib/feed-load-activity';
@@ -55,7 +55,7 @@ export function FeedManager({ feeds, apply, isOpen, onClose, palette, activity, 
   const session = useRef(0);
   const heading = useRef<View>(null);
   const openRef = useRef(isOpen);
-  openRef.current = isOpen;
+  useLayoutEffect(() => { openRef.current = isOpen; }, [isOpen]);
   const { width } = useWindowDimensions();
   const loading = activity.type === 'loading';
   const recovery = ['partial', 'interrupted', 'fallback', 'failed'].includes(activity.type);
@@ -159,7 +159,7 @@ export function FeedManager({ feeds, apply, isOpen, onClose, palette, activity, 
         {disclosure('Import and export', transferOpen, () => setTransferOpen(!transferOpen))}
         <View style={{ display: transferOpen ? 'flex' : 'none' }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
-            <OpmlInput disabled={pending !== null} onImport={importFile}>{choose => <Action palette={palette} disabled={pending !== null} small={false} style={{ paddingHorizontal: 16 }} onPress={() => { clearFailure('import'); choose(); }}>Import OPML</Action>}</OpmlInput>
+            <OpmlInput palette={palette} disabled={pending !== null} onImport={importFile} onChoose={() => clearFailure('import')} />
             <Action palette={palette} disabled={pending !== null} small={false} style={{ paddingHorizontal: 16 }} onPress={() => {
               clearFailure('export');
               try { exportSubscriptions(feeds); }

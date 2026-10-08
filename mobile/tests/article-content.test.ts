@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prepareArticle } from "../src/article-content";
+import { prepareArticle } from "../src/article-content-core";
 const base = "https://journal.example/stories/today";
 
 test("retains safe native markup and normalizes headings, URLs and languages", () => {
@@ -111,7 +111,7 @@ test("retains nested lists, quote paragraphs, code whitespace and image-only art
 
 test("web article preparation fails closed when the browser DOM is absent", async () => {
   const { prepareArticle: prepareWebArticle } = await import(
-    "../src/article-content.web"
+    "../src/article-content"
   );
   assert.deepEqual(prepareWebArticle("<p>Untrusted</p>", base), {
     full: "",
