@@ -1,16 +1,26 @@
-import type { FeedSetLifecycleSnapshot } from "../../lib/feed-set-lifecycle";
+import {
+  loadOfflineFeedSnapshot,
+  saveOfflineFeedSnapshot,
+  OFFLINE_FEED_SNAPSHOT_STORAGE_KEY,
+} from "../../lib/offline-feed-cache";
 import type { SerializedFeedItem } from "../../lib/types";
 import type { ReaderConfig } from "./contracts";
 
-export async function loadSnapshot(
-  _config: ReaderConfig,
-): Promise<FeedSetLifecycleSnapshot | null> {
-  return null;
+export async function loadSnapshot(config: ReaderConfig) {
+  localStorage.getItem(OFFLINE_FEED_SNAPSHOT_STORAGE_KEY);
+  return loadOfflineFeedSnapshot(
+    config.feeds.map((feed) => feed.url),
+    config.timeZone,
+  );
 }
 
 export async function saveSnapshot(
-  _config: ReaderConfig,
-  _items: SerializedFeedItem[],
+  config: ReaderConfig,
+  items: SerializedFeedItem[],
 ): Promise<boolean> {
-  return false;
+  return saveOfflineFeedSnapshot(
+    config.feeds.map((feed) => feed.url),
+    config.timeZone,
+    items,
+  );
 }

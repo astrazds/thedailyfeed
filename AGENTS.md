@@ -36,7 +36,7 @@ Read the sections relevant to the change rather than loading every document:
   the React Native reader and styling.
 - `mobile/src/FeedManager.tsx` and `mobile/src/manager/`: native manager controls,
   persistent drafts, editor sessions, and narrow web dialog and OPML adapters.
-- `mobile/src/article-content.web.ts`: DOMPurify and DOM normalization before
+- `mobile/src/article-content.ts`: DOMPurify and DOM normalization before
   bounded native article rendering.
 - `scripts/build-expo-web.mjs` and `scripts/dev.mjs`: Expo export assembly and
   same-origin development. Next hosts APIs and exported files, not the reader.

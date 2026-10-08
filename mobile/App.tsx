@@ -5,13 +5,11 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   type TextStyle,
   useWindowDimensions,
   useColorScheme,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import Svg, { Circle, Path } from "react-native-svg";
 import {
@@ -107,7 +105,6 @@ function Reader() {
         : "Add an RSS or Atom feed to start building today’s reading list.";
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
-      <StatusBar style={theme === "dark" ? "light" : "dark"} />
       <Text
         testID="status"
         role="status"
@@ -120,7 +117,7 @@ function Reader() {
       <ScrollView
         role="main"
         aria-busy={model.loading}
-        style={Platform.OS === "web" ? { transform: "none" } : undefined}
+        style={{ transform: "none" }}
         contentContainerStyle={styles.page}
       >
         <View
@@ -139,9 +136,7 @@ function Reader() {
               aria-level={1}
               style={[
                 styles.brand,
-                Platform.OS === "web"
-                  ? ({ lineHeight: "1.3" } as unknown as TextStyle)
-                  : undefined,
+                { lineHeight: "1.3" } as unknown as TextStyle,
                 { color: palette.foreground },
               ]}
             >
@@ -359,9 +354,7 @@ function Reader() {
                 <Text
                   style={[
                     styles.emptyDescription,
-                    Platform.OS === "web"
-                      ? ({ textWrap: "pretty" } as TextStyle)
-                      : null,
+                    { textWrap: "pretty" } as TextStyle,
                     { color: palette.muted },
                   ]}
                 >
@@ -390,7 +383,7 @@ function Reader() {
         onPress={openSettings}
         style={[
           styles.manager,
-          Platform.OS === "web" ? { transform: "translateZ(0)" } : undefined,
+          { transform: "translateZ(0)" },
           {
             backgroundColor: palette.codeBackground,
             borderColor: palette.controlBorder,

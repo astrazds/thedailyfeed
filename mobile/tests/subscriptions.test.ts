@@ -4,8 +4,8 @@ import {
   applySubscription,
   readSubscriptions,
   subscribeToSubscriptions,
-} from "../src/subscriptions.web";
-import { loadSnapshot, saveSnapshot } from "../src/snapshots.web";
+} from "../src/subscriptions";
+import { loadSnapshot, saveSnapshot } from "../src/snapshots";
 import { beginFeedSetLifecycle } from "../../lib/feed-set-lifecycle";
 import { OFFLINE_FEED_SNAPSHOT_STORAGE_KEY } from "../../lib/offline-feed-cache";
 import type { ReaderConfig } from "../src/contracts";

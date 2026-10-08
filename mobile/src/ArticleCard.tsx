@@ -1,7 +1,5 @@
 import React, { useId, useMemo, useState } from "react";
 import {
-  Linking,
-  Platform,
   Pressable,
   Text,
   View,
@@ -42,7 +40,6 @@ const articleModels = Object.fromEntries(
             generated,
             element,
           );
-          if (Platform.OS !== "web") return original;
           const { lang, dir, href } = tnode.attributes;
           return {
             ...original,
@@ -79,14 +76,10 @@ const HeadingRenderer: CustomTextualRenderer = ({
     textProps={{
       ...props.textProps,
       accessibilityRole: "header",
-      ...(Platform.OS === "web"
-        ? { "aria-level": Number(props.tnode.tagName?.slice(1)) }
-        : {}),
+      ...{ "aria-level": Number(props.tnode.tagName?.slice(1)) },
       style: [
         props.textProps.style,
-        Platform.OS === "web"
-          ? ({ lineHeight: "1.3" } as unknown as TextStyle)
-          : undefined,
+        { lineHeight: "1.3" } as unknown as TextStyle,
       ],
     }}
   />
@@ -129,19 +122,16 @@ type WebTextStyle = TextStyle & {
   textDecorationThickness?: number;
   overflowWrap?: "anywhere";
 };
-const webProse: WebTextStyle =
-  Platform.OS === "web"
-    ? {
-        wordSpacing: 0.8,
-        textUnderlineOffset: 3,
-        textDecorationThickness: 1,
-        overflowWrap: "anywhere",
-      }
-    : {};
-const webLink: WebTextStyle =
-  Platform.OS === "web"
-    ? { textUnderlineOffset: 3, textDecorationThickness: 1 }
-    : {};
+const webProse: WebTextStyle = {
+  wordSpacing: 0.8,
+  textUnderlineOffset: 3,
+  textDecorationThickness: 1,
+  overflowWrap: "anywhere",
+};
+const webLink: WebTextStyle = {
+  textUnderlineOffset: 3,
+  textDecorationThickness: 1,
+};
 const domVisitors: RenderHTMLProps["domVisitors"] = {
   onDocument(document) {
     function decorate(
@@ -210,9 +200,7 @@ export function ArticleCard({
       selectable: true,
       style: item.contentHtml
         ? webProse
-        : Platform.OS === "web"
-          ? ({ overflowWrap: "anywhere" } as WebTextStyle)
-          : undefined,
+        : ({ overflowWrap: "anywhere" } as WebTextStyle),
     }),
     [item.contentHtml],
   );
@@ -344,17 +332,9 @@ export function ArticleCard({
         markerTextStyle: { lineHeight: 25.6 },
         markerBoxStyle: { alignSelf: "flex-start" as const },
       },
-      a: {
-        onPress:
-          Platform.OS === "web"
-            ? undefined
-            : (_event: unknown, href: string) => {
-                const safe = normalizeFeedContentUrl(href, item.link, "link");
-                if (safe) void Linking.openURL(safe).catch(() => {});
-              },
-      },
+      a: { onPress: undefined },
     }),
-    [item.link],
+    [],
   );
   return (
     <View
@@ -373,19 +353,12 @@ export function ArticleCard({
         disabled={!titleLink}
         accessibilityRole={titleLink ? "link" : undefined}
         accessibilityLabel={item.title}
-        {...(Platform.OS === "web" && titleLink
+        {...(titleLink
           ? {
               href: titleLink,
               hrefAttrs: { target: "_blank", rel: "noopener noreferrer" },
             }
           : {})}
-        onPress={
-          Platform.OS === "web"
-            ? undefined
-            : () => {
-                if (titleLink) void Linking.openURL(titleLink).catch(() => {});
-              }
-        }
       >
         <Text
           testID="article-title"
@@ -404,9 +377,7 @@ export function ArticleCard({
               textDecorationColor: `rgba(${parseInt(palette.accent.slice(1, 3), 16)}, ${parseInt(palette.accent.slice(3, 5), 16)}, ${parseInt(palette.accent.slice(5, 7), 16)}, 0.55)`,
             },
             webLink,
-            Platform.OS === "web"
-              ? ({ overflowWrap: "anywhere" } as WebTextStyle)
-              : undefined,
+            { overflowWrap: "anywhere" } as WebTextStyle,
           ]}
         >
           {item.title}
@@ -430,16 +401,12 @@ export function ArticleCard({
       </View>
       {item.contentHtml && content.truncated && (
         <View
-          style={
-            Platform.OS === "web"
-              ? ({
-                  display: "block",
-                  fontFamily: readerFaces.regular,
-                  fontSize: 16,
-                  lineHeight: 25.6,
-                } as unknown as ViewStyle)
-              : undefined
-          }
+          style={{
+            display: "block",
+            fontFamily: readerFaces.regular,
+            fontSize: 16,
+            lineHeight: 25.6,
+          } as unknown as ViewStyle}
         >
           <Pressable
             testID="article-toggle"
@@ -457,9 +424,7 @@ export function ArticleCard({
                 alignItems: "center",
                 gap: 4,
               },
-              Platform.OS === "web"
-                ? ({ display: "inline-flex" } as unknown as ViewStyle)
-                : undefined,
+              { display: "inline-flex" } as unknown as ViewStyle,
             ]}
           >
             <Text

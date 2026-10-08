@@ -204,15 +204,6 @@ export function getFeeds(): Feed[] {
   }
 }
 
-/**
- * Get only enabled feed URLs
- */
-export function getEnabledFeedUrls(): string[] {
-  return getFeeds()
-    .filter((feed) => feed.enabled)
-    .map((feed) => feed.url);
-}
-
 export class FeedStorageError extends Error {
   constructor() {
     super('Unable to save feeds in browser storage. Allow site storage or free up browser space, then try again.');

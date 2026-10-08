@@ -55,12 +55,3 @@ export type FeedStreamChunk =
       requestId: string;
       error: string;
     };
-
-/**
- * Error response from API
- */
-export interface ApiErrorResponse {
-  error: string;
-  details?: string;
-  invalidUrls?: string[];
-}

@@ -24,7 +24,8 @@ function validationRequest(url: string, signal?: AbortSignal): Request {
 for (const scenario of ['redirect', 'retry']) {
   const pluralScenario = scenario === 'retry' ? 'retries' : 'redirects';
   test(`feed validation route enforces its aggregate budget across ${pluralScenario}`, async () => {
-    await execFileAsync('./node_modules/.bin/tsx', [
+    await execFileAsync(process.execPath, [
+      '--import', 'tsx',
       'tests/fixtures/feed-validation-route-budget.mts',
       scenario,
     ], {

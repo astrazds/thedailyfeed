@@ -3,11 +3,6 @@ import type { FeedApiResponse, FeedStreamChunk, FeedStreamStatus } from './types
 
 type SerializedFeedItem = FeedApiResponse['items'][number];
 
-interface FeedStreamParseResult {
-  chunks: FeedStreamChunk[];
-  remaining: string;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -202,15 +197,4 @@ export function parseFeedStreamLine(line: string): FeedStreamChunk {
   }
 
   return chunk;
-}
-
-export function parseFeedStreamText(previousBuffer: string, text: string): FeedStreamParseResult {
-  const lines = `${previousBuffer}${text}`.split('\n');
-  const remaining = lines.pop() || '';
-  const chunks = lines
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map(parseFeedStreamLine);
-
-  return { chunks, remaining };
 }

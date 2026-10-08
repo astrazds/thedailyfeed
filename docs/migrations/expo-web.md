@@ -1,11 +1,11 @@
 # Expo web migration
 
-The web application uses the Expo Metro export and React Native components. Next remains the same-origin API and static-file host. Native device support is a later phase.
+The web application uses the Expo Metro export and React Native components. Next remains the same-origin API and static-file host. Web is the supported platform.
 
 The web implementation is complete. The [release 1.2.8 acceptance record](expo-web-acceptance.md)
 adds loading-motion, large-response, live HTTP, and cross-browser evidence.
-Physical iPhone Safari verification remains outstanding. The [native work list](../../mobile/README.md#native-platform-work)
-describes the separate device phase.
+Physical iPhone Safari verification remains outstanding. The [supported platform](../../mobile/README.md#supported-platform)
+describes the current product boundary.
 
 ## Chosen boundaries
 

@@ -19,10 +19,6 @@ function parseNonNegativeIntEnv(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-// Content Display
-export const CONTENT_MAX_LENGTH = 600;
-export const CONTENT_TRUNCATE_LENGTH = 500;
-
 // Rate Limiting
 export const RATE_LIMIT_MAX_REQUESTS = parsePositiveIntEnv('RATE_LIMIT_MAX_REQUESTS', 10);
 export const RATE_LIMIT_WINDOW_MS = parsePositiveIntEnv('RATE_LIMIT_WINDOW_MS', 60000);
@@ -40,9 +36,6 @@ export const FEED_OVERALL_TIMEOUT_MS = parsePositiveIntEnv('FEED_OVERALL_TIMEOUT
 export const FEED_REQUEST_TIMEOUT_MS = parsePositiveIntEnv('FEED_REQUEST_TIMEOUT_MS', 30000); // 30 seconds
 export const MAX_FEEDS_PER_REQUEST = 50;
 export const MAX_FEED_JSON_BODY_BYTES = 1_048_576;
-
-// Auto-refresh
-export const AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 // LocalStorage Keys
 export const STORAGE_KEY_FEEDS = 'rss-feeds';

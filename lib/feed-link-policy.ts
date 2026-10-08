@@ -13,7 +13,3 @@ export function normalizeSafeArticleLink(link: string): string {
     return '';
   }
 }
-
-export function isSafeArticleLink(link: string): boolean {
-  return normalizeSafeArticleLink(link) !== '';
-}
