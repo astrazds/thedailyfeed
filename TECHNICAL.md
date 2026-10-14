@@ -395,7 +395,9 @@ can seed feed records. Its backend address and snapshot are not imported.
 - Images without publisher-provided alt text receive `alt=""`; provided alt text
   is preserved. Images without a valid source are removed, along with event
   handlers, inline styles, and `srcset`.
-- Sanitized body links retain only `rel="nofollow"` and use normal same-tab navigation; article-title links use the same navigation behavior
+- Sanitized body links retain only `rel="nofollow"`. The reader opens article
+  title links and those body links in a new tab. Title links use
+  `rel="noopener noreferrer"`. Body links use `rel="noopener noreferrer nofollow"`.
 - Sanitized `lang` values are canonicalized with `Intl.Locale`, `dir` is limited to `ltr`, `rtl`, or `auto`, and invalid values are discarded
 - Embedded feed headings are normalized to `h3`–`h5` beneath each article title while preserving bounded source-relative depth
 

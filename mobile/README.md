@@ -76,8 +76,11 @@ current product scope. Native fallback implementations and build identities
 are not retained. React Native remains the UI framework.
 
 The [web acceptance record](../docs/migrations/expo-web-acceptance.md) covers
-Chromium, Firefox, and WebKit. WebKit with an iPhone-sized viewport is browser
-emulation, not physical iOS Safari or a native application test.
+Chromium, Firefox, and WebKit. On 14 October 2026 the maintainer confirmed that
+release 1.2.10 works in physical iPhone Safari. The confirmation is an operator
+check. Repository CI does not run a physical iPhone. WebKit with an iPhone-sized
+viewport is browser emulation. The viewport run and the physical iPhone
+confirmation are different checks.
 
 ## Compare reader styling
 

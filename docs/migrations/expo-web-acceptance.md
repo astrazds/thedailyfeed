@@ -2,9 +2,9 @@
 
 This record describes checks completed on 6 October 2026 for merged commit
 [`56010f8`](https://github.com/astrazds/thedailyfeed/commit/56010f8fe9436b553a39d819862437599ad147a4).
-The Expo and React Native web migration is implemented. Physical iPhone Safari
-verification remains outstanding, and native applications remain a separate
-phase.
+The Expo and React Native web migration is implemented. Native applications
+remain a separate phase. Physical iPhone Safari for release 1.2.10 is recorded
+under [Physical iPhone Safari](#physical-iphone-safari).
 
 The [initial migration record](expo-web-verification.json) describes release
 1.2.7. It remains unchanged as historical evidence.
@@ -63,9 +63,17 @@ Separate controlled-origin tests upgraded actual pre-Expo and previous Expo
 workers to the current worker. They retained subscriptions and saved content,
 removed obsolete bundles, and reloaded offline without network requests.
 
+## Physical iPhone Safari
+
+On 14 October 2026 the maintainer confirmed that release 1.2.10 works in
+physical iPhone Safari. The confirmation is an operator check. This repository
+has no device log for that check. Repository CI does not run a physical iPhone.
+
 ## Evidence limits
 
-Linux WebKit emulation is not physical iOS Safari. These checks do not establish
+Linux WebKit emulation is not physical iOS Safari. The physical iPhone result
+for release 1.2.10 is maintainer confirmation, recorded in
+[Physical iPhone Safari](#physical-iphone-safari). These checks do not establish
 native app behavior, every browser's installation UI, or future publisher
 availability. The offline check used synthetic saved data within storage bounds;
 it does not promise retention of every live article or image.
