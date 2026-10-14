@@ -29,7 +29,11 @@ export function getFeedLoadActivity(input: ActivityInput): FeedLoadActivity {
     };
   }
   if (input.refreshNotice === 'snapshot-fallback') {
-    return { type: 'fallback', title: 'Unable to refresh', detail: 'Showing saved items from today.' };
+    return {
+      type: 'fallback',
+      title: 'Unable to refresh',
+      detail: input.items.length > 0 ? 'Showing saved items from today.' : 'Try again to check your feeds.',
+    };
   }
   if (input.error && input.error !== 'no-feeds') {
     return { type: 'failed', title: 'Unable to load feeds', detail: 'Try again to check your sources.' };
