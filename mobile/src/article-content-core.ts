@@ -43,7 +43,7 @@ const emptyArticle: PreparedArticle = {
   preview: "",
   truncated: false,
 };
-const MAX_BYTES = 128 * 1024;
+export const MAX_ARTICLE_HTML_BYTES = 128 * 1024;
 const MAX_NODES = 4000;
 const MAX_DEPTH = 40;
 const PREVIEW_LENGTH = 600;
@@ -79,8 +79,8 @@ function serialize(nodes: ContentNode[]): string {
 
 export function prepareArticle(html: string, baseUrl: string): PreparedArticle {
   if (
-    html.length > MAX_BYTES ||
-    new TextEncoder().encode(html).byteLength > MAX_BYTES
+    html.length > MAX_ARTICLE_HTML_BYTES ||
+    new TextEncoder().encode(html).byteLength > MAX_ARTICLE_HTML_BYTES
   ) {
     return emptyArticle;
   }

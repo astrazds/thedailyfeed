@@ -110,7 +110,7 @@ export function parseFeedApiResponse(value: unknown): FeedApiResponse | null {
   };
 }
 
-export function parseFeedStreamChunk(value: unknown): FeedStreamChunk | null {
+function parseFeedStreamChunk(value: unknown): FeedStreamChunk | null {
   if (!isRecord(value) || typeof value.type !== 'string' || typeof value.requestId !== 'string') {
     return null;
   }

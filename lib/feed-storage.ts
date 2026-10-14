@@ -1,8 +1,3 @@
-/**
- * Feed storage utilities for managing RSS feed URLs
- * Uses localStorage for client-side persistence
- */
-
 import { validateAndNormalizeFeedUrl } from './url-validator';
 import { MAX_FEEDS_PER_REQUEST, STORAGE_KEY_FEEDS } from './constants';
 import { logger } from './logger';
@@ -65,7 +60,6 @@ export type FeedManagerOperationResult = { feeds: Feed[] } & (
 
 const STORAGE_KEY = STORAGE_KEY_FEEDS;
 
-// Default feeds
 export const DEFAULT_FEEDS: Feed[] = [
   {
     id: 'default-daring-fireball',
@@ -173,9 +167,6 @@ function parseFeeds(value: unknown): Feed[] | null {
   return feeds;
 }
 
-/**
- * Get all feeds from storage
- */
 export function getFeeds(): Feed[] {
   if (typeof window === 'undefined') return getDefaultFeeds();
   
@@ -193,7 +184,7 @@ export function getFeeds(): Feed[] {
       try {
         saveFeeds(feeds);
       } catch {
-        // Cleanup is best effort; retain the valid records we already read.
+        void 0;
       }
     }
 
@@ -223,39 +214,28 @@ function assertFeedCapacity(feeds: Feed[]): void {
   if (feeds.length >= MAX_FEEDS_PER_REQUEST) throw new FeedLimitError();
 }
 
-/**
- * Save feeds to storage
- */
 function saveFeeds(feeds: Feed[]): void {
   if (typeof window === 'undefined') return;
   
   try {
     const validFeeds = parseFeeds(feeds) ?? [];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validFeeds));
-  } catch (error) {
-    // Do not expose storage exception text, which can contain sensitive values.
-    void error;
+  } catch {
     throw new FeedStorageError();
   }
 }
 
-// Counter for fallback ID generation
 let idCounter = 0;
 
-/**
- * Generate unique ID for feed using crypto API
- */
 function generateFeedId(): string {
-  // Use crypto.randomUUID if available (modern browsers)
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  
-  // Fallback: timestamp + random + counter for uniqueness
+
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 11);
   const counter = (++idCounter).toString(36);
-  
+
   return `${timestamp}-${random}-${counter}`;
 }
 

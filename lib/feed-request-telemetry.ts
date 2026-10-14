@@ -37,7 +37,7 @@ const completionMessages: Record<FeedRequestTelemetryMode, string> = {
   stream: 'Feed API request completed (streamed fetch)',
 };
 
-export function getFeedRequestTelemetryFeedSetFacts(
+function getFeedRequestTelemetryFeedSetFacts(
   feedSet: ValidatedFeedSet
 ): FeedRequestTelemetryFeedSetFacts {
   return {
@@ -57,7 +57,7 @@ export function getFeedRequestTelemetryContextFacts(
   };
 }
 
-export function getFeedRequestTelemetryFacts(
+function getFeedRequestTelemetryFacts(
   outcome: FeedRequestOutcome,
   requestContext: FeedRequestTelemetryContext
 ): LogContext {

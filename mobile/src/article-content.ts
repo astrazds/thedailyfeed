@@ -1,7 +1,10 @@
 import DOMPurify from "dompurify";
 import { FEED_CONTENT_SANITIZER_CONFIG } from "../../lib/feed-content-sanitizer-policy";
 import { normalizeSanitizedFeedContent } from "../../lib/feed-content-normalization";
-import { prepareArticle as prepareBoundedArticle } from "./article-content-core";
+import {
+  MAX_ARTICLE_HTML_BYTES,
+  prepareArticle as prepareBoundedArticle,
+} from "./article-content-core";
 import type { PreparedArticle } from "./contracts";
 
 export function prepareArticle(html: string, baseUrl: string): PreparedArticle {
@@ -13,8 +16,8 @@ export function prepareArticle(html: string, baseUrl: string): PreparedArticle {
     return empty;
   }
   if (
-    html.length > 128 * 1024 ||
-    new TextEncoder().encode(html).byteLength > 128 * 1024
+    html.length > MAX_ARTICLE_HTML_BYTES ||
+    new TextEncoder().encode(html).byteLength > MAX_ARTICLE_HTML_BYTES
   ) {
     return empty;
   }

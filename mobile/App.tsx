@@ -18,7 +18,12 @@ import {
 } from "../lib/feed-load-activity";
 import { normalizeTimeZone } from "../lib/date-utils";
 import type { ReaderConfig } from "./src/contracts";
-import { readerFaces, readerFonts, readerThemes } from "./src/reader-theme";
+import {
+  readerFaces,
+  readerFonts,
+  readerHeadingLineHeight,
+  readerThemes,
+} from "./src/reader-theme";
 import { useReader } from "./src/useReader";
 import { ArticleCard } from "./src/ArticleCard";
 import { useSubscriptions } from "./src/useSubscriptions";
@@ -136,7 +141,7 @@ function Reader() {
               aria-level={1}
               style={[
                 styles.brand,
-                { lineHeight: "1.3" } as unknown as TextStyle,
+                readerHeadingLineHeight,
                 { color: palette.foreground },
               ]}
             >
