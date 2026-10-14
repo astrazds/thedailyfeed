@@ -1,6 +1,6 @@
 # Technical documentation for The Daily Feed
 
-This document reflects the 1.2.11 implementation as of October 6, 2026.
+This document reflects the 1.2.11 implementation as of October 14, 2026.
 
 ## System overview
 
@@ -313,7 +313,7 @@ or persisting data. Reader and manager controls use the same outcomes.
 | `ready` | Today's article count and a completion announcement. |
 | `partial` | Some feeds could not load, with retry. |
 | `interrupted` | The stream ended with unchecked sources, with retry. |
-| `fallback` | Refresh failed and a matching same-day snapshot is available. |
+| `fallback` | Refresh failed and a matching same-day snapshot is available. Non-empty snapshots keep saved items ("Showing saved items from today."). An empty matching snapshot uses "Try again to check your feeds." |
 | `failed` | The request failed without a usable snapshot, with retry. |
 
 Three decorative article placeholders appear during loading. The header keeps
@@ -339,7 +339,9 @@ for retry. Edit responses carry a session identity so an old response cannot
 close a newer editor.
 
 Import skips duplicate and invalid URLs and reports entries over the limit.
-Export includes the saved inventory. Both use `lib/opml.ts` in the browser.
+Export includes the saved inventory and writes `enabled="true"` or
+`enabled="false"` on each outline. Import honors `enabled="false"` and treats
+a missing attribute as enabled. Both use `lib/opml.ts` in the browser.
 Delete requires confirmation. The modal owns Escape dismissal, background
 inertness, and focus containment through `<dialog>.showModal()`.
 
@@ -350,7 +352,9 @@ and on explicit refresh. It aborts superseded requests and ignores obsolete
 results. Subscription names and disabled-only inventory changes do not trigger
 a feed request. Cross-tab storage notifications are scoped to subscriptions.
 There is no hourly refresh timer. An open edition remains visible across midnight
-until a later retrieval applies the current date.
+until a later retrieval applies the current date. `useReader` freezes the header
+date to `editionStartedAt` at retrieval start. `App.tsx` formats that instant in
+the reader timezone until the next retrieval.
 
 The transport accepts up to 32 MiB of response bytes, decodes split UTF-8, and
 supports validated JSON fallback. This client resource limit also bounds an
@@ -364,8 +368,10 @@ Storage errors leave network results readable.
 Web subscriptions retain `rss-feeds`, including IDs, names, dates, order, and
 disabled records. Web snapshots retain `rss-offline-feed-snapshots-v1` and its
 multiple-feed-set retention policy. An existing empty subscription array stays
-empty. When the canonical key is absent, a valid old Expo proof configuration
-can seed feed records. Its backend address and snapshot are not imported.
+empty. When the canonical key is absent, unparseable, or not an array, and MVP
+import does not supply feeds, `getFeeds` presents the three default sources.
+When the canonical key is absent, a valid old Expo proof configuration can seed
+feed records once. Its backend address and snapshot are not imported.
 
 ## Security
 
@@ -383,7 +389,7 @@ can seed feed records. Its backend address and snapshot are not imported.
 ### Content safety
 
 - Feed HTML is sanitized before rendering (`DOMPurify`)
-- If `window` is missing, rendering returns empty markup instead of unsanitized HTML
+- If the DOM (`document`) is missing, rendering returns empty markup instead of unsanitized HTML
 - Long feed HTML is truncated with DOM-aware logic to preserve valid markup
 - Sanitized image `src` and link `href` values are resolved against the item's
   validated HTTP(S) article URL. Images retain only HTTP(S), links additionally

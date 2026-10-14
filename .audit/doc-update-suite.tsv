@@ -1,0 +1,8 @@
+ts	phase	decision	why	evidence	result
+2026-10-14T04:43:32Z	start	doc update suite figure-it-out run begins	full docs sync after 1.2.11 and Expo sole-frontend	agent 1160e2b7 / HEAD e3473b9	open
+2026-10-14T04:43:32Z	frame	done when claim-set docs match 1.2.11 code and mise run test docs-claims pass	falsifiable predicate for prove-it-works	.audit/doc-drift-baseline inventory 10 warns	framed
+2026-10-14T04:43:32Z	harness	added scripts/doc-drift-inventory.mjs and captured baseline	build the lever so drift is rerunnable	scripts/doc-drift-inventory.mjs	baseline 10 issues
+2026-10-14T04:46:01Z	explanation-slice	applied VISION ADR AGENTS fixes from explanation audit	close 1.2.11 header freeze OPML map gaps	.audit/doc-drift-explanation.md ee4fcd32	pending inventory recheck
+2026-10-14T04:47:02Z	explanation-slice	inventory down 10 to 7 after VISION ADR AGENTS	explanation probes cleared	node scripts/doc-drift-inventory.mjs	VERIFIED slice
+2026-10-14T04:49:34Z	product-reference	applied README TECHNICAL mobile README expo-web and inventory gate	close remaining 1.2.11 claim gaps	.audit/doc-drift-product.md .audit/doc-drift-reference.md	inventory 0 issues
+2026-10-14T04:49:34Z	verify	mise run test green and inventory 0	predicate check on real gates	mise run test / node scripts/doc-drift-inventory.mjs	VERIFIED

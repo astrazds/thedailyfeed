@@ -20,9 +20,11 @@ stay on the page's origin. The standalone `npm run web` command starts Metro
 only and does not provide the API.
 
 Open **Manage feeds** to add, edit, enable, disable, or delete subscriptions.
-The manager also imports and exports OPML. The browser's timezone selects
-what counts as today. The reader follows the system theme. There is no
-connection-address or timezone editor in the deployed application.
+The manager also imports and exports OPML. Export writes each feed's enabled
+state. Import restores it and treats a missing `enabled` attribute as enabled.
+The browser's timezone selects what counts as today. The reader follows the
+system theme. There is no connection-address or timezone editor in the deployed
+application.
 
 ## Build and verify
 
@@ -53,21 +55,25 @@ packages, and an unpublished hardened Docker image. See the root
 `useSubscriptions` exposes the canonical `Feed[]` inventory and complete
 subscription commands. Its web adapter reuses `lib/feed-storage.ts` and the
 `rss-feeds` key. Existing IDs, dates, order, names, and disabled records survive.
-A valid empty inventory remains empty. Only an absent canonical key permits
+A valid empty inventory remains empty. When `rss-feeds` is missing,
+unparseable, or not an array, and MVP import does not supply feeds, the reader
+presents the three default sources. Only an absent canonical key permits
 feed-only migration from the old Expo proof configuration.
 
 `useReader` reuses the shared lifecycle and wire parser. Its hook owns request
-cancellation and ignores obsolete generations. Only completed responses save
-snapshots. Web snapshots use `lib/offline-feed-cache.ts` and the existing
+cancellation, ignores obsolete generations, and freezes the header date to
+`editionStartedAt` at retrieval start. Only completed responses save snapshots.
+Web snapshots use `lib/offline-feed-cache.ts` and the existing
 `rss-offline-feed-snapshots-v1` key, including bounded multiple-feed-set storage.
 Storage failures leave network reading available. Refresh runs on opening,
 enabled-source changes, and explicit actions. There is no polling timer.
 
 The browser article adapter sanitizes with DOMPurify, normalizes the DOM, and
 passes the result through a bounded parsed tree before React Native rendering.
-It fails closed without a DOM. Dialog focus, OPML file selection and download,
-worker registration, installation, and connection notices have web adapters.
-Each capability has one browser implementation.
+It fails closed without a DOM. Article title and body links open in a new tab.
+Dialog focus, OPML file selection and download, worker registration,
+installation, and connection notices have web adapters. Each capability has one
+browser implementation.
 
 ## Supported platform
 

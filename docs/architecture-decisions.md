@@ -48,6 +48,9 @@ owners. A failed save retains the draft.
 `mobile/src/manager/Modal.tsx` owns the browser dialog and returns focus to
 its opener. `FeedRow.tsx` owns row controls and delete confirmation.
 `transfer.tsx` owns browser file selection and download around `lib/opml.ts`.
+OPML export writes `enabled="true"` or `enabled="false"` on each outline.
+Import honors `enabled="false"` and treats a missing attribute as enabled.
+`runFeedManagerOperation` persists that flag on added rows.
 An edit response carries a session identity so it cannot close a newer editor.
 
 The UI submits typed commands through `useSubscriptions`. The web adapter calls
@@ -97,6 +100,9 @@ across attempts and retry delays.
 `lib/feed-set-lifecycle.ts` coordinates progressive results, snapshot preview,
 offline fallback, terminal state, and persistence effects. React components
 consume its read model through `mobile/src/useReader.ts`.
+`useReader` also owns `editionStartedAt`, the retrieval-start instant for the
+open edition. The reader header formats that instant in the configured timezone
+and does not advance it after midnight until the next retrieval.
 
 Keeping these transitions together prevents separate UI branches from disagreeing
 about whether results are current, incomplete, or an offline fallback.
@@ -147,8 +153,9 @@ Native fallback implementations and build identities have been removed.
 
 The old hourly retrieval timer is removed to follow [VISION.md](../VISION.md).
 Requests run on opening, enabled-source changes, and explicit refresh. An open
-edition stays visible across midnight until the next retrieval. A server cache
-hit may still reuse feed data until its TTL expires.
+edition stays visible across midnight until the next retrieval. The header date
+stays frozen to `editionStartedAt` for that open edition. A server cache hit may
+still reuse feed data until its TTL expires.
 
 The repository's Chromium UI suite uses synthetic publisher content. Worker upgrade and actual
 offline reload have a separate production runtime check. Neither check proves
