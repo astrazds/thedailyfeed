@@ -18,6 +18,7 @@ export interface Feed {
 export interface FeedImportEntry {
   name: string;
   url: string;
+  enabled?: boolean;
 }
 
 export interface FeedImportSummary {
@@ -271,12 +272,12 @@ function normalizeFeedMutationInput(url: string, name: string): Pick<Feed, 'url'
   };
 }
 
-function createFeed(url: string, name: string): Feed {
+function createFeed(url: string, name: string, enabled = true): Feed {
   return {
     id: generateFeedId(),
     url,
     name,
-    enabled: true,
+    enabled,
     addedAt: new Date(),
   };
 }
@@ -325,7 +326,7 @@ function importFeedsInto(
       continue;
     }
 
-    nextFeeds.push(createFeed(normalized.url, normalized.name));
+    nextFeeds.push(createFeed(normalized.url, normalized.name, feed.enabled ?? true));
     summary.added += 1;
   }
 

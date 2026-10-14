@@ -40,7 +40,7 @@ function Reader() {
     configuredFeedCount: subscriptions.feeds.length,
     timeZone,
   }), [subscriptions.feeds, timeZone]);
-  const { model, refresh, storageNotice } = useReader(config, subscriptions.ready);
+  const { model, refresh, storageNotice, editionStartedAt } = useReader(config, subscriptions.ready);
   const activity = getFeedLoadActivity(model);
   const [settings, setSettings] = useState(false);
   const refreshButton = useRef<View>(null);
@@ -153,7 +153,7 @@ function Reader() {
                   },
                 ]}
               >
-                {new Date().toLocaleDateString("en-US", {
+                {editionStartedAt.toLocaleDateString("en-US", {
                   timeZone: config.timeZone,
                   weekday: "long",
                   month: "long",

@@ -4,7 +4,9 @@ The web application uses the Expo Metro export and React Native components. Next
 
 The web implementation is complete. The [release 1.2.8 acceptance record](expo-web-acceptance.md)
 adds loading-motion, large-response, live HTTP, and cross-browser evidence.
-Physical iPhone Safari verification remains outstanding. The [supported platform](../../mobile/README.md#supported-platform)
+On 14 October 2026 the maintainer confirmed that release 1.2.10 works in
+physical iPhone Safari. That confirmation is an operator check. Repository CI
+does not run a physical iPhone. The [supported platform](../../mobile/README.md#supported-platform)
 describes the current product boundary.
 
 ## Chosen boundaries
