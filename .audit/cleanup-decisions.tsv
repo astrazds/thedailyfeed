@@ -18,3 +18,4 @@ ts	phase	decision	why	evidence	result
 2026-10-14T10:21:00Z	audit	unit3 newly exports MAX_ARTICLE_HTML_BYTES while unit2 shrinks other exports	shared constant needs one export site	mobile/src/article-content-core.ts	kept
 2026-10-14T10:25:00Z	no-comments	deleted reader-theme JSDoc and feed-storage/rss narrating comments; catch on saveFeeds no longer binds error	Comment Sicko accepted kills; declined RN ViewStyle reshape and dedicated error sanitizer as out of scope	7108f46d-4364-46c7-8144-79dd220d6f5b	kept
 2026-10-14T10:25:15Z	no-comments	declined reshaping readerHeadingLineHeight to remove as-unknown cast	platform type gap remains; shared cast export is the small win	mobile/src/reader-theme.ts	declined
+2026-10-14T10:30:00Z	ship	committed dabe494; gate log remains local because .audit/*.log is gitignored	CI will re-run verify; cleanup-gates.log is host proof only	dabe494 .audit/cleanup-gates.log	open
