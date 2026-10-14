@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -150,4 +152,19 @@ test('relative documentation links resolve to files and headings', async () => {
   }
 
   assert.deepEqual(missing, []);
+});
+
+test('documentation drift inventory reports no open issues', () => {
+  const script = join(repositoryRoot, 'scripts', 'doc-drift-inventory.mjs');
+  const result = spawnSync(process.execPath, [script], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  const packageVersion = JSON.parse(
+    readFileSync(join(repositoryRoot, 'package.json'), 'utf8')
+  ).version;
+  assert.equal(report.releaseVersion, packageVersion);
+  assert.deepEqual(report.issues, []);
 });

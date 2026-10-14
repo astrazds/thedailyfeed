@@ -57,10 +57,20 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
 - Open **Manage feeds** to add, edit, disable, or delete a source. Additions
   validate the RSS or Atom URL before saving. The inventory limit is 50 feeds,
   including disabled feeds; older oversized inventories are never trimmed.
+  When `rss-feeds` is missing, unparseable, or not an array, the reader presents
+  three default sources (Daring Fireball, The Verge, and WIRED). A stored empty
+  inventory stays empty. An array with mixed invalid records keeps only the
+  valid subset and does not restore those defaults.
 - Import or export an OPML file to move subscriptions between browsers.
-  Import skips duplicates and invalid URLs, and reports entries over the limit.
-- Read today's items in your browser's timezone, newest first. Articles appear
-  progressively as each source finishes. Expand long excerpts or open the original.
+  Export writes each feed's enabled state as `enabled="true"` or
+  `enabled="false"`. Import restores that flag and treats a missing attribute
+  as enabled. Import skips duplicates and invalid URLs, and reports entries
+  over the limit.
+- Read today's items in your browser's timezone, newest first. The header date
+  stays frozen to the retrieval start until the next open, enabled-source
+  change, or explicit refresh. Articles appear progressively as each source
+  finishes. Expand long excerpts or open the original. Article title and body
+  links open in a new tab.
 - Choose the **Refresh feeds** icon to check your sources again. A thin header
   progress line, rotating icon, pulsing placeholders, and feed count track
   loading while available articles stay readable. Open **Manage feeds** to see
@@ -71,7 +81,9 @@ request-body limits, and unbuffered streaming belong at the reverse proxy.
   have failed or timed out; **Not checked** means no result arrived for it.
 - Install the app through your browser if it supports PWAs. Saved same-day
   snapshots provide fallback for the same enabled sources and timezone.
-  **Unable to refresh** identifies saved content after a request failure.
+  After a failed refresh with saved items, **Unable to refresh** shows
+  "Showing saved items from today." With a matching empty snapshot it shows
+  "Try again to check your feeds."
 
 See the synthetic [feed-manager progress](docs/assets/loading-manager-narrow.png)
 screenshot.
@@ -97,7 +109,8 @@ appears. Private-network feeds are blocked in production by default.
 Refresh requests can reuse the server's feed cache, which lasts one hour by
 default. The reader loads on opening, when enabled sources change, and on
 explicit refresh. It does not poll on a timer. An open edition stays available
-until the next retrieval.
+until the next retrieval, and the header date stays frozen to that edition's
+retrieval start.
 
 ## Development
 

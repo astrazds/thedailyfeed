@@ -11,7 +11,9 @@ It owns exactly one thing: the daily reading surface between a person's chosen f
 ## Today defines the reading boundary
 
 The reader's local calendar day determines the edition, with no configurable day boundary or section for articles whose publication date is unknown.
-An open session may retain its clearly dated edition after midnight until refresh or closure, without fetching more items for that edition.
+An open session retains its clearly dated edition after midnight until the next reader-initiated retrieval or until the session ends, without fetching more items for that edition.
+Retrieval starts when the reader opens, when the enabled source set changes, or when the reader refreshes explicitly.
+The reader header date stays frozen to the retrieval start and remains that calendar day until the next retrieval. It is not a live clock.
 Any snapshot retained for that continuation expires with the session and does not become a previous-day edition that can be reopened.
 Items appear newest first, with their source and a path to the original, and entries from different sources remain distinct even when they link to the same article.
 The page has no unread debt to clear, no read-state dismissal controls, and no archive to maintain.

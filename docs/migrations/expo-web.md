@@ -11,7 +11,7 @@ describes the current product boundary.
 
 ## Chosen boundaries
 
-The existing `Feed` record remains the subscription model. It retains IDs, names, enabled state, and creation dates. `runFeedManagerOperation` remains the durable mutation owner. The web application reads the existing `rss-feeds` and `rss-offline-feed-snapshots-v1` keys directly. A valid empty inventory remains empty. A missing inventory can import subscriptions from the earlier Expo proof once. Foreign-server snapshots are not imported.
+The existing `Feed` record remains the subscription model. It retains IDs, names, enabled state, and creation dates. `runFeedManagerOperation` remains the durable mutation owner. The web application reads the existing `rss-feeds` and `rss-offline-feed-snapshots-v1` keys directly. A valid empty inventory remains empty. When `rss-feeds` is missing, unparseable, or not an array, and MVP import does not supply feeds, the reader presents the three default sources. A missing inventory can also import subscriptions from the earlier Expo proof once. Foreign-server snapshots are not imported.
 
 The existing feed-set lifecycle owns progressive results, completion, interruption, and snapshot effects. The Expo transport validates bounded JSON and NDJSON responses. Explicit refresh and enabled-subscription changes start requests. The old hourly timer is removed, consistent with the product vision.
 

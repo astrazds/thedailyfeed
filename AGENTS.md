@@ -20,24 +20,28 @@ Read the sections relevant to the change rather than loading every document:
 - `lib/feed-request.ts`: cache/missing-feed orchestration. Fetching and parsing
   live in `lib/feed-fetcher.ts` and `lib/rss.ts`; extend that pipeline.
 - `lib/url-validator.ts`: HTTP(S) destination policy for feeds and article media.
-- `lib/feed-content-normalization.ts`: sanitized HTML rewriting. The web article
-  adapter fails closed with empty markup when the DOM is missing.
+- `lib/feed-content-normalization.ts`: sanitized HTML rewriting.
 - `lib/feed-response-adapter.ts` and `lib/feed-stream-parser.ts`: server wire
   serialization and client validation of untrusted JSON/NDJSON.
 - `lib/feed-set-lifecycle.ts`: progressive results, terminal states, and offline
-  persistence. `mobile/src/useReader.ts` connects the lifecycle to React.
+  persistence. `mobile/src/useReader.ts` connects the lifecycle to React and owns
+  `editionStartedAt` so the header date stays the retrieval-start instant until
+  the next explicit or subscription-driven retrieval.
 - `lib/feed-load-activity.ts`: shared activity and announcement copy. The Expo
   reader and manager own their controls and active-context announcements.
 - `lib/feed-storage.ts`: canonical subscriptions and complete manager mutations.
   `mobile/src/useSubscriptions.ts` connects its web adapter to React.
+- `lib/opml.ts`: OPML parse and export, including the `enabled` attribute.
+  `mobile/src/manager/transfer.tsx` owns browser file selection and download.
 - `lib/types.ts`: shared article and wire types. Browser imports must not point
   at the server RSS parser for article types.
 - `mobile/App.tsx`, `mobile/src/ArticleCard.tsx`, and `mobile/src/reader-theme.ts`:
   the React Native reader and styling.
 - `mobile/src/FeedManager.tsx` and `mobile/src/manager/`: native manager controls,
-  persistent drafts, editor sessions, and narrow web dialog and OPML adapters.
+  persistent drafts, editor sessions, and narrow web dialog adapters.
 - `mobile/src/article-content.ts`: DOMPurify and DOM normalization before
-  bounded native article rendering.
+  bounded native article rendering. Fails closed with empty markup when the DOM
+  is missing.
 - `scripts/build-expo-web.mjs` and `scripts/dev.mjs`: Expo export assembly and
   same-origin development. Next hosts APIs and exported files, not the reader.
 - `app/sw.ts` and `lib/serwist-runtime-caching.ts`: service-worker behavior.
@@ -51,7 +55,8 @@ Read the sections relevant to the change rather than loading every document:
 - Preserve timezone-aware "today" filtering and distinct loading, empty, ready,
   partial, interrupted, failed, and snapshot-fallback reader states. Do not add
   periodic retrieval. An open edition remains until the next explicit or
-  subscription-driven retrieval.
+  subscription-driven retrieval. Keep the header date on that edition's
+  retrieval-start instant (`editionStartedAt`), not on a live clock.
 - Feed URLs, DNS answers, redirects, XML, article HTML, and transport chunks are
   untrusted input. Preserve HTTP(S)-only fetching, destination and redirect
   checks, and production SSRF blocking. Preserve DOMPurify sanitization,
