@@ -4,7 +4,7 @@
 
 Slice: `VISION.md`, `AGENTS.md`, `docs/architecture-decisions.md` (including known implementation gaps).
 
-HEAD: `e3473b92851e6c85fcd587c0e2fa08f96504019b` (release 1.2.11).  
+HEAD: `e3473b92851e6c85fcd587c0e2fa08f96504019b` (release 1.2.11).
 Code probes below are from the current tree at those paths; they match the 1.2.11 behaviors named in this audit.
 
 The project's own inventory (`scripts/doc-drift-inventory.mjs`, captured in `.audit/doc-drift-baseline.json`) already flags the two 1.2.11 claim gaps in this slice: missing edition-header-freeze in `VISION.md` and `docs/architecture-decisions.md`, and missing OPML enabled/disabled in the ADR.
@@ -15,19 +15,19 @@ The project's own inventory (`scripts/doc-drift-inventory.mjs`, captured in `.au
 
 These 1.2.11 behaviors are implemented. They are listed here so the issues below are only about documentation.
 
-1. **Open edition remains across midnight until the next retrieval; header date freezes to `editionStartedAt`.**  
+1. **Open edition remains across midnight until the next retrieval; header date freezes to `editionStartedAt`.**
    `mobile/src/useReader.ts` holds `editionStartedAt`, initializes it to `new Date()`, and sets it to the retrieval start (`startedAt`) on every `refresh()`. `mobile/App.tsx` renders that value with `toLocaleDateString(..., { timeZone: config.timeZone })`. `refresh()` runs on mount, when the enabled-URL/timezone identity changes, and on explicit refresh. There is no hourly/periodic reader timer (only cache and rate-limiter cleanup intervals).
 
-2. **OPML preserves enabled/disabled.**  
+2. **OPML preserves enabled/disabled.**
    `lib/opml.ts` writes `enabled="true"|"false"` on export and reads it on import (`false` only when the attribute is exactly `"false"`; missing attribute imports as enabled). `importFeedsInto` in `lib/feed-storage.ts` stores `feed.enabled ?? true`. Covered by `tests/opml.test.mts`.
 
-3. **Expo owns UI; Next hosts.**  
+3. **Expo owns UI; Next hosts.**
    `mobile/app.config.ts` is `platforms: ["web"]`. `next.config.ts` rewrites `/` and `/_expo/*` to the Metro export. TECHNICAL.md and AGENTS.md both say Next hosts APIs and exported files, not the reader.
 
-4. **Snapshot-fallback empty copy is try-again aligned.**  
+4. **Snapshot-fallback empty copy is try-again aligned.**
    `lib/feed-load-activity.ts` fallback detail is `Try again to check your feeds.` when `items.length === 0`. `mobile/App.tsx` renders `Unable to refresh. Try again to check your feeds.` plus a **Try again** button, and does not also show the empty-state panel (`activity.type !== "fallback"`).
 
-5. **Product is still web-only; no accounts, sync, or native apps.**  
+5. **Product is still web-only; no accounts, sync, or native apps.**
    VISION scope, AGENTS product boundaries, ADR known gaps, `mobile/README.md#supported-platform`, and `platforms: ["web"]` all agree.
 
 ---
@@ -36,9 +36,9 @@ These 1.2.11 behaviors are implemented. They are listed here so the issues below
 
 ### 1. VISION.md does not record the frozen header date
 
-**Severity:** warn  
-**File:** `VISION.md`  
-**Evidence:**  
+**Severity:** warn
+**File:** `VISION.md`
+**Evidence:**
 Lines 11–15 say the local calendar day determines the edition, and that an open session “may retain its clearly dated edition after midnight until refresh or closure, without fetching more items for that edition.” That still matches product intent (session-scoped continuation, no midnight fetch, snapshots do not become a reopenable previous-day edition — `getUsableSnapshot` still rejects a non-today `dayKey`).
 
 It does **not** say that the reader header date is the edition/retrieval start (`editionStartedAt`), not a live clock. Pre-1.2.11, an implementer following this paragraph could keep `new Date()` in the header while leaving articles in place — which is the regression 1.2.11 fixed. The inventory probe `edition-header-freeze` expects language matching `/editionStartedAt|header.*(edition|freeze|retrieval)|freeze[sd]?.*(header|date|day)|date.*retrieval start/i` and currently fails on this file.
@@ -47,12 +47,12 @@ It does **not** say that the reader header date is the edition/retrieval start (
 
 ### 2. VISION.md “refresh or closure” is weaker than the implemented retrieval triggers
 
-**Severity:** info (wording tightness; not a contradiction)  
-**File:** `VISION.md`  
-**Evidence:**  
-VISION: “until refresh or closure.”  
-AGENTS.md: “An open edition remains until the next explicit or subscription-driven retrieval.”  
-ADR known gaps: “Requests run on opening, enabled-source changes, and explicit refresh.”  
+**Severity:** info (wording tightness; not a contradiction)
+**File:** `VISION.md`
+**Evidence:**
+VISION: “until refresh or closure.”
+AGENTS.md: “An open edition remains until the next explicit or subscription-driven retrieval.”
+ADR known gaps: “Requests run on opening, enabled-source changes, and explicit refresh.”
 Code: `useReader` `refresh` depends on `identity` (timezone + enabled URL set) and a mount effect, so toggling/enabling sources starts a new `editionStartedAt`.
 
 Tab closure still drops the in-memory edition, so “closure” is not wrong. It understates subscription-driven retrieval.
@@ -61,9 +61,9 @@ Tab closure still drops the in-memory edition, so “closure” is not wrong. It
 
 ### 3. architecture-decisions.md omits the 1.2.11 header freeze
 
-**Severity:** warn  
-**File:** `docs/architecture-decisions.md`  
-**Evidence:**  
+**Severity:** warn
+**File:** `docs/architecture-decisions.md`
+**Evidence:**
 “Client lifecycle owns progressive and offline state” correctly points `lib/feed-set-lifecycle.ts` + `mobile/src/useReader.ts`. The known-gaps paragraph (lines 148–151) says an open edition stays visible across midnight until the next retrieval. That is true for already-loaded articles.
 
 Neither section says the header date is frozen to retrieval start. `editionStartedAt` is React state in `useReader`, **not** lifecycle state. An agent following the ADR would reasonably put a live date in `App.tsx` or add a clock to the lifecycle module. Inventory probe `edition-header-freeze` fails on this file.
@@ -72,9 +72,9 @@ Neither section says the header date is frozen to retrieval start. `editionStart
 
 ### 4. architecture-decisions.md omits OPML enabled/disabled
 
-**Severity:** warn  
-**File:** `docs/architecture-decisions.md`  
-**Evidence:**  
+**Severity:** warn
+**File:** `docs/architecture-decisions.md`
+**Evidence:**
 “Forms own drafts…” says `transfer.tsx` owns browser file selection and download around `lib/opml.ts`. That ownership is still correct (`mobile/src/manager/transfer.tsx` calls `exportToOPML` / `parseOPML`).
 
 The ADR never says export writes `enabled` or that import restores it (defaulting missing attributes to enabled). That is the 1.2.11 contract in `lib/opml.ts` and `importFeedsInto`. Inventory probe `opml-enabled` fails on this file. “Existing browser data remains canonical” mentions disabled **records** in `rss-feeds`, which is storage, not OPML transfer.
@@ -83,8 +83,8 @@ The ADR never says export writes `enabled` or that import restores it (defaultin
 
 ### 5. AGENTS.md path map: listed paths exist; two ownership gaps
 
-**Severity:** warn (ownership incomplete), not missing files  
-**File:** `AGENTS.md`  
+**Severity:** warn (ownership incomplete), not missing files
+**File:** `AGENTS.md`
 **Evidence:** Every path in “Where changes belong” exists on disk and still matches the described owner, except the two gaps below.
 
 | AGENTS path | Present | Ownership vs code |
@@ -105,17 +105,17 @@ The ADR never says export writes `enabled` or that import restores it (defaultin
 | `scripts/build-expo-web.mjs`, `scripts/dev.mjs` | yes | Expo export / same-origin dev |
 | `app/sw.ts`, `lib/serwist-runtime-caching.ts` | yes | Service worker |
 
-**5a. `lib/opml.ts` is the enabled-attribute owner and is not on the map.**  
+**5a. `lib/opml.ts` is the enabled-attribute owner and is not on the map.**
 AGENTS attributes “OPML adapters” to `mobile/src/manager/`. That is only the file-picker/download wrapper. Format, `enabled` I/O, and XML escaping live in `lib/opml.ts`.
 
 **Suggested fix:** Add a bullet: `lib/opml.ts` owns OPML parse/export including the enabled attribute; `mobile/src/manager/transfer.tsx` owns browser file selection and download.
 
-**5b. Fail-closed empty markup is attributed to the wrong bullet.**  
+**5b. Fail-closed empty markup is attributed to the wrong bullet.**
 AGENTS puts “The web article adapter fails closed with empty markup when the DOM is missing” under `lib/feed-content-normalization.ts`. That file rewrites sanitized HTML and has no DOM/fail-closed branch. The fail-closed adapter is `mobile/src/article-content.ts` (`typeof document === "undefined"` returns `{ full: "", preview: "", truncated: false }`).
 
 **Suggested fix:** Move the fail-closed sentence onto the `article-content.ts` bullet.
 
-**5c. `useReader` now owns the edition clock; the map does not say so.**  
+**5c. `useReader` now owns the edition clock; the map does not say so.**
 The lifecycle bullet says `useReader` “connects the lifecycle to React.” Product boundaries say an open edition remains until the next retrieval, but not that the header date must stay `editionStartedAt`. Agents can preserve lifecycle states and still regress the header to a live date.
 
 **Suggested fix:** In the `useReader` bullet and/or product boundaries, require the header date to stay the retrieval-start instant until the next explicit or subscription-driven retrieval.
@@ -171,8 +171,8 @@ No stale “pages router / Next renders the reader / hourly timer / native app�
 
 ## Suggested edit order
 
-1. `VISION.md` — frozen header date + tighter retrieval language (issues 1–2).  
-2. `docs/architecture-decisions.md` — `editionStartedAt` ownership + OPML `enabled` (issues 3–4); one sentence in known gaps so midnight visibility and header freeze stay together.  
+1. `VISION.md` — frozen header date + tighter retrieval language (issues 1–2).
+2. `docs/architecture-decisions.md` — `editionStartedAt` ownership + OPML `enabled` (issues 3–4); one sentence in known gaps so midnight visibility and header freeze stay together.
 3. `AGENTS.md` — add `lib/opml.ts`, move fail-closed onto `article-content.ts`, mention the `useReader` edition clock (issue 5).
 
 No code changes are required for this slice. Snapshot-fallback try-again copy, Expo/Next hosting, web-only scope, and the AGENTS path existence check are already consistent with 1.2.11.

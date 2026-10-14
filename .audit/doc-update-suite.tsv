@@ -6,3 +6,8 @@ ts	phase	decision	why	evidence	result
 2026-10-14T04:47:02Z	explanation-slice	inventory down 10 to 7 after VISION ADR AGENTS	explanation probes cleared	node scripts/doc-drift-inventory.mjs	VERIFIED slice
 2026-10-14T04:49:34Z	product-reference	applied README TECHNICAL mobile README expo-web and inventory gate	close remaining 1.2.11 claim gaps	.audit/doc-drift-product.md .audit/doc-drift-reference.md	inventory 0 issues
 2026-10-14T04:49:34Z	verify	mise run test green and inventory 0	predicate check on real gates	mise run test / node scripts/doc-drift-inventory.mjs	VERIFIED
+2026-10-14T04:52:06Z	pr	opened PR 20 for docs claim sync	hand back after predicate green	https://github.com/astrazds/thedailyfeed/pull/20	open
+2026-10-14T04:56:07Z	trail-review	supersede ee4fcd32 evidence with agent id and report path	composer trail review found invalid git evidence token	.audit/trail-review.md agent 293a895c / .audit/doc-drift-explanation.md	superseded
+2026-10-14T04:56:07Z	harness	release version enforce limited to README TECHNICAL DEPLOYMENT	mobile README may name 1.2.10 for iPhone operator check	scripts/doc-drift-inventory.mjs releaseMarkerFiles	logged
+2026-10-14T04:56:07Z	verify	git diff --check clean on claim-set and stripped audit markdown trailing space	playbook predicate 4	git diff --check	VERIFIED
+2026-10-14T04:56:07Z	doc-commit	landed claim sync at f395faa then trail follow-up	close predicate after trail review flags	f395faa https://github.com/astrazds/thedailyfeed/pull/20	open

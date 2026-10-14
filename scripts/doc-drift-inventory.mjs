@@ -88,7 +88,7 @@ const docProbes = [
   },
   {
     id: 'new-tab-links',
-    files: ['TECHNICAL.md'],
+    files: ['TECHNICAL.md', 'README.md', 'mobile/README.md'],
     pattern: /new tab/,
     expect: 'present',
     why: 'Article links open in a new tab',
@@ -109,7 +109,11 @@ const docProbes = [
   },
 ];
 
-/** Files whose version markers must match package.json. Others may name older releases. */
+/**
+ * Files whose version markers must match package.json.
+ * Migration notes and mobile/README may name older releases for historical
+ * acceptance or operator device checks (for example physical iPhone on 1.2.10).
+ */
 const releaseMarkerFiles = new Set(['README.md', 'TECHNICAL.md', 'DEPLOYMENT.md']);
 
 const issues = [];
