@@ -410,7 +410,7 @@ feed records once. Its backend address and snapshot are not imported.
 ### Request protection
 
 - Production deployments must run behind a trusted reverse proxy
-- The reverse proxy owns public client IP access logs, ingress rate limits, request body limits, TLS, and ingress timeouts
+- The reverse proxy owns public client IP access logs, ingress rate limits, request body limits, TLS, and ingress timeouts. [DEPLOYMENT.md](DEPLOYMENT.md) states the recommended baseline.
 - Direct public internet exposure of the Next.js app container is unsupported
 - The app retains outbound feed destination validation, aggregate feed operation budgets, inbound-to-outbound cancellation, feed HTML sanitization, API `no-store` behavior, the PWA's exact-path feed-set `NetworkOnly` policy, and production metrics auth
 - Feed JSON routes reject a `Content-Length` larger than 1 MiB with status `413` and `Cache-Control: no-store`

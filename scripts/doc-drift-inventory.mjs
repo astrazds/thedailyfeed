@@ -99,6 +99,13 @@ const docProbes = [
     expect: 'present',
     why: '1.2.11 technical document date is 14 October 2026',
   },
+  {
+    id: 'ingress-rate-baseline',
+    files: ['DEPLOYMENT.md'],
+    pattern: /60\/second|60 requests/,
+    expect: 'present',
+    why: 'ingress admission baseline is 60 requests per second',
+  },
 ];
 
 /**

@@ -36,14 +36,39 @@ Validate with `nginx -t` before reloading Nginx. Certificate issuance,
 renewal and proxy lifecycle belong to the host administrator.
 
 The example redirects HTTP to HTTPS, allows TLS 1.2/1.3, limits request bodies
-to 1 MiB and request rate to 1/second with a burst of 10, and uses 45-second
-upstream timeouts for the default 30-second application budget. It overwrites
-forwarded client headers, logs paths without query strings, disables response
-buffering/cache, and hides metrics at ingress. Request buffering remains enabled
-to enforce bounded incoming bodies. Nginx's response buffering controls are
-documented [upstream](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering).
+to 1 MiB and request rate to 60/second with a burst of 120, and uses 45-second
+upstream timeouts for the default 30-second application budget. A feed-set
+refresh sends several same-origin API requests, so 1 request per second stalls
+that retrieval. It overwrites forwarded client headers, logs paths without
+query strings, disables response buffering and caching, and hides metrics at
+ingress. Request buffering remains enabled to enforce bounded incoming bodies.
+Nginx's response buffering controls are documented
+[upstream](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering).
 If application budgets change, review proxy timeouts too. Restrict access to
 proxy error logs, which can include request details, and configure log rotation.
+
+### Traefik label baseline
+
+[deploy/traefik-labels.example.yml](deploy/traefik-labels.example.yml) is the
+same admission baseline for a Docker-label proxy such as Traefik. Copy those
+labels onto the application service in a Compose file that stays on the host.
+Replace `dailyfeed.example.com`, and use the TLS entrypoint your proxy already
+has. Do not commit that Compose file. The labels are the portable contract.
+
+The labels allow 60 requests per second with a burst of 120, and they cap the
+request body at 1048576 bytes (1 MiB). Keep 45-second upstream timeouts when
+you configure them. Those timeouts match the feed budgets in the Nginx example.
+
+Progressive NDJSON needs an unbuffered response. Confirm that a feed-set
+refresh still flushes progress before the response ends on your Traefik
+version. The buffering middleware can hold the response until the upstream
+finishes, and Docker labels cannot set `disableResponseBuffer`. If progress
+arrives only at the end, remove the buffering middleware from this router.
+The application still rejects a feed JSON `Content-Length` above 1 MiB.
+
+Restrict `/api/metrics` at the proxy when it can answer that path with 404.
+The application still requires a bearer token, and it returns 404 when
+`METRICS_AUTH_TOKEN` is unset.
 
 ## Runtime defaults
 
