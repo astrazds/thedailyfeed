@@ -31,12 +31,14 @@ export function useReader(config: ReaderConfig, ready = true) {
       }).readModel,
   );
   const [storageNotice, setStorageNotice] = useState(false);
+  const [editionStartedAt, setEditionStartedAt] = useState(() => new Date());
   const generation = useRef(0);
   const displayedIdentity = useRef(identity);
   const controller = useRef<AbortController | null>(null);
   const writes = useRef(Promise.resolve());
   const refresh = useCallback(async () => {
     if (!ready) return;
+    setEditionStartedAt(new Date());
     const config = latestConfig.current;
     const request = ++generation.current;
     controller.current?.abort();
@@ -152,5 +154,6 @@ export function useReader(config: ReaderConfig, ready = true) {
     },
     refresh,
     storageNotice,
+    editionStartedAt,
   };
 }
