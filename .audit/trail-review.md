@@ -1,9 +1,9 @@
 # Audit trail cross-model review
 
-**Reviewer:** composer-2.5-fast (cross-family review of grok-led doc sync run)  
-**Reviewed:** 2026-10-14 (local re-check on branch `docs/1.2.11-claim-sync`)  
-**Primary artifacts:** `.audit/doc-update-suite.tsv`, `.audit/playbook.md`, `.audit/doc-drift-{explanation,product,reference}.md`  
-**Branch tip:** `f395faacbf9fb97ab5b4040976e6dc0d0919b8e5` — `docs(guides): sync claim-set docs with 1.2.11 behavior`  
+**Reviewer:** composer-2.5-fast (cross-family review of grok-led doc sync run)
+**Reviewed:** 2026-10-14 (local re-check on branch `docs/1.2.11-claim-sync`)
+**Primary artifacts:** `.audit/doc-update-suite.tsv`, `.audit/playbook.md`, `.audit/doc-drift-{explanation,product,reference}.md`
+**Branch tip:** `f395faacbf9fb97ab5b4040976e6dc0d0919b8e5` — `docs(guides): sync claim-set docs with 1.2.11 behavior`
 **Code baseline cited in audits:** `e3473b92851e6c85fcd587c0e2fa08f96504019b` (release 1.2.11 reader/OPML fix, parent of doc commit)
 
 ## Executive summary
