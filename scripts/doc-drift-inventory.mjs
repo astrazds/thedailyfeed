@@ -28,14 +28,6 @@ const markdownFiles = [
   'public/fonts/README.md',
 ];
 
-const versionPatterns = [
-  /\b1\.\d+\.\d+\b/g,
-  /Current release:\s*`([^`]+)`/,
-  /APP_VERSION`\s*\|\s*`([^`]+)`/,
-  /The Daily Feed\s+(\d+\.\d+\.\d+)/,
-  /reflects the\s+(\d+\.\d+\.\d+)\s+implementation/,
-];
-
 function read(path) {
   return readFileSync(join(root, path), 'utf8');
 }

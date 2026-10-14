@@ -1,4 +1,9 @@
+import type { TextStyle } from "react-native";
 import type { ReaderPalette } from "./contracts";
+
+export const readerHeadingLineHeight = {
+  lineHeight: "1.3",
+} as unknown as TextStyle;
 
 export const readerFaces = {
   regular: "RobotoSerif400",

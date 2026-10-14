@@ -8,7 +8,7 @@ export const MAX_OFFLINE_SNAPSHOTS = 20;
 export const MAX_OFFLINE_SNAPSHOT_BYTES = 256_000;
 export const MAX_OFFLINE_CACHE_BYTES = 1_500_000;
 
-export interface StoredSnapshot {
+interface StoredSnapshot {
   cacheKey: string;
   timeZone: string;
   dayKey: string;

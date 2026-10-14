@@ -1,0 +1,20 @@
+ts	phase	decision	why	evidence	result
+2026-10-14T09:48:00Z	start	broader cleanup run begins after Phase A frame	operator chose broader path including dep skew	agent chat poteto-mode cleanup	open
+2026-10-14T09:48:30Z	frame	keep URL policy, MVP key, rate-limit layer, feed-operation-budget file	high blast radius or named domain boundary for little gain	.audit/cleanup-playbook.md	declined
+2026-10-14T09:48:45Z	frame	keep getFeedRequestTelemetryContextFacts exported	feeds route imports it; inventory overstated deadness	app/api/feeds/route.ts	corrected
+2026-10-14T10:00:00Z	unit1	removed dead localStorage.getItem in snapshots loadSnapshot	statement had no effect and unused import	mobile/src/snapshots.ts	kept
+2026-10-14T10:01:00Z	unit2	un-exported parseFeedStreamChunk, telemetry helpers, StoredSnapshot	no external importers; kept ContextFacts for feeds route	lib/feed-stream-parser.ts,lib/feed-request-telemetry.ts,lib/offline-feed-cache.ts	kept
+2026-10-14T10:02:00Z	unit3	shared MAX_ARTICLE_HTML_BYTES across DOMPurify and htmlparser paths	one constant for the 128 KiB bound	mobile/src/article-content*.ts	kept
+2026-10-14T10:03:00Z	unit4	extracted readerHeadingLineHeight for RN-web string lineHeight cast	single why comment at the cast site	mobile/src/reader-theme.ts	kept
+2026-10-14T10:04:00Z	unit5	trimmed narrating banners and JSDoc in lib plus unused versionPatterns	code already named the ops; kept SSRF banner and storage-safety comments	lib/*,scripts/doc-drift-inventory.mjs	kept
+2026-10-14T10:05:00Z	unit6	aligned root dompurify to ^3.4.16; declined mobile react bump to 19.2.8	Expo-tested pin; style gate identical on clean tree so react not the cause	package.json,pnpm-lock.yaml	dompurify kept; react declined
+2026-10-14T10:06:00Z	unit6	declined @types/node skew and mobile package-lock churn	separate tooling roots; no product win	mobile/package.json	declined
+2026-10-14T10:10:00Z	verify	lint typecheck root+mobile tests and build browser web-runtime pass	docker missing; style pixel diffs match clean HEAD on this host	.audit/cleanup-verify.log style baseline exit 1	partial VERIFIED
+2026-10-14T10:11:00Z	verify	style and docker compose/image steps INCONCLUSIVE here	same pixel counts on unmodified tree; no docker binary	BASELINE_STYLE_EXIT=1	INCONCLUSIVE
+2026-10-14T10:20:00Z	audit	supersede verify row claiming partial VERIFIED without log proof	trail review found cleanup-verify.log only had docker miss; reran gates into cleanup-gates.log	.audit/cleanup-gates.log ALL_GATES_OK	VERIFIED
+2026-10-14T10:20:15Z	audit	amend playbook predicate 4 for hosts without Docker	full mise verify needs docker; local bar is build browser web-runtime plus INCONCLUSIVE style/image	.audit/cleanup-playbook.md	open
+2026-10-14T10:20:30Z	audit	note root-only dompurify bump resolves to 3.4.17; mobile already on ^3.4.16	trail review correction	package.json pnpm-lock.yaml	kept
+2026-10-14T10:20:45Z	audit	unit5 also deleted unused versionPatterns in doc-drift-inventory	intentional dead-code removal; collectVersionMentions keeps inline regex	scripts/doc-drift-inventory.mjs	kept
+2026-10-14T10:21:00Z	audit	unit3 newly exports MAX_ARTICLE_HTML_BYTES while unit2 shrinks other exports	shared constant needs one export site	mobile/src/article-content-core.ts	kept
+2026-10-14T10:25:00Z	no-comments	deleted reader-theme JSDoc and feed-storage/rss narrating comments; catch on saveFeeds no longer binds error	Comment Sicko accepted kills; declined RN ViewStyle reshape and dedicated error sanitizer as out of scope	7108f46d-4364-46c7-8144-79dd220d6f5b	kept
+2026-10-14T10:25:15Z	no-comments	declined reshaping readerHeadingLineHeight to remove as-unknown cast	platform type gap remains; shared cast export is the small win	mobile/src/reader-theme.ts	declined

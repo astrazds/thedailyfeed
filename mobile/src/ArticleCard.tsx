@@ -22,7 +22,7 @@ import { normalizeSafeArticleLink } from "../../lib/feed-link-policy";
 import { normalizeFeedContentUrl } from "../../lib/feed-content-normalization";
 import { prepareArticle } from "./article-content";
 import type { ReaderPalette } from "./contracts";
-import { readerFaces } from "./reader-theme";
+import { readerFaces, readerHeadingLineHeight } from "./reader-theme";
 
 const headingTags = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 const articleModels = Object.fromEntries(
@@ -79,7 +79,7 @@ const HeadingRenderer: CustomTextualRenderer = ({
       ...{ "aria-level": Number(props.tnode.tagName?.slice(1)) },
       style: [
         props.textProps.style,
-        { lineHeight: "1.3" } as unknown as TextStyle,
+        readerHeadingLineHeight,
       ],
     }}
   />

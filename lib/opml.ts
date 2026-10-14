@@ -1,8 +1,3 @@
-/**
- * OPML (Outline Processor Markup Language) utilities
- * For importing and exporting RSS feed lists
- */
-
 import type { Feed, FeedImportEntry } from './feed-storage';
 
 function escapeAttribute(value: string): string {
@@ -14,9 +9,6 @@ function isEnabledUnlessExplicitlyFalse(attribute: string | null): boolean {
   return attribute !== 'false';
 }
 
-/**
- * Export feeds to OPML format
- */
 export function exportToOPML(feeds: Feed[]): string {
   const now = new Date().toUTCString();
   
@@ -43,14 +35,10 @@ ${outlines}
 </opml>`;
 }
 
-/**
- * Parse OPML and extract feed information
- */
 export function parseOPML(opmlContent: string): FeedImportEntry[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(opmlContent, 'text/xml');
-  
-  // Check for parsing errors
+
   const parseError = doc.querySelector('parsererror');
   if (parseError) {
     throw new Error('Invalid OPML file format');
@@ -79,27 +67,20 @@ export function parseOPML(opmlContent: string): FeedImportEntry[] {
   return feeds;
 }
 
-/**
- * Download OPML file to user's computer
- */
 export function downloadOPML(opmlContent: string, filename: string = 'feeds.opml'): void {
   const blob = new Blob([opmlContent], { type: 'text/xml' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  
+
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  
-  // Cleanup
+
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
-/**
- * Read OPML file from user's computer
- */
 export function readOPMLFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

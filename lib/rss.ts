@@ -29,9 +29,6 @@ export interface ProgressiveFeedParseResult {
   status: 'success' | 'timeout' | 'error';
 }
 
-/**
- * Decode HTML entities in text
- */
 function decodeHtmlEntities(text: string): string {
   const entities: Record<string, string> = {
     '&amp;': '&',
@@ -52,9 +49,6 @@ function decodeHtmlEntities(text: string): string {
 
 const parser = new Parser();
 
-/**
- * Parse a single RSS feed and return items
- */
 export async function parseFeed(
   feedUrl: string,
   requestLogger = logger,
@@ -75,7 +69,6 @@ export async function parseFeed(
 
       const pubDate = item.isoDate ? parseISO(item.isoDate) : new Date(itemDate);
       
-      // Validate date is valid
       if (!isValid(pubDate)) {
         requestLogger.warn('Skipping item with invalid date', {
           feedUrl,
@@ -109,9 +102,6 @@ export async function parseFeed(
   }
 }
 
-/**
- * Parse a single RSS feed with retry logic
- */
 export async function parseFeedWithRetry(
   feedUrl: string,
   maxRetries: number = FEED_RETRY_COUNT,
@@ -151,8 +141,7 @@ export async function parseFeedWithRetry(
         errorMessage: err.message,
         event: 'rss_feed_retry_attempt_failed',
       });
-      
-      // Don't delay after last attempt
+
       if (attempt < maxRetries) {
         await abortableDelay(retryDelay * (attempt + 1), options.signal);
       }
@@ -168,9 +157,6 @@ export async function parseFeedWithRetry(
   throw lastError || new Error('Feed parsing failed after retries');
 }
 
-/**
- * Parse multiple feeds and yield results as each feed completes.
- */
 export async function* parseFeedsProgressively(
   feedUrls: string[],
   options: ParseFeedsOptions = {}
@@ -395,9 +381,6 @@ async function withTimeout<T>(
   }
 }
 
-/**
- * Filter feed items to only those published today
- */
 export function filterTodayItems(
   items: FeedItem[],
   timeZone: string = 'UTC',
@@ -407,9 +390,6 @@ export function filterTodayItems(
   return items.filter((item) => getDayKeyForTimeZone(item.pubDate, timeZone) === todayKey);
 }
 
-/**
- * Sort items by date (newest first)
- */
 export function sortByDate(items: FeedItem[]): FeedItem[] {
   return [...items].sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
 }
