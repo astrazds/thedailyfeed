@@ -10,6 +10,10 @@ function escapeAttribute(value: string): string {
     .replace(/'/g, '&apos;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function isEnabledUnlessExplicitlyFalse(attribute: string | null): boolean {
+  return attribute !== 'false';
+}
+
 /**
  * Export feeds to OPML format
  */
@@ -21,7 +25,8 @@ export function exportToOPML(feeds: Feed[]): string {
       const xmlUrl = escapeAttribute(feed.url);
       const title = escapeAttribute(feed.name);
       
-      return `    <outline type="rss" text="${title}" title="${title}" xmlUrl="${xmlUrl}" />`;
+      const enabled = feed.enabled ? 'true' : 'false';
+      return `    <outline type="rss" text="${title}" title="${title}" xmlUrl="${xmlUrl}" enabled="${enabled}" />`;
     })
     .join('\n');
 
@@ -62,6 +67,7 @@ export function parseOPML(opmlContent: string): FeedImportEntry[] {
       feeds.push({
         name: title,
         url: xmlUrl,
+        enabled: isEnabledUnlessExplicitlyFalse(outline.getAttribute('enabled')),
       });
     }
   });

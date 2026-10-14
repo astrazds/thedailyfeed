@@ -84,6 +84,7 @@ test('add operation validates, persists, returns the saved inventory, and notifi
   assert.equal(result.feeds.length, 4);
   assert.equal(result.feeds.at(-1)?.name, 'Example Feed');
   assert.equal(result.feeds.at(-1)?.url, 'https://example.com/rss.xml');
+  assert.equal(result.feeds.at(-1)?.enabled, true);
   assert.equal(result.type, 'add');
   assert.deepEqual(seenEvents, ['feedsUpdated']);
 
@@ -310,6 +311,7 @@ test('OPML import adds valid feeds and summarizes duplicate and invalid entries'
   assert.equal(result.feeds.length, 2);
   assert.equal(result.feeds[1].name, 'Imported');
   assert.equal(result.feeds[1].url, 'https://example.com/imported.xml');
+  assert.equal(result.feeds[1].enabled, true);
   assert.ok(result.type === 'import-opml');
   assert.deepEqual(result.summary, {
     added: 1,
@@ -318,6 +320,28 @@ test('OPML import adds valid feeds and summarizes duplicate and invalid entries'
     overLimit: 0,
   });
   assert.deepEqual(seenEvents, ['feedsUpdated']);
+});
+
+test('OPML import keeps a specified disabled feed disabled', async () => {
+  saveStoredFeeds([]);
+
+  const result = await runFeedManagerOperation({
+    type: 'import-opml',
+    feeds: [
+      { name: 'Paused', url: 'https://example.com/paused.xml', enabled: false },
+      { name: 'Live', url: 'https://example.com/live.xml', enabled: true },
+      { name: 'Implied', url: 'https://example.com/implied.xml' },
+    ],
+  });
+
+  assert.deepEqual(
+    result.feeds.map(({ name, enabled }) => ({ name, enabled })),
+    [
+      { name: 'Paused', enabled: false },
+      { name: 'Live', enabled: true },
+      { name: 'Implied', enabled: true },
+    ],
+  );
 });
 
 test('OPML import summary follows Feed storage URL duplicate semantics', async () => {
