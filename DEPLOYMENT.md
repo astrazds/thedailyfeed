@@ -1,6 +1,6 @@
 # Deployment
 
-This guide covers running The Daily Feed 1.2.11 in production with source-built containers and a trusted HTTPS reverse proxy.
+This guide covers running The Daily Feed 1.2.12 in production with source-built containers and a trusted HTTPS reverse proxy.
 
 The container serves the Expo web export at `/` and keeps the existing Next.js
 API routes on the same origin. Metro runs only during development. There is no
@@ -75,7 +75,7 @@ The application still requires a bearer token, and it returns 404 when
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `APP_PORT` | `3000` | Loopback host port; container port stays 3000. |
-| `APP_VERSION` | `1.2.11` | Build/runtime metadata in logs. |
+| `APP_VERSION` | `1.2.12` | Build/runtime metadata in logs. |
 | `APP_COMMIT` | `unknown` | Set by the deployment wrapper from Git. |
 | `TZ` | `UTC` | Container timezone. |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` | Operational logging. |

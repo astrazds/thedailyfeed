@@ -3,6 +3,19 @@
 A self-hosted Expo and React Native RSS reader for the web. Articles use the
 reader's timezone. Subscriptions and offline reading belong to the browser profile.
 
+## Execution environment
+
+This workspace runs directly on the deployment host. Run file edits, Git,
+`mise`, tests, builds, and Docker Compose commands in the local shell from this
+checkout. No SSH hop, SSHFS, sysmount, or separately mounted checkout is needed.
+
+Before rebuilding or deploying, inspect the running application's Compose labels
+for its project name, configuration file, environment file, and working directory.
+Use those values with `scripts/deploy-compose.sh` rather than assuming the portable
+`compose.yml` is this installation's configuration. Keep host-specific values and
+credentials out of tracked documentation. Follow the validation and deployment
+requirements below.
+
 ## Project references
 
 Read the sections relevant to the change rather than loading every document:
