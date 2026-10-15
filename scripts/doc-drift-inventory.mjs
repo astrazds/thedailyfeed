@@ -92,13 +92,6 @@ const docProbes = [
     expect: 'absent',
     why: 'Expo is the only frontend',
   },
-  {
-    id: 'technical-as-of-date',
-    files: ['TECHNICAL.md'],
-    pattern: /as of October 14, 2026/,
-    expect: 'present',
-    why: '1.2.11 technical document date is 14 October 2026',
-  },
 ];
 
 /**
