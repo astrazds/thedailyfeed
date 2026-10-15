@@ -28,7 +28,7 @@ browser coverage and the remaining physical-device checks.
 The screenshot shows the reader design with synthetic content.
 [Mobile screenshot](docs/assets/reader-narrow.png)
 
-Current release: `1.2.11`.
+Current release: `1.2.12`.
 
 ## Install and self-host
 
