@@ -31,9 +31,11 @@ The technical-document date is deliberately independent and is not changed by
 the bump command.
 
 Run the bump once after an eligible change set stabilizes and before the final
-repository gate. CI runs `version:check` before compilation and tests, but only
-enforces valid synchronized metadata; deciding whether a change is
-release-worthy and which component it requires remains a maintainer decision.
+repository gate. CI type-checks and tests the Expo package, then runs
+`version:check`, then lints, type-checks, and tests the root package. The
+version check only enforces valid synchronized metadata. Deciding whether a
+change is release-worthy and which component it requires remains a maintainer
+decision.
 The version commands only validate or update local release metadata.
 
 ## Runtime architecture
