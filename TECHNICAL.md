@@ -395,9 +395,9 @@ feed records once. Its backend address and snapshot are not imported.
   validated HTTP(S) article URL. Images retain only HTTP(S), links additionally
   allow `mailto:`, and relative URLs without a valid base plus scriptable or
   unsupported schemes fail closed.
-- HTTP(S) image and link destinations whose host is localhost or a loopback,
-  link-local, or private IP literal are dropped. IPv6 embeddings of non-global
-  IPv4 use the same special-use table as feed fetching.
+- HTTP(S) image and link hosts are dropped for `localhost`, names ending in
+  `.localhost`, and the same special-use IPv4 and IPv6 ranges the production
+  SSRF guard blocks, including embeddings of those IPv4 ranges.
 - Images without publisher-provided alt text receive `alt=""`; provided alt text
   is preserved. Images without a valid source are removed, along with event
   handlers, inline styles, and `srcset`.
