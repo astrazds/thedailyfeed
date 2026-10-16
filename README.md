@@ -21,12 +21,10 @@ installed PWAs. Android and iOS builds are outside the product scope.
 The [web acceptance record](docs/migrations/expo-web-acceptance.md) describes
 browser coverage and the remaining physical-device checks.
 
-<p align="center">
-  <img src="docs/assets/reader-desktop.png" alt="The Daily Feed showing synthetic articles from Field Notes, Small Hours, and Open Workshop">
-</p>
+<img src="docs/assets/reader-desktop.png" width="419" alt="The Daily Feed showing synthetic articles from Field Notes, Small Hours, and Open Workshop">
 
 The screenshot shows the reader design with synthetic content.
-[Mobile screenshot](docs/assets/reader-narrow.png)
+[Mobile screenshot](docs/assets/reader-narrow.png) shows the narrow layout.
 
 Current release: `1.2.13`.
 
