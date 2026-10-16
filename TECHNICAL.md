@@ -23,10 +23,12 @@ or Android and iOS build identities.
 ## Release versioning
 
 `package.json` is the sole release-version authority and accepts only stable
-`MAJOR.MINOR.PATCH` SemVer. `pnpm version:check` validates that version and its
-single expected marker in Compose, README, this document, and the deployment
-guide. `pnpm version:bump <patch|minor|major>` first rejects invalid metadata or
-existing drift, then increments `package.json` and synchronizes every marker.
+`MAJOR.MINOR.PATCH` SemVer. `pnpm version:check` validates that version and the
+matching marker in Compose, README, and this document, plus both
+deployment-guide markers. Those two are the opening sentence and the
+`APP_VERSION` table cell. `pnpm version:bump <patch|minor|major>` first rejects
+invalid metadata or existing drift, then increments `package.json` and
+synchronizes every marker.
 The technical-document date is deliberately independent and is not changed by
 the bump command.
 
