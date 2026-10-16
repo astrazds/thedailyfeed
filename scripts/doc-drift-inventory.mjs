@@ -92,6 +92,13 @@ const docProbes = [
     expect: 'absent',
     why: 'Expo is the only frontend',
   },
+  {
+    id: 'ingress-rate-baseline',
+    files: ['DEPLOYMENT.md'],
+    pattern: /60\/second|60 requests/,
+    expect: 'present',
+    why: 'ingress admission baseline is 60 requests per second',
+  },
 ];
 
 /**

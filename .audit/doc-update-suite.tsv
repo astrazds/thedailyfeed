@@ -11,3 +11,4 @@ ts	phase	decision	why	evidence	result
 2026-10-14T04:56:07Z	harness	release version enforce limited to README TECHNICAL DEPLOYMENT	mobile README may name 1.2.10 for iPhone operator check	scripts/doc-drift-inventory.mjs releaseMarkerFiles	logged
 2026-10-14T04:56:07Z	verify	git diff --check clean on claim-set and stripped audit markdown trailing space	playbook predicate 4	git diff --check	VERIFIED
 2026-10-14T04:56:07Z	doc-commit	landed claim sync at f395faa then trail follow-up	close predicate after trail review flags	f395faa https://github.com/astrazds/thedailyfeed/pull/20	open
+2026-10-14T23:11:31Z	ingress-baseline	align Nginx, DEPLOYMENT, and Traefik labels to 60/s, burst 120, 1048576 bytes	a feed-set refresh sends several API requests, so 1/s stalls retrieval	node --test tests/docs-claims.test.mts pass 4; doc-drift-inventory issues []	VERIFIED

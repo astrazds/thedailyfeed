@@ -49,7 +49,8 @@ uses its own network, and runs a non-root container with a read-only filesystem.
 Set `APP_PORT` in `.env.production` if port 3000 is already in use.
 
 For internet access, follow [DEPLOYMENT.md](DEPLOYMENT.md), including the
-[complete Nginx HTTPS example](deploy/nginx.conf). Public TLS, rate limits,
+[complete Nginx HTTPS example](deploy/nginx.conf). DEPLOYMENT.md also covers a
+Traefik-style label baseline. Public TLS, rate limits,
 request-body limits, and unbuffered streaming belong at the reverse proxy.
 
 ## Use

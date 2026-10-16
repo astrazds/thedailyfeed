@@ -28,10 +28,22 @@ const markdownLinkPattern =
   /(?:!\[[^\]]*]\(|\[[^\]]*]\()([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const htmlLinkPattern = /\b(?:href|src)="([^"]+)"/g;
 const miseRunPattern = /mise run ([a-z0-9-]+)/g;
+const nginxRatePattern = /\brate=(\d+)r\/s\b/;
 const nginxBurstPattern = /\bburst=(\d+)\b/;
 const nginxBodySizePattern = /\bclient_max_body_size\s+(\d+)m\b/;
+const deploymentRatePattern = /\b(\d+)\/second\b/;
 const deploymentBurstPattern = /\bburst of (\d+)\b/;
 const deploymentBodySizePattern = /\blimits request bodies\n?to (\d+) MiB\b/;
+const traefikAveragePattern = /ratelimit\.average=(\d+)\b/;
+const traefikBurstPattern = /ratelimit\.burst=(\d+)\b/;
+const traefikBodyPattern = /buffering\.maxRequestBodyBytes=(\d+)\b/;
+
+const ingressAdmissionBaseline = {
+  ratePerSecond: '60',
+  burst: '120',
+  maxBodyBytes: '1048576',
+  maxBodyMegabytes: '1',
+} as const;
 const miseTaskPattern = /^\[tasks\.([a-z0-9-]+)\]$/gm;
 
 function isExternalTarget(target: string): boolean {
@@ -51,6 +63,15 @@ function extractMatches(source: string, pattern: RegExp): string[] {
   return [...source.matchAll(pattern)].map((match) => match[1]);
 }
 
+function captures(source: string, pattern: RegExp): string[] {
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+  return [...source.matchAll(new RegExp(pattern.source, flags))].map((match) => match[1]);
+}
+
+function assertCaptured(source: string, pattern: RegExp, expected: string): void {
+  assert.deepEqual([...new Set(captures(source, pattern))], [expected]);
+}
+
 function headingIds(source: string): Set<string> {
   const counts = new Map<string, number>();
   const ids = new Set<string>();
@@ -65,18 +86,23 @@ function headingIds(source: string): Set<string> {
   return ids;
 }
 
-test('DEPLOYMENT.md matches the Nginx example burst and body limit', async () => {
-  const [nginx, deployment] = await Promise.all([
+test('published ingress examples share one admission baseline', async () => {
+  const [nginx, deployment, traefik] = await Promise.all([
     readFile(join(repositoryRoot, 'deploy/nginx.conf'), 'utf8'),
     readFile(join(repositoryRoot, 'DEPLOYMENT.md'), 'utf8'),
+    readFile(join(repositoryRoot, 'deploy/traefik-labels.example.yml'), 'utf8'),
   ]);
 
-  assert.match(nginx, nginxBurstPattern);
-  assert.match(nginx, nginxBodySizePattern);
-  const burst = nginxBurstPattern.exec(nginx)?.[1];
-  const bodyMegabytes = nginxBodySizePattern.exec(nginx)?.[1];
-  assert.equal(deploymentBurstPattern.exec(deployment)?.[1], burst);
-  assert.equal(deploymentBodySizePattern.exec(deployment)?.[1], bodyMegabytes);
+  assertCaptured(nginx, nginxRatePattern, ingressAdmissionBaseline.ratePerSecond);
+  assertCaptured(deployment, deploymentRatePattern, ingressAdmissionBaseline.ratePerSecond);
+  assertCaptured(traefik, traefikAveragePattern, ingressAdmissionBaseline.ratePerSecond);
+  assertCaptured(nginx, nginxBurstPattern, ingressAdmissionBaseline.burst);
+  assertCaptured(deployment, deploymentBurstPattern, ingressAdmissionBaseline.burst);
+  assertCaptured(traefik, traefikBurstPattern, ingressAdmissionBaseline.burst);
+  assertCaptured(nginx, nginxBodySizePattern, ingressAdmissionBaseline.maxBodyMegabytes);
+  assertCaptured(deployment, deploymentBodySizePattern, ingressAdmissionBaseline.maxBodyMegabytes);
+  assertCaptured(traefik, traefikBodyPattern, ingressAdmissionBaseline.maxBodyBytes);
+  assert.match(traefik, /ratelimit\.period=1s\b/);
 });
 
 test('documented mise run tasks exist in mise.toml', async () => {

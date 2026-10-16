@@ -1,0 +1,19 @@
+# Copy these labels onto the application service in a host Compose file.
+# Do not commit that file, and do not run this fragment as Compose.
+# Replace dailyfeed.example.com. Rename websecure to your TLS entrypoint.
+# Ingress admission baseline, shared with deploy/nginx.conf.
+# 60 requests per second, burst 120, body 1048576 bytes.
+# Streaming, metrics, and why this is not 1 request per second are in DEPLOYMENT.md.
+
+services:
+  thedailyfeed:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dailyfeed.rule=Host(`dailyfeed.example.com`)"
+      - "traefik.http.routers.dailyfeed.entrypoints=websecure"
+      - "traefik.http.routers.dailyfeed.tls=true"
+      - "traefik.http.routers.dailyfeed.middlewares=dailyfeed-ratelimit,dailyfeed-body"
+      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.average=60"
+      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.period=1s"
+      - "traefik.http.middlewares.dailyfeed-ratelimit.ratelimit.burst=120"
+      - "traefik.http.middlewares.dailyfeed-body.buffering.maxRequestBodyBytes=1048576"
