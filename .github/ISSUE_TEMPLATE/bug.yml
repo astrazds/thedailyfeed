@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a defect in the reader, the manager, or a deploy.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a synthetic example. Leave out real feed URLs, OPML files, and subscription lists.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What failed, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the clicks or requests that show the failure.
+    validations:
+      required: true
+  - type: input
+    id: release
+    attributes:
+      label: Release
+      description: Version from the README or the deployed build.
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Browser name and version.
