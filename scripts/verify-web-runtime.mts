@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createServer, request } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
+import { proxyDestination } from './proxy-destination.ts';
 
 const sourceOrigin = process.env.RUNTIME_APP_URL;
 const previousOrigin = process.env.RUNTIME_PREVIOUS_URL;
@@ -37,7 +38,8 @@ const proxy = createServer((incoming, outgoing) => {
     outgoing.end(url.pathname === '/sw.js' ? previousWorker : previousDocument);
     return;
   }
-  const destination = new URL(incoming.url ?? '/', upgrading ? backendOrigin : previousOrigin);
+  const forwardOrigin = (upgrading ? backendOrigin : previousOrigin) ?? backendOrigin;
+  const destination = proxyDestination(incoming.url ?? '/', forwardOrigin);
   const forwarded = request(destination, { method: incoming.method, headers: { ...incoming.headers, host: destination.host } }, (response) => {
     outgoing.writeHead(response.statusCode ?? 502, response.headers);
     response.pipe(outgoing);
