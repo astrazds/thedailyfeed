@@ -436,8 +436,12 @@ for (const type of ['add', 'edit', 'toggle', 'delete', 'import-opml'] as const) 
 }
 
 test('failed cleanup persistence still returns valid records already read', async () => {
-  const { getFeeds } = await import('../lib/feed-storage');
+  const { feedsForReader, peekFeedInventory, runFeedManagerOperation } = await import('../lib/feed-storage');
   localStorage.setItem(STORAGE_KEY_FEEDS, JSON.stringify([feed(), { invalid: true }]));
+  const before = localStorage.getItem(STORAGE_KEY_FEEDS);
   localStorage.setItem = () => { throw new Error('Storage unavailable'); };
-  assert.deepEqual(getFeeds(), [feed()]);
+  assert.deepEqual(feedsForReader(peekFeedInventory()), [feed()]);
+  assert.equal(localStorage.getItem(STORAGE_KEY_FEEDS), before);
+  await assert.rejects(runFeedManagerOperation({ type: 'hydrate' }), /browser storage/);
+  assert.equal(localStorage.getItem(STORAGE_KEY_FEEDS), before);
 });

@@ -240,6 +240,17 @@ export function shouldBlockPrivateNetworks(): boolean {
   return process.env.NODE_ENV === 'production' && process.env.ALLOW_PRIVATE_NETWORKS !== 'true';
 }
 
+declare const feedUrlBrand: unique symbol;
+
+export type FeedUrl = string & { readonly [feedUrlBrand]: true };
+
+export function feedUrl(value: string): FeedUrl | null {
+  if (!isValidFeedUrl(value)) {
+    return null;
+  }
+  return value as FeedUrl;
+}
+
 export function isValidFeedUrl(url: string): boolean {
   try {
     const parsed = new URL(url);

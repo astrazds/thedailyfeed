@@ -12,10 +12,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import Svg, { Circle, Path } from "react-native-svg";
-import {
-  getFeedLoadActivity,
-  feedActivityAnnouncement,
-} from "../lib/feed-load-activity";
+import { feedActivityAnnouncement } from "../lib/feed-load-activity";
 import { normalizeTimeZone } from "../lib/date-utils";
 import type { ReaderConfig } from "./src/contracts";
 import {
@@ -45,8 +42,11 @@ function Reader() {
     configuredFeedCount: subscriptions.feeds.length,
     timeZone,
   }), [subscriptions.feeds, timeZone]);
-  const { model, refresh, storageNotice, editionStartedAt } = useReader(config, subscriptions.ready);
-  const activity = getFeedLoadActivity(model);
+  const { frame, refresh, editionStartedAt } = useReader(config, subscriptions.ready);
+  const activity = frame.activity;
+  const loading = frame.kind === "loading";
+  const completedFeeds = activity.type === "loading" ? activity.completed : 0;
+  const totalFeeds = activity.type === "loading" ? activity.total : 0;
   const [settings, setSettings] = useState(false);
   const refreshButton = useRef<View>(null);
   const [contentWidth, setContentWidth] = useState(Math.min(width - 48, 585));
@@ -101,7 +101,7 @@ function Reader() {
       : config.configuredFeedCount ? "No feeds enabled" : "No feeds yet";
   const emptyDescription = emptyError
     ? activity.type === "failed"
-      ? model.error
+      ? frame.failureMessage
       : "Try again to load articles from your sources."
     : config.feeds.length
       ? "Your enabled feeds have no items dated today. Manage feeds to review your sources."
@@ -121,7 +121,7 @@ function Reader() {
       </Text>
       <ScrollView
         role="main"
-        aria-busy={model.loading}
+        aria-busy={loading}
         style={{ transform: "none" }}
         contentContainerStyle={styles.page}
       >
@@ -159,17 +159,17 @@ function Reader() {
                 ]}
               >
                 {editionStartedAt.toLocaleDateString("en-US", {
-                  timeZone: config.timeZone,
+                  timeZone: frame.header.timeZone,
                   weekday: "long",
                   month: "long",
                   day: "numeric",
                   year: "numeric",
                 })}{" "}
-                · {model.items.length}{" "}
-                {model.items.length === 1 ? "item" : "items"}
+                · {frame.header.itemCount}{" "}
+                {frame.header.itemCount === 1 ? "item" : "items"}
               </Text>
               <View style={styles.headerActions}>
-                {!model.loading && model.isCached && !model.refreshNotice && (
+                {frame.header.showCached && (
                   <Text
                     style={[
                       styles.cached,
@@ -185,7 +185,7 @@ function Reader() {
                 <Pressable
                   testID="refresh"
                   ref={refreshButton}
-                  disabled={model.loading || !config.feeds.length}
+                  disabled={loading || !frame.header.refreshEnabled}
                   accessibilityRole="button"
                   accessibilityLabel="Refresh feeds"
                   onPress={async () => {
@@ -199,12 +199,12 @@ function Reader() {
                   style={[
                     styles.refresh,
                     {
-                      opacity:
-                        model.loading || activity.type === "empty" ? 0.55 : 1,
+                        opacity:
+                          loading || activity.type === "empty" ? 0.55 : 1,
                     },
                   ]}
                 >
-                  <LoadingMotion kind="rotate" active={model.loading}>
+                  <LoadingMotion kind="rotate" active={loading}>
                     <Svg
                       width={16}
                       height={16}
@@ -255,35 +255,35 @@ function Reader() {
                 </Text>
               </View>
             )}
-            {model.loading && (
+            {loading && (
               <View
                 accessibilityRole="progressbar"
                 accessibilityLabel="Feed loading progress"
-                accessibilityValue={{ min: 0, max: model.totalFeeds, now: model.completedFeeds }}
+                accessibilityValue={{ min: 0, max: totalFeeds, now: completedFeeds }}
                 aria-valuemin={0}
-                aria-valuemax={model.totalFeeds}
-                aria-valuenow={model.completedFeeds}
+                aria-valuemax={totalFeeds}
+                aria-valuenow={completedFeeds}
                 style={[styles.progress, { backgroundColor: palette.border }]}
               >
                 <View
                   style={{
                     height: 2,
                     backgroundColor: palette.accent,
-                    width: `${(model.completedFeeds / Math.max(1, model.totalFeeds)) * 100}%`,
+                    width: `${(completedFeeds / Math.max(1, totalFeeds)) * 100}%`,
                   }}
                 />
               </View>
             )}
           </View>
-          {storageNotice && (
+          {frame.header.storageNotice && (
             <Text style={[styles.notice, { color: palette.muted }]}>
-              Reading is available. Saving for offline use is unavailable.
+              {frame.header.storageNotice}
             </Text>
           )}
           {activity.type === "fallback" && (
             <View style={styles.fallback}>
               <Text style={[styles.notice, { color: palette.muted }]}>
-                {model.items.length ? "Unable to refresh. Showing saved items from today." : "Unable to refresh. Try again to check your feeds."}
+                {frame.articles.length ? "Unable to refresh. Showing saved items from today." : "Unable to refresh. Try again to check your feeds."}
               </Text>
               {button(
                 "Try again",
@@ -295,15 +295,15 @@ function Reader() {
               )}
             </View>
           )}
-          {model.loading &&
-            [0, 1, 2].map((index) => (
+          {frame.kind === "loading" &&
+            frame.placeholders.map((placeholder) => (
               <View
-                key={index}
+                key={placeholder.slot}
                 testID="feed-skeleton-item"
                 aria-hidden={true}
                 style={[styles.skeleton, { borderBottomColor: palette.border }]}
               >
-                <LoadingMotion kind="pulse" active={model.loading}>
+                <LoadingMotion kind="pulse" active>
                   <View
                     style={{
                       width: "75%",
@@ -337,7 +337,7 @@ function Reader() {
                 </LoadingMotion>
               </View>
             ))}
-          {model.items.map((item) => (
+          {frame.articles.map((item) => (
             <ArticleCard
               key={`${item.link}|${item.pubDate.toISOString()}|${item.source}`}
               item={item}
@@ -346,8 +346,8 @@ function Reader() {
               timeZone={config.timeZone}
             />
           ))}
-          {!model.loading &&
-            !model.items.length &&
+          {!loading &&
+            !frame.articles.length &&
             activity.type !== "fallback" && (
               <View style={styles.empty}>
                 <Text
@@ -417,7 +417,7 @@ function Reader() {
         onClose={() => setSettings(false)}
         palette={palette}
         activity={activity}
-        feedStatuses={model.feedStatuses}
+        feedStatuses={frame.feedStatuses}
         onRefreshFeeds={refresh}
       />}
       <BrowserStatus palette={palette} />

@@ -1,4 +1,4 @@
-import type { FeedSetLifecycleReadModel } from './feed-set-lifecycle';
+import type { FeedSetPhase } from './feed-set-lifecycle';
 
 type ActivityCopy = { title: string; detail: string };
 
@@ -7,57 +7,56 @@ export type FeedLoadActivity = ActivityCopy & (
   | { type: 'loading'; completed: number; total: number }
 );
 
-type ActivityInput = Pick<FeedSetLifecycleReadModel,
-  'loading' | 'items' | 'error' | 'refreshNotice' | 'enabledFeedCount' |
-  'configuredFeedCount' | 'completedFeeds' | 'totalFeeds' | 'feedStatuses'>;
-
 function feeds(count: number): string {
   return `${count} ${count === 1 ? 'feed' : 'feeds'}`;
 }
 
-export function getFeedLoadActivity(input: ActivityInput): FeedLoadActivity {
-  if (input.loading) {
-    const completed = Math.min(input.completedFeeds, input.totalFeeds);
+export function activityOf(phase: FeedSetPhase, configuredFeedCount: number): FeedLoadActivity {
+  if (phase.kind === 'loading') {
+    const completed = Math.min(phase.completedFeeds, phase.totalFeeds);
     return {
       type: 'loading',
-      title: input.items.length > 0 ? 'Refreshing feeds' : 'Loading feeds',
-      detail: input.totalFeeds > 0
-        ? `${completed} of ${feeds(input.totalFeeds)} checked`
+      title: phase.items.length > 0 ? 'Refreshing feeds' : 'Loading feeds',
+      detail: phase.totalFeeds > 0
+        ? `${completed} of ${feeds(phase.totalFeeds)} checked`
         : 'Getting your sources ready',
       completed,
-      total: input.totalFeeds,
+      total: phase.totalFeeds,
     };
   }
-  if (input.refreshNotice === 'snapshot-fallback') {
+  if (phase.kind === 'snapshot-fallback') {
     return {
       type: 'fallback',
       title: 'Unable to refresh',
-      detail: input.items.length > 0 ? 'Showing saved items from today.' : 'Try again to check your feeds.',
+      detail: phase.items.length > 0 ? 'Showing saved items from today.' : 'Try again to check your feeds.',
     };
   }
-  if (input.error && input.error !== 'no-feeds') {
+  if (phase.kind === 'failed') {
     return { type: 'failed', title: 'Unable to load feeds', detail: 'Try again to check your sources.' };
   }
-  if (input.enabledFeedCount === 0) {
-    return { type: 'empty', title: input.configuredFeedCount === 0 ? 'No feeds yet' : 'No feeds enabled', detail: '' };
+  if (phase.kind === 'no-feeds') {
+    return { type: 'empty', title: configuredFeedCount === 0 ? 'No feeds yet' : 'No feeds enabled', detail: '' };
   }
-  const pending = input.feedStatuses.filter(feed => feed.status === 'pending').length;
-  const failed = input.feedStatuses.filter(feed => feed.status === 'error' || feed.status === 'timeout').length;
+  const pending = phase.feedStatuses.filter((feed) => feed.status === 'pending').length;
+  const failed = phase.feedStatuses.filter((feed) => feed.status === 'error' || feed.status === 'timeout').length;
   if (pending > 0) {
     return {
-      type: 'interrupted', title: 'Feed loading interrupted',
+      type: 'interrupted',
+      title: 'Feed loading interrupted',
       detail: `${feeds(pending)} ${pending === 1 ? 'was' : 'were'} not checked. Try again to finish loading.`,
     };
   }
   if (failed > 0) {
     return {
-      type: 'partial', title: 'Some feeds could not load',
+      type: 'partial',
+      title: 'Some feeds could not load',
       detail: `${feeds(failed)} did not load. Try again to check these sources.`,
     };
   }
   return {
-    type: 'ready', title: 'All feeds checked',
-    detail: `${input.items.length} ${input.items.length === 1 ? 'item' : 'items'} for today.`,
+    type: 'ready',
+    title: 'All feeds checked',
+    detail: `${phase.items.length} ${phase.items.length === 1 ? 'item' : 'items'} for today.`,
   };
 }
 

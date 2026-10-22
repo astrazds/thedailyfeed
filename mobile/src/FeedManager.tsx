@@ -24,7 +24,7 @@ export interface FeedManagerProps {
   onClose: () => void;
   palette: ReaderPalette;
   activity: FeedLoadActivity;
-  feedStatuses: FeedSetLifecycleStatusItem[];
+  feedStatuses: readonly FeedSetLifecycleStatusItem[];
   onRefreshFeeds: () => Promise<void>;
 }
 

@@ -5,9 +5,30 @@ import {
   applyFeedSetApiResponse,
   applyFeedSetStreamChunk,
   beginFeedSetLifecycle,
+  continueFeedSetLifecycle,
   failFeedSetLifecycle,
   finishFeedSetLifecycle,
+  type FeedSetPhase,
 } from '../lib/feed-set-lifecycle';
+import { activityOf } from '../lib/feed-load-activity';
+
+function shown(phase: FeedSetPhase) {
+  const items = phase.kind === 'no-feeds' ? [] : phase.items;
+  const feedStatuses = phase.kind === 'no-feeds' ? [] : phase.feedStatuses;
+  const requestId = phase.kind === 'no-feeds' ? null : phase.requestId;
+  return {
+    items,
+    loading: phase.kind === 'loading',
+    error: phase.kind === 'failed' ? phase.message : phase.kind === 'no-feeds' ? 'no-feeds' : null,
+    isCached: phase.kind === 'loading' ? phase.preview === 'snapshot' : phase.kind === 'snapshot-fallback' ? true : 'cached' in phase ? phase.cached : false,
+    refreshNotice: phase.kind === 'snapshot-fallback' ? 'snapshot-fallback' as const : null,
+    completedFeeds: phase.kind === 'loading' ? phase.completedFeeds : 0,
+    totalFeeds: phase.kind === 'loading' ? phase.totalFeeds : 0,
+    feedStatuses,
+    requestId,
+    enabledFeedCount: phase.kind === 'no-feeds' ? 0 : feedStatuses.length,
+  };
+}
 
 function feedItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -39,10 +60,12 @@ test('exposes a user-facing read model without implementation lifecycle bookkeep
     },
   });
 
-  assert.equal(started.readModel.loading, true);
-  assert.equal(started.readModel.isCached, true);
-  assert.equal(started.readModel.items[0].title, 'Cached');
-  assert.equal('hasAppliedNetworkResults' in started.readModel, false);
+  assert.equal(started.phase.kind, 'loading');
+  assert.equal(started.phase.preview, 'snapshot');
+  assert.equal(started.phase.items[0].title, 'Cached');
+  assert.equal('hasAppliedNetworkResults' in started.phase, false);
+  assert.equal(shown(started.phase).loading, true);
+  assert.equal(shown(started.phase).isCached, true);
 });
 
 test('applies progressive feed results by merging duplicate items and tracking feed status', () => {
@@ -52,7 +75,7 @@ test('applies progressive feed results by merging duplicate items and tracking f
     snapshot: null,
   });
 
-  const first = applyFeedSetStreamChunk(started.state, {
+  const first = applyFeedSetStreamChunk(started.phase, {
     type: 'feed_result',
     requestId: 'request-1',
     cached: false,
@@ -72,7 +95,7 @@ test('applies progressive feed results by merging duplicate items and tracking f
     ],
   });
 
-  const second = applyFeedSetStreamChunk(first.state, {
+  const second = applyFeedSetStreamChunk(first.phase, {
     type: 'feed_result',
     requestId: 'request-1',
     cached: false,
@@ -85,12 +108,12 @@ test('applies progressive feed results by merging duplicate items and tracking f
     items: [serializedFeedItem()],
   });
 
-  assert.equal(second.readModel.requestId, 'request-1');
+  assert.equal(shown(second.phase).requestId, 'request-1');
   assert.deepEqual(
-    second.readModel.items.map((item) => item.link),
+    shown(second.phase).items.map((item) => item.link),
     ['https://example.com/newer', 'https://example.com/post']
   );
-  assert.deepEqual(second.readModel.feedStatuses, [
+  assert.deepEqual(shown(second.phase).feedStatuses, [
     {
       feedUrl: 'https://example.com/feed.xml',
       feedName: 'Example',
@@ -112,9 +135,9 @@ test('previews a fresh offline snapshot but rejects a stale snapshot', () => {
     },
   });
 
-  assert.equal(fresh.readModel.isCached, true);
-  assert.equal(fresh.readModel.items.length, 1);
-  assert.equal(fresh.readModel.items[0].title, 'Cached');
+  assert.equal(shown(fresh.phase).isCached, true);
+  assert.equal(shown(fresh.phase).items.length, 1);
+  assert.equal(shown(fresh.phase).items[0].title, 'Cached');
 
   const stale = beginFeedSetLifecycle({
     feeds: [{ url: 'https://example.com/feed.xml', name: 'Example' }],
@@ -127,8 +150,8 @@ test('previews a fresh offline snapshot but rejects a stale snapshot', () => {
     },
   });
 
-  assert.equal(stale.readModel.isCached, false);
-  assert.equal(stale.readModel.items.length, 0);
+  assert.equal(shown(stale.phase).isCached, false);
+  assert.equal(shown(stale.phase).items.length, 0);
 });
 
 test('rejects an offline snapshot from a different timezone', () => {
@@ -143,8 +166,8 @@ test('rejects an offline snapshot from a different timezone', () => {
     },
   });
 
-  assert.equal(started.readModel.isCached, false);
-  assert.equal(started.readModel.items.length, 0);
+  assert.equal(shown(started.phase).isCached, false);
+  assert.equal(shown(started.phase).items.length, 0);
 });
 
 test('replaces an offline preview with live progressive results after the network responds', () => {
@@ -164,7 +187,7 @@ test('replaces an offline preview with live progressive results after the networ
     },
   });
 
-  const next = applyFeedSetStreamChunk(started.state, {
+  const next = applyFeedSetStreamChunk(started.phase, {
     type: 'feed_result',
     requestId: 'request-2',
     cached: false,
@@ -182,9 +205,9 @@ test('replaces an offline preview with live progressive results after the networ
     ],
   });
 
-  assert.equal(next.readModel.isCached, false);
+  assert.equal(shown(next.phase).isCached, false);
   assert.deepEqual(
-    next.readModel.items.map((item) => item.link),
+    shown(next.phase).items.map((item) => item.link),
     ['https://example.com/live']
   );
 });
@@ -197,7 +220,7 @@ test('uses a fresh offline snapshot as the terminal fallback for network failure
     snapshot: null,
   });
 
-  const fallback = failFeedSetLifecycle(started.state, {
+  const fallback = failFeedSetLifecycle(started.phase, {
     error: new Error('network failed'),
     now: new Date('2026-06-02T12:00:00.000Z'),
     fallbackSnapshot: {
@@ -207,22 +230,22 @@ test('uses a fresh offline snapshot as the terminal fallback for network failure
     },
   });
 
-  assert.equal(fallback.readModel.loading, false);
-  assert.equal(fallback.readModel.error, null);
-  assert.equal(fallback.readModel.isCached, true);
-  assert.equal(fallback.readModel.refreshNotice, 'snapshot-fallback');
-  assert.equal(fallback.readModel.items[0].title, 'Fallback');
+  assert.equal(shown(fallback.phase).loading, false);
+  assert.equal(shown(fallback.phase).error, null);
+  assert.equal(shown(fallback.phase).isCached, true);
+  assert.equal(shown(fallback.phase).refreshNotice, 'snapshot-fallback');
+  assert.equal(shown(fallback.phase).items[0].title, 'Fallback');
 
-  const failed = failFeedSetLifecycle(started.state, {
+  const failed = failFeedSetLifecycle(started.phase, {
     error: new Error('network failed'),
     now: new Date('2026-06-02T12:00:00.000Z'),
     fallbackSnapshot: null,
   });
 
-  assert.equal(failed.readModel.loading, false);
-  assert.equal(failed.readModel.error, 'Failed to load feeds. Please try again.');
-  assert.equal(failed.readModel.isCached, false);
-  assert.equal(failed.readModel.refreshNotice, null);
+  assert.equal(shown(failed.phase).loading, false);
+  assert.equal(shown(failed.phase).error, 'Failed to load feeds. Please try again.');
+  assert.equal(shown(failed.phase).isCached, false);
+  assert.equal(shown(failed.phase).refreshNotice, null);
 });
 
 test('clears the snapshot fallback notice when network progress resumes', () => {
@@ -231,7 +254,7 @@ test('clears the snapshot fallback notice when network progress resumes', () => 
     timeZone: 'UTC',
     snapshot: null,
   });
-  const fallback = failFeedSetLifecycle(started.state, {
+  const fallback = failFeedSetLifecycle(started.phase, {
     error: new Error('network failed'),
     now: new Date('2026-06-02T12:00:00.000Z'),
     fallbackSnapshot: {
@@ -241,7 +264,7 @@ test('clears the snapshot fallback notice when network progress resumes', () => 
     },
   });
 
-  const resumed = applyFeedSetStreamChunk(fallback.state, {
+  const resumed = applyFeedSetStreamChunk(fallback.phase, {
     type: 'feed_result',
     requestId: 'request-resumed',
     cached: false,
@@ -254,8 +277,8 @@ test('clears the snapshot fallback notice when network progress resumes', () => 
     items: [serializedFeedItem({ title: 'Live' })],
   });
 
-  assert.equal(resumed.readModel.refreshNotice, null);
-  assert.equal(resumed.readModel.items[0].title, 'Live');
+  assert.equal(shown(resumed.phase).refreshNotice, null);
+  assert.equal(shown(resumed.phase).items[0].title, 'Live');
 });
 
 test('rejects a stale offline snapshot as the terminal fallback for network failure', () => {
@@ -266,7 +289,7 @@ test('rejects a stale offline snapshot as the terminal fallback for network fail
     snapshot: null,
   });
 
-  const failed = failFeedSetLifecycle(started.state, {
+  const failed = failFeedSetLifecycle(started.phase, {
     error: new Error('network failed'),
     now: new Date('2026-06-02T12:00:00.000Z'),
     fallbackSnapshot: {
@@ -276,10 +299,10 @@ test('rejects a stale offline snapshot as the terminal fallback for network fail
     },
   });
 
-  assert.equal(failed.readModel.loading, false);
-  assert.equal(failed.readModel.error, 'Failed to load feeds. Please try again.');
-  assert.equal(failed.readModel.isCached, false);
-  assert.equal(failed.readModel.items.length, 0);
+  assert.equal(shown(failed.phase).loading, false);
+  assert.equal(shown(failed.phase).error, 'Failed to load feeds. Please try again.');
+  assert.equal(shown(failed.phase).isCached, false);
+  assert.equal(shown(failed.phase).items.length, 0);
 });
 
 test('surfaces the Request ID in the client-facing error after stream metadata arrives', () => {
@@ -289,7 +312,7 @@ test('surfaces the Request ID in the client-facing error after stream metadata a
     now: new Date('2026-06-02T12:00:00.000Z'),
     snapshot: null,
   });
-  const withRequestId = applyFeedSetStreamChunk(started.state, {
+  const withRequestId = applyFeedSetStreamChunk(started.phase, {
     type: 'meta',
     requestId: 'request-visible',
     cached: false,
@@ -298,14 +321,14 @@ test('surfaces the Request ID in the client-facing error after stream metadata a
     completedFeeds: 0,
   });
 
-  const failed = failFeedSetLifecycle(withRequestId.state, {
+  const failed = failFeedSetLifecycle(withRequestId.phase, {
     error: new Error('network failed'),
     now: new Date('2026-06-02T12:00:00.000Z'),
     fallbackSnapshot: null,
   });
 
   assert.equal(
-    failed.readModel.error,
+    shown(failed.phase).error,
     'Failed to load feeds. Please try again. Request ID: request-visible.'
   );
 });
@@ -317,7 +340,7 @@ test('persists the accumulated live items and clears progress on done', () => {
     now: new Date('2026-06-02T12:00:00.000Z'),
     snapshot: null,
   });
-  const withItems = applyFeedSetStreamChunk(started.state, {
+  const withItems = applyFeedSetStreamChunk(started.phase, {
     type: 'feed_result',
     requestId: 'request-3',
     cached: false,
@@ -330,7 +353,7 @@ test('persists the accumulated live items and clears progress on done', () => {
     items: [serializedFeedItem({ title: 'Live' })],
   });
 
-  const done = applyFeedSetStreamChunk(withItems.state, {
+  const done = applyFeedSetStreamChunk(withItems.phase, {
     type: 'done',
     requestId: 'request-3',
     cached: false,
@@ -340,9 +363,9 @@ test('persists the accumulated live items and clears progress on done', () => {
     totalItemCount: 1,
   });
 
-  assert.equal(done.readModel.loading, false);
-  assert.equal(done.readModel.completedFeeds, 0);
-  assert.equal(done.readModel.totalFeeds, 0);
+  assert.equal(shown(done.phase).loading, false);
+  assert.equal(shown(done.phase).completedFeeds, 0);
+  assert.equal(shown(done.phase).totalFeeds, 0);
   assert.deepEqual(done.effects, [
     {
       type: 'persist_offline_snapshot',
@@ -361,17 +384,17 @@ test('applies a terminal non-stream API response and records snapshot persistenc
     snapshot: null,
   });
 
-  const next = applyFeedSetApiResponse(started.state, {
+  const next = applyFeedSetApiResponse(started.phase, {
     cached: true,
     items: [serializedFeedItem({ title: 'Cached response' })],
     timeZone: 'UTC',
   });
 
-  assert.equal(next.readModel.loading, false);
-  assert.equal(next.readModel.isCached, true);
-  assert.equal(next.readModel.completedFeeds, 0);
-  assert.equal(next.readModel.totalFeeds, 0);
-  assert.deepEqual(next.readModel.feedStatuses, [
+  assert.equal(shown(next.phase).loading, false);
+  assert.equal(shown(next.phase).isCached, true);
+  assert.equal(shown(next.phase).completedFeeds, 0);
+  assert.equal(shown(next.phase).totalFeeds, 0);
+  assert.deepEqual(shown(next.phase).feedStatuses, [
     {
       feedUrl: 'https://example.com/feed.xml',
       feedName: 'Example',
@@ -398,13 +421,15 @@ test('starts without loading when there are no enabled feeds', () => {
     snapshot: null,
   });
 
-  assert.deepEqual(started.readModel.items, []);
-  assert.equal(started.readModel.loading, false);
-  assert.equal(started.readModel.error, 'no-feeds');
-  assert.equal(started.readModel.isCached, false);
-  assert.equal(started.readModel.configuredFeedCount, 2);
-  assert.equal(started.readModel.enabledFeedCount, 0);
-  assert.deepEqual(started.readModel.feedStatuses, []);
+  assert.deepEqual(shown(started.phase).items, []);
+  assert.equal(shown(started.phase).loading, false);
+  assert.equal(shown(started.phase).error, 'no-feeds');
+  assert.equal(shown(started.phase).isCached, false);
+  assert.equal(started.phase.kind, 'no-feeds');
+  assert.equal(activityOf(started.phase, 2).title, 'No feeds enabled');
+  assert.equal(activityOf(started.phase, 0).title, 'No feeds yet');
+  assert.equal(shown(started.phase).enabledFeedCount, 0);
+  assert.deepEqual(shown(started.phase).feedStatuses, []);
   assert.deepEqual(started.effects, []);
 });
 
@@ -419,23 +444,26 @@ test('keeps configured and enabled feed counts through loading, completion, and 
     snapshot: null,
   });
 
-  assert.equal(started.readModel.configuredFeedCount, 3);
-  assert.equal(started.readModel.enabledFeedCount, 2);
+  assert.equal(started.phase.kind, 'loading');
+  assert.equal(shown(started.phase).enabledFeedCount, 2);
+  assert.equal(activityOf(started.phase, 3).type, 'loading');
 
-  const completed = applyFeedSetApiResponse(started.state, {
+  const completed = applyFeedSetApiResponse(started.phase, {
     cached: false,
     items: [],
     timeZone: 'UTC',
   });
-  assert.equal(completed.readModel.configuredFeedCount, 3);
-  assert.equal(completed.readModel.enabledFeedCount, 2);
+  assert.equal(completed.phase.kind, 'ready');
+  assert.equal(shown(completed.phase).enabledFeedCount, 2);
+  assert.equal(activityOf(completed.phase, 3).title, 'All feeds checked');
 
-  const failed = failFeedSetLifecycle(started.state, {
+  const failed = failFeedSetLifecycle(started.phase, {
     error: new Error('network failed'),
     fallbackSnapshot: null,
   });
-  assert.equal(failed.readModel.configuredFeedCount, 3);
-  assert.equal(failed.readModel.enabledFeedCount, 2);
+  assert.equal(failed.phase.kind, 'failed');
+  assert.equal(shown(failed.phase).enabledFeedCount, 2);
+  assert.equal(activityOf(failed.phase, 3).title, 'Unable to load feeds');
 });
 
 test('finishes an ended stream without persisting when no done chunk arrived', () => {
@@ -445,7 +473,7 @@ test('finishes an ended stream without persisting when no done chunk arrived', (
     now: new Date('2026-06-02T12:00:00.000Z'),
     snapshot: null,
   });
-  const withProgress = applyFeedSetStreamChunk(started.state, {
+  const withProgress = applyFeedSetStreamChunk(started.phase, {
     type: 'meta',
     requestId: 'request-4',
     cached: false,
@@ -454,10 +482,35 @@ test('finishes an ended stream without persisting when no done chunk arrived', (
     completedFeeds: 0,
   });
 
-  const finished = finishFeedSetLifecycle(withProgress.state);
+  const finished = finishFeedSetLifecycle(withProgress.phase);
 
-  assert.equal(finished.readModel.loading, false);
-  assert.equal(finished.readModel.completedFeeds, 0);
-  assert.equal(finished.readModel.totalFeeds, 0);
+  assert.equal(shown(finished.phase).loading, false);
+  assert.equal(shown(finished.phase).completedFeeds, 0);
+  assert.equal(shown(finished.phase).totalFeeds, 0);
   assert.deepEqual(finished.effects, []);
+});
+
+test('same-feed refresh keeps the current items and clears a fallback', () => {
+  const started = beginFeedSetLifecycle({
+    feeds: [{ url: 'https://example.com/feed.xml', name: 'Example' }],
+    timeZone: 'UTC',
+    now: new Date('2026-06-02T12:00:00.000Z'),
+    snapshot: null,
+  });
+  const fallback = failFeedSetLifecycle(started.phase, {
+    error: new Error('offline'),
+    now: new Date('2026-06-02T12:00:00.000Z'),
+    fallbackSnapshot: {
+      timeZone: 'UTC',
+      dayKey: '2026-06-02',
+      items: [serializedFeedItem({ title: 'Fallback' })],
+    },
+  });
+  assert.equal(fallback.phase.kind, 'snapshot-fallback');
+  const continued = continueFeedSetLifecycle(fallback.phase);
+  assert.equal(continued.phase.kind, 'loading');
+  if (continued.phase.kind !== 'loading') return;
+  assert.equal(continued.phase.preview, 'snapshot');
+  assert.equal(continued.phase.items[0].title, 'Fallback');
+  assert.equal(activityOf(continued.phase, 1).title, 'Refreshing feeds');
 });
