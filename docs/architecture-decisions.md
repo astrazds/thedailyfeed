@@ -63,7 +63,9 @@ does not announce success or replace the visible inventory.
 Web subscriptions keep `rss-feeds`. Web snapshots keep
 `rss-offline-feed-snapshots-v1` and its retention, quota, timezone, and same-day
 rules. Existing IDs, names, dates, disabled records, and inventory order survive.
-An empty saved inventory stays empty.
+An empty saved inventory stays empty. When `rss-feeds` is missing, unparseable,
+or not an array, and the old proof does not supply feeds, the reader shows the
+three default sources in memory and does not write them until a later save.
 
 The old Expo proof used a different configuration key. When the canonical key
 is absent, valid feed records can seed it once. The proof's server address and
