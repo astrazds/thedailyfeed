@@ -1,0 +1,6 @@
+feature: read-edition
+entry: open /
+url: http://127.0.0.1:3217/
+action: wait for heading "The Daily Feed"
+banner: - banner: |   - heading "The Daily Feed" [level=1] |   - text: Friday, October 23, 2026 · 0 items |   - button "Refresh feeds" [disabled]: |     - img |   - text: Loading feeds ·0 of 3 feeds checked |   - progressbar "Feed loading progress"
+rss-feeds: null
