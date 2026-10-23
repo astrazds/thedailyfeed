@@ -369,13 +369,10 @@ snapshot persistence effect, including partial or empty results. Bare stream
 closure ends loading without saving. Unfinished sources appear as **Not checked**.
 Storage errors leave network results readable.
 
-Web subscriptions retain `rss-feeds`, including IDs, names, dates, order, and
-disabled records. Web snapshots retain `rss-offline-feed-snapshots-v1` and its
-multiple-feed-set retention policy. An existing empty subscription array stays
-empty. When the canonical key is absent, unparseable, or not an array, and MVP
-import does not supply feeds, `getFeeds` presents the three default sources.
-When the canonical key is absent, a valid old Expo proof configuration can seed
-feed records once. Its backend address and snapshot are not imported.
+Web subscriptions retain `rss-feeds`. Web snapshots retain
+`rss-offline-feed-snapshots-v1` and its multiple-feed-set retention policy.
+Empty inventory, missing data, and the old Expo proof are decided in
+[Architecture decisions](docs/architecture-decisions.md#existing-browser-data-remains-canonical).
 
 ## Security
 

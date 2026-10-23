@@ -53,12 +53,9 @@ packages, and an unpublished hardened Docker image. See the root
 ## Data and platform ownership
 
 `useSubscriptions` exposes the canonical `Feed[]` inventory and complete
-subscription commands. Its web adapter reuses `lib/feed-storage.ts` and the
-`rss-feeds` key. Existing IDs, dates, order, names, and disabled records survive.
-A valid empty inventory remains empty. When `rss-feeds` is missing,
-unparseable, or not an array, and MVP import does not supply feeds, the reader
-presents the three default sources. Only an absent canonical key permits
-feed-only migration from the old Expo proof configuration.
+subscription commands. Its web adapter reuses `lib/feed-storage.ts`.
+Inventory rules are in
+[Architecture decisions](../docs/architecture-decisions.md#existing-browser-data-remains-canonical).
 
 `useReader` reuses the shared lifecycle and wire parser. Its hook owns request
 cancellation, ignores obsolete generations, and freezes the header date to
