@@ -81,7 +81,7 @@ async function expectNoRunningMotion(page: import('@playwright/test').Page) {
 }
 
 test('refresh rotation and skeleton pulse continue through partial results and stop at completion', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.emulateMedia({ reducedMotion: 'no-preference', colorScheme: 'light' });
   await controlFeedResponses(page);
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => window.feedLoadingTest.requests)).toBe(1);
@@ -91,6 +91,12 @@ test('refresh rotation and skeleton pulse continue through partial results and s
   expect((await motionSamples(rotation, 'transform')).length).toBeGreaterThan(1);
   expect((await motionSamples(pulse, 'opacity')).length).toBeGreaterThan(1);
   expect(await motionSamples(page.getByTestId('feed-skeleton-item').first(), 'opacity')).toEqual(['1']);
+  const painted = await page.evaluate(() => ({
+    html: getComputedStyle(document.documentElement).backgroundColor,
+    body: getComputedStyle(document.body).backgroundColor,
+  }));
+  expect(painted.html).toBe('rgb(250, 248, 245)');
+  expect(painted.body).toBe('rgb(250, 248, 245)');
   await send(page, [firstResult]);
   await expect(page.getByRole('heading', { name: 'A story while other feeds load' })).toBeVisible();
   expect((await motionSamples(rotation, 'transform')).length).toBeGreaterThan(1);
