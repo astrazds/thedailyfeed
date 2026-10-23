@@ -14,11 +14,12 @@ import {
   FEED_TIMEOUT_MS,
   USER_AGENT,
 } from './constants';
+import type { FeedUrl } from './url-validator';
 
 export const MAX_FEED_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_FEED_REDIRECTS = 5;
 
-interface FetchFeedXmlOptions extends FeedSecurityOptions {
+export interface OutboundFeedXmlOptions extends FeedSecurityOptions {
   maxBytes?: number;
   maxRedirects?: number;
   signal?: AbortSignal;
@@ -70,7 +71,7 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 function createSecureLookup(
-  options: FetchFeedXmlOptions
+  options: OutboundFeedXmlOptions
 ): LookupFunction {
   return (hostname, lookupOptions, callback) => {
     const family = lookupOptions.family === 4 || lookupOptions.family === 6 ? lookupOptions.family : undefined;
@@ -101,7 +102,7 @@ function createSecureLookup(
   };
 }
 
-async function getValidatedAddresses(url: URL, options: FetchFeedXmlOptions): Promise<ResolvedAddress[]> {
+async function getValidatedAddresses(url: URL, options: OutboundFeedXmlOptions): Promise<ResolvedAddress[]> {
   return resolveAndValidateHostname(url.hostname, options);
 }
 
@@ -141,7 +142,7 @@ function responseBodyToString(
 async function requestFeedUrl(
   url: URL,
   redirectCount: number,
-  options: FetchFeedXmlOptions
+  options: OutboundFeedXmlOptions
 ): Promise<string> {
   throwIfAborted(options.signal);
 
@@ -240,7 +241,7 @@ async function requestFeedUrl(
   });
 }
 
-export async function fetchFeedXml(feedUrl: string, options: FetchFeedXmlOptions = {}): Promise<string> {
+export async function fetchFeedXml(feedUrl: FeedUrl, options: OutboundFeedXmlOptions = {}): Promise<string> {
   throwIfAborted(options.signal);
 
   const timeoutMs = options.timeoutMs ?? FEED_TIMEOUT_MS;

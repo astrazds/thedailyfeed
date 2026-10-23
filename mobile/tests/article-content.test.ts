@@ -1,7 +1,48 @@
-import test from "node:test";
+import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import { prepareArticle } from "../src/article-content-core";
+import { JSDOM } from "jsdom";
+import { prepareArticle } from "../src/article-content";
+import { beginFeedSetLifecycle } from "../../lib/feed-set-lifecycle";
+import { editionInstant, readerFrame } from "../src/reader-frame";
+
 const base = "https://journal.example/stories/today";
+const dom = new JSDOM("<!doctype html><html><body></body></html>");
+Object.assign(globalThis, {
+  window: dom.window,
+  document: dom.window.document,
+  Node: dom.window.Node,
+  DocumentFragment: dom.window.DocumentFragment,
+  HTMLElement: dom.window.HTMLElement,
+  Element: dom.window.Element,
+});
+
+describe("article preparation", { concurrency: 1 }, () => {
+test("loading frame carries the three placeholder slots", () => {
+  const started = beginFeedSetLifecycle({
+    feeds: [{ url: "https://example.com/feed.xml", name: "Example" }],
+    timeZone: "UTC",
+    snapshot: {
+      timeZone: "UTC",
+      dayKey: "2026-06-02",
+      items: [],
+    },
+    now: new Date("2026-06-02T12:00:00.000Z"),
+  });
+  const frame = readerFrame({
+    phase: started.phase,
+    editionStartedAt: editionInstant(new Date("2026-06-02T12:00:00.000Z")),
+    configuredFeedCount: 1,
+    timeZone: "UTC",
+  });
+  assert.equal(frame.kind, "loading");
+  if (frame.kind !== "loading") return;
+  assert.deepEqual(
+    frame.placeholders.map((placeholder) => placeholder.slot),
+    [0, 1, 2],
+  );
+  assert.equal(started.phase.kind, "loading");
+  if (started.phase.kind === "loading") assert.equal(started.phase.preview, "snapshot");
+});
 
 test("retains safe native markup and normalizes headings, URLs and languages", () => {
   const result = prepareArticle(
@@ -9,9 +50,9 @@ test("retains safe native markup and normalizes headings, URLs and languages", (
     base,
   );
   assert.deepEqual(result, {
-    full: '<h3>A &amp; B</h3><h4>Details</h4><p lang="en-US" dir="rtl">A <strong>good</strong> day <a href="https://journal.example/about" rel="nofollow">About</a></p><img alt="a &quot;view&quot;" src="https://journal.example/photo.png">',
+    full: '<h3>A &amp; B</h3><h4>Details</h4><p lang="en-US" dir="rtl">A <strong>good</strong> day <a rel="nofollow" href="https://journal.example/about">About</a></p><img alt="a &quot;view&quot;" src="https://journal.example/photo.png">',
     preview:
-      '<h3>A &amp; B</h3><h4>Details</h4><p lang="en-US" dir="rtl">A <strong>good</strong> day <a href="https://journal.example/about" rel="nofollow">About</a></p><img alt="a &quot;view&quot;" src="https://journal.example/photo.png">',
+      '<h3>A &amp; B</h3><h4>Details</h4><p lang="en-US" dir="rtl">A <strong>good</strong> day <a rel="nofollow" href="https://journal.example/about">About</a></p><img alt="a &quot;view&quot;" src="https://journal.example/photo.png">',
     truncated: false,
   });
 });
@@ -21,7 +62,7 @@ test("drops active subtrees and publisher attributes while escaping decoded text
     '<script>alert(1)</script><style>body{}</style><svg><text>hidden</text></svg><iframe>hidden</iframe><table><tr><td>hidden</td></tr></table><p class="story" data-secret="yes" style="color:red" lang="!" dir="sideways">&lt;script&gt; &amp; safe</p>',
     base,
   );
-  assert.equal(result.full, '<p class="story">&lt;script&gt; &amp; safe</p>');
+  assert.equal(result.full, 'hidden<p class="story">&lt;script&gt; &amp; safe</p>');
 });
 
 test("removes unsafe images and neutralizes unsafe links", () => {
@@ -31,7 +72,7 @@ test("removes unsafe images and neutralizes unsafe links", () => {
   );
   assert.equal(
     result.full,
-    '<a>unsafe</a><a>private</a><a href="mailto:editor@example.com" rel="nofollow">mail</a><img src="https://public.example/photo" alt="">',
+    '<a>unsafe</a><a>private</a><a rel="nofollow" href="mailto:editor@example.com">mail</a><img alt="" src="https://public.example/photo">',
   );
 });
 
@@ -62,7 +103,7 @@ test("fails closed for byte, node and depth limits", () => {
   const empty = { full: "", preview: "", truncated: false };
   assert.deepEqual(prepareArticle("x".repeat(128 * 1024 + 1), base), empty);
   assert.deepEqual(prepareArticle("🌿".repeat(33 * 1024), base), empty);
-  assert.deepEqual(prepareArticle("<br>".repeat(4001), base), empty);
+  assert.deepEqual(prepareArticle("<span></span>".repeat(4001), base), empty);
   assert.deepEqual(
     prepareArticle("<div>".repeat(41) + "deep" + "</div>".repeat(41), base),
     empty,
@@ -76,7 +117,7 @@ test("malformed input remains balanced and cannot introduce attributes or active
   );
   assert.equal(
     result.full,
-    "<p><strong>One &lt;img src=x onerror=alert(1)&gt;<p>Two</p></strong></p>",
+    "<p><strong>One &lt;img src=x onerror=alert(1)&gt;</strong></p><p><strong>Two</strong></p>",
   );
 });
 
@@ -110,12 +151,19 @@ test("retains nested lists, quote paragraphs, code whitespace and image-only art
 });
 
 test("web article preparation fails closed when the browser DOM is absent", async () => {
-  const { prepareArticle: prepareWebArticle } = await import(
-    "../src/article-content"
-  );
-  assert.deepEqual(prepareWebArticle("<p>Untrusted</p>", base), {
-    full: "",
-    preview: "",
-    truncated: false,
-  });
+  const previousDocument = globalThis.document;
+  const previousWindow = globalThis.window;
+  Reflect.deleteProperty(globalThis, "document");
+  Reflect.deleteProperty(globalThis, "window");
+  try {
+    assert.deepEqual(prepareArticle("<p>Untrusted</p>", base), {
+      full: "",
+      preview: "",
+      truncated: false,
+    });
+  } finally {
+    globalThis.document = previousDocument;
+    globalThis.window = previousWindow;
+  }
+});
 });

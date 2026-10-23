@@ -1,8 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchFeedXml, FeedResponseTooLargeError, FeedTimeoutError } from '../lib/feed-fetcher';
+import { fetchFeedXml, FeedResponseTooLargeError, FeedTimeoutError, type OutboundFeedXmlOptions } from '../lib/feed-fetcher';
+import { feedUrl, type FeedUrl } from '../lib/url-validator';
 import { parseFeed, parseFeedsProgressively } from '../lib/rss';
 import { createTestServer, waitFor } from './helpers/http-test-server.mts';
+
+function outbound(value: string): FeedUrl {
+  const branded = feedUrl(value);
+  assert.ok(branded);
+  return branded;
+}
+
+function fetchXml(value: string, options?: OutboundFeedXmlOptions) {
+  return fetchFeedXml(outbound(value), options);
+}
+
+test('fetchFeedXml accepts only a feed URL', () => {
+  assert.equal(feedUrl('ftp://example.com/feed.xml'), null);
+  assert.equal(feedUrl('https://feeds.example.com/feed.xml'), 'https://feeds.example.com/feed.xml');
+});
 
 test('fetchFeedXml enforces max response size', async () => {
   const server = await createTestServer((_request, response) => {
@@ -12,7 +28,7 @@ test('fetchFeedXml enforces max response size', async () => {
 
   try {
     await assert.rejects(
-      () => fetchFeedXml(`${server.url}/feed.xml`, { maxBytes: 32 }),
+      () => fetchXml(`${server.url}/feed.xml`, { maxBytes: 32 }),
       FeedResponseTooLargeError
     );
   } finally {
@@ -30,7 +46,7 @@ test('fetchFeedXml aborts the underlying request when its signal aborts', async 
   const abortController = new AbortController();
 
   try {
-    const pendingFetch = fetchFeedXml(`${server.url}/feed.xml`, {
+    const pendingFetch = fetchXml(`${server.url}/feed.xml`, {
       signal: abortController.signal,
       timeoutMs: 10_000,
     });
@@ -51,7 +67,7 @@ test('fetchFeedXml aborts the underlying request when its signal aborts', async 
 
 test('fetchFeedXml timeout includes DNS resolution', async () => {
   await assert.rejects(
-    () => fetchFeedXml('https://feeds.example.com/feed.xml', {
+    () => fetchXml('https://feeds.example.com/feed.xml', {
       resolveHostname: () => new Promise(() => {}),
       timeoutMs: 20,
     }),
@@ -61,7 +77,7 @@ test('fetchFeedXml timeout includes DNS resolution', async () => {
 
 test('fetchFeedXml can be aborted during DNS resolution', async () => {
   const abortController = new AbortController();
-  const pendingFetch = fetchFeedXml('https://feeds.example.com/feed.xml', {
+  const pendingFetch = fetchXml('https://feeds.example.com/feed.xml', {
     resolveHostname: () => new Promise(() => {}),
     signal: abortController.signal,
     timeoutMs: 10_000,
@@ -85,7 +101,7 @@ test('fetchFeedXml timeout includes redirect validation', async () => {
 
   try {
     await assert.rejects(
-      () => fetchFeedXml(`${server.url}/feed.xml`, {
+      () => fetchXml(`${server.url}/feed.xml`, {
         resolveHostname: async () => {
           resolutionCount += 1;
           if (resolutionCount > 2) {
@@ -114,7 +130,7 @@ test('fetchFeedXml timeout aborts response-body streaming', async () => {
 
   try {
     await assert.rejects(
-      () => fetchFeedXml(`${server.url}/feed.xml`, { timeoutMs: 30 }),
+      () => fetchXml(`${server.url}/feed.xml`, { timeoutMs: 30 }),
       FeedTimeoutError
     );
     await waitFor(() => connectionClosed, 1_000);

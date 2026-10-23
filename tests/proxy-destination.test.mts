@@ -2,34 +2,38 @@ import assert from 'node:assert/strict';
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
-import { proxyDestination } from '../scripts/proxy-destination.ts';
+import { configuredOrigin, originFormTarget, proxyDestination } from '../scripts/proxy-destination.ts';
 
-const configuredOrigin = 'http://127.0.0.1:3000';
+const configured = configuredOrigin('http://127.0.0.1:3000');
+
+function destination(target: string, origin: string) {
+  return proxyDestination(originFormTarget(target), origin === 'http://127.0.0.1:3000' ? configured : configuredOrigin(origin));
+}
 
 test('absolute-form targets forward only the path and search', () => {
-  const destination = proxyDestination('http://user:pass@other-host:9999/foo%2Fbar?q=%2F#frag', configuredOrigin);
+  const destinationUrl = destination('http://user:pass@other-host:9999/foo%2Fbar?q=%2F#frag', 'http://127.0.0.1:3000');
 
-  assert.equal(destination.href, 'http://127.0.0.1:3000/foo%2Fbar?q=%2F');
-  assert.equal(destination.username, '');
-  assert.equal(destination.password, '');
+  assert.equal(destinationUrl.href, 'http://127.0.0.1:3000/foo%2Fbar?q=%2F');
+  assert.equal(destinationUrl.username, '');
+  assert.equal(destinationUrl.password, '');
 });
 
 test('origin-form targets stay on the configured origin', () => {
-  const destination = proxyDestination('/sw.js', configuredOrigin);
+  const destinationUrl = destination('/sw.js', 'http://127.0.0.1:3000');
 
-  assert.equal(destination.href, 'http://127.0.0.1:3000/sw.js');
+  assert.equal(destinationUrl.href, 'http://127.0.0.1:3000/sw.js');
 });
 
 test('a path that starts with two slashes stays on the configured origin', async () => {
   const backend = await listen();
   try {
-    const destination = proxyDestination('http://other-host//evil.example/secret?x=1', backend.origin);
+    const destinationUrl = destination('http://other-host//evil.example/secret?x=1', backend.origin);
 
-    assert.equal(destination.origin, backend.origin);
-    assert.equal(destination.pathname, '//evil.example/secret');
-    assert.equal(destination.search, '?x=1');
+    assert.equal(destinationUrl.origin, backend.origin);
+    assert.equal(destinationUrl.pathname, '//evil.example/secret');
+    assert.equal(destinationUrl.search, '?x=1');
 
-    assert.equal(await requestStatus(destination), 204);
+    assert.equal(await requestStatus(destinationUrl), 204);
     assert.deepEqual(backend.hits, ['//evil.example/secret?x=1']);
   } finally {
     await backend.close();
@@ -40,10 +44,10 @@ test('an absolute-form request reaches the configured server', async () => {
   const backend = await listen();
   const other = await listen();
   try {
-    const destination = proxyDestination(`http://127.0.0.1:${other.port}/secret?x=1`, backend.origin);
+    const destinationUrl = destination(`http://127.0.0.1:${other.port}/secret?x=1`, backend.origin);
 
-    assert.equal(destination.origin, backend.origin);
-    assert.equal(await requestStatus(destination), 204);
+    assert.equal(destinationUrl.origin, backend.origin);
+    assert.equal(await requestStatus(destinationUrl), 204);
     assert.deepEqual(backend.hits, ['/secret?x=1']);
     assert.deepEqual(other.hits, []);
   } finally {

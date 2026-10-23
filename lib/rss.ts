@@ -9,6 +9,7 @@ import {
   FEED_OVERALL_TIMEOUT_MS,
 } from './constants';
 import { FeedTimeoutError, fetchFeedXml, isAbortError } from './feed-fetcher';
+import { feedUrl as toFeedUrl } from './url-validator';
 import { normalizeSafeArticleLink } from './feed-link-policy';
 
 interface ParseFeedsOptions {
@@ -55,7 +56,11 @@ export async function parseFeed(
   options: ParseFeedOptions = {}
 ): Promise<FeedItem[]> {
   try {
-    const feedXml = await fetchFeedXml(feedUrl, {
+    const brandedFeedUrl = toFeedUrl(feedUrl);
+    if (!brandedFeedUrl) {
+      throw new Error('Invalid feed URL. Only HTTP and HTTPS URLs are allowed.');
+    }
+    const feedXml = await fetchFeedXml(brandedFeedUrl, {
       signal: options.signal,
     });
     const feed = await parser.parseString(feedXml);

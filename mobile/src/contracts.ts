@@ -1,10 +1,6 @@
-export interface ReaderFeed {
-  url: string;
-  name: string;
-}
 export interface ReaderConfig {
   configuredFeedCount: number;
-  feeds: ReaderFeed[];
+  feeds: { url: string; name: string }[];
   timeZone: string;
 }
 export interface PreparedArticle {

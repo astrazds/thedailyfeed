@@ -65,7 +65,7 @@ const {
   mergeAndSortFeedItems,
   parseFeedStreamLine,
 } = (await import(parserPath)) as ParserModule;
-const { DEFAULT_FEEDS, getFeeds } = (await import(feedStoragePath)) as FeedStorageModule;
+const { DEFAULT_FEEDS, feedsForReader, peekFeedInventory, runFeedManagerOperation } = (await import(feedStoragePath)) as FeedStorageModule;
 const { STORAGE_KEY_FEEDS } = (await import(constantsPath)) as ConstantsModule;
 const {
   OFFLINE_FEED_SNAPSHOT_STORAGE_KEY,
@@ -199,7 +199,7 @@ test('merges feed items by stable identity and sorts newest first', () => {
   assert.equal(merged[1].link, 'https://example.com/older');
 });
 
-test('getFeeds prunes corrupt localStorage feed records and keeps safe valid records', () => {
+test('peek shows cleaned feeds and hydrate is what persists them', async () => {
   const storage = installBrowserStorage();
   storage.setItem(
     STORAGE_KEY_FEEDS,
@@ -228,26 +228,77 @@ test('getFeeds prunes corrupt localStorage feed records and keeps safe valid rec
       { id: 'feed-4' },
     ])
   );
+  const before = storage.getItem(STORAGE_KEY_FEEDS);
 
-  const feeds = getFeeds();
-  assert.equal(feeds.length, 1);
-  assert.equal(feeds[0].url, 'https://example.com/feed.xml');
-  assert.equal(feeds[0].name, 'Example');
-  assert.ok(feeds[0].addedAt instanceof Date);
+  const preview = feedsForReader(peekFeedInventory());
+  assert.equal(preview.length, 1);
+  assert.equal(preview[0].url, 'https://example.com/feed.xml');
+  assert.equal(preview[0].name, 'Example');
+  assert.ok(preview[0].addedAt instanceof Date);
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), before);
 
-  const pruned = JSON.parse(storage.getItem(STORAGE_KEY_FEEDS) ?? '[]') as unknown[];
-  assert.equal(pruned.length, 1);
+  await runFeedManagerOperation({ type: 'hydrate' });
+  const persisted = JSON.parse(storage.getItem(STORAGE_KEY_FEEDS) ?? '[]') as Array<{ name: string; url: string }>;
+  assert.equal(persisted.length, 1);
+  assert.equal(persisted[0].url, preview[0].url);
+  assert.equal(persisted[0].name, preview[0].name);
+  const afterHydrate = storage.getItem(STORAGE_KEY_FEEDS);
+  await runFeedManagerOperation({ type: 'hydrate' });
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), afterHydrate);
 });
 
-test('getFeeds returns defaults for non-array localStorage data', () => {
+test('unreadable inventory shows defaults and hydrate does not persist them', async () => {
   const storage = installBrowserStorage();
   storage.setItem(STORAGE_KEY_FEEDS, JSON.stringify({ feeds: [] }));
+  const before = storage.getItem(STORAGE_KEY_FEEDS);
 
-  const feeds = getFeeds();
+  const feeds = feedsForReader(peekFeedInventory());
   assert.deepEqual(
     feeds.map((feed) => feed.id),
     DEFAULT_FEEDS.map((feed) => feed.id)
   );
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), before);
+  await runFeedManagerOperation({ type: 'hydrate' });
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), before);
+});
+
+test('an absent key previews defaults and hydrate writes an Expo proof once', async () => {
+  const storage = installBrowserStorage();
+  storage.setItem(
+    'daily-feed-expo.config.v1',
+    JSON.stringify({ feeds: [{ name: 'MVP', url: 'https://mvp.example/feed' }] })
+  );
+
+  const preview = feedsForReader(peekFeedInventory());
+  assert.deepEqual(preview.map((feed) => feed.id), DEFAULT_FEEDS.map((feed) => feed.id));
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), null);
+
+  await runFeedManagerOperation({ type: 'hydrate' });
+  const seeded = JSON.parse(storage.getItem(STORAGE_KEY_FEEDS) ?? '[]') as Array<{ name: string; url: string }>;
+  assert.deepEqual(seeded.map((feed) => ({ name: feed.name, url: feed.url })), [
+    { name: 'MVP', url: 'https://mvp.example/feed' },
+  ]);
+  const persisted = feedsForReader(peekFeedInventory());
+  assert.equal(persisted.length, 1);
+  assert.equal(persisted[0].name, 'MVP');
+
+  storage.setItem('daily-feed-expo.config.v1', JSON.stringify({ feeds: [] }));
+  const afterSeed = storage.getItem(STORAGE_KEY_FEEDS);
+  await runFeedManagerOperation({ type: 'hydrate' });
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), afterSeed);
+});
+
+test('an empty inventory stays empty and does not adopt an Expo proof', async () => {
+  const storage = installBrowserStorage();
+  storage.setItem(STORAGE_KEY_FEEDS, '[]');
+  storage.setItem(
+    'daily-feed-expo.config.v1',
+    JSON.stringify({ feeds: [{ name: 'MVP', url: 'https://mvp.example/feed' }] })
+  );
+  assert.deepEqual(feedsForReader(peekFeedInventory()), []);
+  await runFeedManagerOperation({ type: 'hydrate' });
+  assert.equal(storage.getItem(STORAGE_KEY_FEEDS), '[]');
+  assert.equal(peekFeedInventory().kind, 'empty');
 });
 
 test('offline snapshots validate items and cap serialized snapshot size', () => {

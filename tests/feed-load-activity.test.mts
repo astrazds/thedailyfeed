@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { feedActivityAnnouncement, getFeedLoadActivity } from '../lib/feed-load-activity';
+import { feedActivityAnnouncement, activityOf } from '../lib/feed-load-activity';
+import { beginFeedSetLifecycle, failFeedSetLifecycle } from '../lib/feed-set-lifecycle';
+import { getDayKeyForTimeZone } from '../lib/date-utils';
 import type { FeedItem } from '../lib/types';
 
 const savedItem: FeedItem = {
@@ -11,17 +13,23 @@ const savedItem: FeedItem = {
 };
 
 function snapshotFallback(items: FeedItem[]) {
-  return getFeedLoadActivity({
-    loading: false,
-    items,
-    error: null,
-    refreshNotice: 'snapshot-fallback',
-    enabledFeedCount: 1,
-    configuredFeedCount: 1,
-    completedFeeds: 0,
-    totalFeeds: 1,
-    feedStatuses: [],
+  const now = savedItem.pubDate;
+  const started = beginFeedSetLifecycle({
+    feeds: [{ url: 'https://example.com/feed.xml', name: 'Example' }],
+    timeZone: 'UTC',
+    now,
+    snapshot: null,
   });
+  const failed = failFeedSetLifecycle(started.phase, {
+    error: new Error('offline'),
+    now,
+    fallbackSnapshot: {
+      timeZone: 'UTC',
+      dayKey: getDayKeyForTimeZone(now, 'UTC'),
+      items: items.map((item) => ({ ...item, pubDate: item.pubDate.toISOString() })),
+    },
+  });
+  return activityOf(failed.phase, 1);
 }
 
 test('an empty snapshot fallback asks the reader to try again', () => {

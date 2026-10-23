@@ -26,6 +26,7 @@ export interface FeedImportSummary {
 export type ValidateFeedUrl = (url: string) => Promise<void>;
 
 export type FeedManagerOperation =
+  | { type: 'hydrate' }
   | {
       type: 'add';
       name: string;
@@ -54,11 +55,17 @@ export type FeedManagerOperation =
     };
 
 export type FeedManagerOperationResult = { feeds: Feed[] } & (
-  | { type: 'add' | 'edit' | 'toggle' | 'delete' }
+  | { type: 'hydrate' | 'add' | 'edit' | 'toggle' | 'delete' }
   | { type: 'import-opml'; summary: FeedImportSummary }
 );
 
+export type FeedInventory =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'empty' }
+  | { readonly kind: 'present'; readonly feeds: readonly Feed[] };
+
 const STORAGE_KEY = STORAGE_KEY_FEEDS;
+const MVP_CONFIG_KEY = 'daily-feed-expo.config.v1';
 
 export const DEFAULT_FEEDS: Feed[] = [
   {
@@ -167,33 +174,132 @@ function parseFeeds(value: unknown): Feed[] | null {
   return feeds;
 }
 
-export function getFeeds(): Feed[] {
-  if (typeof window === 'undefined') return getDefaultFeeds();
-  
+type StoredFeeds =
+  | { status: 'absent' }
+  | { status: 'unreadable' }
+  | { status: 'empty' }
+  | { status: 'present'; feeds: Feed[]; dirty: boolean };
+
+function logStorageReadError(error: unknown): void {
+  const err = error instanceof Error ? error : new Error('Unknown localStorage read error');
+  logger.error('Failed to load feeds from localStorage', err);
+}
+
+function readStoredFeeds(): StoredFeeds {
+  if (typeof window === 'undefined') return { status: 'absent' };
+
+  let stored: string | null;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return getDefaultFeeds();
-    
-    const parsed: unknown = JSON.parse(stored);
-    const feeds = parseFeeds(parsed);
-    if (!feeds) {
-      return getDefaultFeeds();
-    }
-
-    if (Array.isArray(parsed) && feeds.length !== parsed.length) {
-      try {
-        saveFeeds(feeds);
-      } catch {
-        void 0;
-      }
-    }
-
-    return feeds;
+    stored = localStorage.getItem(STORAGE_KEY);
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown localStorage read error');
-    logger.error('Failed to load feeds from localStorage', err);
+    logStorageReadError(error);
+    return { status: 'unreadable' };
+  }
+
+  if (stored === null) return { status: 'absent' };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stored);
+  } catch (error) {
+    logStorageReadError(error);
+    return { status: 'unreadable' };
+  }
+
+  if (!Array.isArray(parsed)) return { status: 'unreadable' };
+
+  const feeds = parseFeeds(parsed) ?? [];
+  if (feeds.length === 0 && parsed.length === 0) return { status: 'empty' };
+  return { status: 'present', feeds, dirty: feeds.length !== parsed.length };
+}
+
+function readExpoProof(): Feed[] | null {
+  if (typeof window === 'undefined') return null;
+
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(MVP_CONFIG_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      !('feeds' in value) ||
+      !Array.isArray(value.feeds) ||
+      value.feeds.length > MAX_FEEDS_PER_REQUEST
+    ) {
+      return null;
+    }
+
+    const urls = new Set<string>();
+    return value.feeds.map((entry: unknown) => {
+      if (
+        typeof entry !== 'object' ||
+        entry === null ||
+        !('name' in entry) ||
+        typeof entry.name !== 'string' ||
+        !entry.name.trim() ||
+        !('url' in entry) ||
+        typeof entry.url !== 'string'
+      ) {
+        throw new Error('Invalid saved feed');
+      }
+      const url = validateAndNormalizeFeedUrl(entry.url);
+      if (urls.has(url)) throw new Error('Duplicate saved feed');
+      urls.add(url);
+      return {
+        id: crypto.randomUUID(),
+        url,
+        name: entry.name.trim(),
+        enabled: true,
+        addedAt: new Date(),
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+export function peekFeedInventory(): FeedInventory {
+  const stored = readStoredFeeds();
+  if (stored.status === 'absent') return { kind: 'absent' };
+  if (stored.status === 'unreadable') return { kind: 'present', feeds: getDefaultFeeds() };
+  if (stored.status === 'empty' || stored.feeds.length === 0) return { kind: 'empty' };
+  return { kind: 'present', feeds: stored.feeds };
+}
+
+export function feedsForReader(inventory: FeedInventory): readonly Feed[] {
+  if (inventory.kind === 'absent') return getDefaultFeeds();
+  if (inventory.kind === 'empty') return [];
+  return inventory.feeds;
+}
+
+function feedsForMutation(): Feed[] {
+  return [...feedsForReader(peekFeedInventory())];
+}
+
+function hydrateFeeds(): Feed[] {
+  const stored = readStoredFeeds();
+  if (stored.status === 'absent') {
+    const seeded = readExpoProof();
+    if (seeded) {
+      saveFeeds(seeded);
+      return seeded;
+    }
     return getDefaultFeeds();
   }
+  if (stored.status === 'present' && stored.dirty) {
+    saveFeeds(stored.feeds);
+    return stored.feeds;
+  }
+  if (stored.status === 'present') return stored.feeds;
+  if (stored.status === 'empty') return [];
+  return getDefaultFeeds();
 }
 
 export class FeedStorageError extends Error {
@@ -354,12 +460,15 @@ function didEnabledFeedSetChange(previousFeeds: Feed[], nextFeeds: Feed[]): bool
 export async function runFeedManagerOperation(
   operation: FeedManagerOperation
 ): Promise<FeedManagerOperationResult> {
-  if (operation.type === 'add') assertFeedCapacity(getFeeds());
+  if (operation.type === 'hydrate') {
+    return { type: 'hydrate', feeds: hydrateFeeds() };
+  }
+  if (operation.type === 'add') assertFeedCapacity(feedsForMutation());
   if (operation.type === 'add' || operation.type === 'edit') {
     await operation.validateFeedUrl(operation.url.trim());
   }
 
-  const previousFeeds = getFeeds();
+  const previousFeeds = feedsForMutation();
   let result: FeedManagerOperationResult;
 
   switch (operation.type) {

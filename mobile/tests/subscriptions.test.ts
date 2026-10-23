@@ -86,17 +86,25 @@ test("MVP imports subscriptions once without promoting a foreign article snapsho
     JSON.stringify({ items: [{ title: "Foreign article" }] }),
   );
   const imported = readSubscriptions();
-  assert.equal(imported.length, 1);
-  assert.equal(imported[0].name, "MVP");
-  assert.equal(imported[0].enabled, true);
-  assert.ok(imported[0].id);
-  assert.ok(!Number.isNaN(imported[0].addedAt.getTime()));
+  assert.deepEqual(
+    imported.map((item) => item.id),
+    (await import("../../lib/feed-storage")).DEFAULT_FEEDS.map((item) => item.id),
+  );
+  assert.equal(storage.has(canonicalKey), false);
+  await applySubscription({ type: "hydrate" });
+  const seeded = readSubscriptions();
+  assert.equal(seeded.length, 1);
+  assert.equal(seeded[0].name, "MVP");
+  assert.equal(seeded[0].enabled, true);
+  assert.ok(seeded[0].id);
+  assert.ok(!Number.isNaN(seeded[0].addedAt.getTime()));
   storage.set(mvpKey, JSON.stringify({ feeds: [] }));
-  assert.deepEqual(readSubscriptions(), imported);
+  await applySubscription({ type: "hydrate" });
+  assert.deepEqual(readSubscriptions(), seeded);
   assert.equal(await loadSnapshot(config), null);
 });
 
-test("corrupt canonical arrays preserve valid records without importing MVP", () => {
+test("corrupt canonical arrays preserve valid records without importing MVP", async () => {
   seedMvp();
   storage.set(
     canonicalKey,
@@ -105,6 +113,8 @@ test("corrupt canonical arrays preserve valid records without importing MVP", ()
   assert.deepEqual(readSubscriptions(), [
     { ...feed, addedAt: new Date(feed.addedAt) },
   ]);
+  assert.notEqual(storage.get(canonicalKey), JSON.stringify([feed]));
+  await applySubscription({ type: "hydrate" });
   assert.deepEqual(JSON.parse(storage.get(canonicalKey)!), [feed]);
 });
 
@@ -205,14 +215,16 @@ test("canonical snapshots preserve multiple feed sets and enforce same-day timez
     await loadSnapshot({ ...config, timeZone: "Pacific/Auckland" }),
     null,
   );
-  assert.equal(
-    beginFeedSetLifecycle({
-      ...config,
-      snapshot,
-      now: new Date(Date.now() + 86_400_000),
-    }).readModel.items.length,
-    0,
-  );
+  const stale = beginFeedSetLifecycle({
+    ...config,
+    snapshot,
+    now: new Date(Date.now() + 86_400_000),
+  });
+  assert.equal(stale.phase.kind, "loading");
+  if (stale.phase.kind === "loading") {
+    assert.equal(stale.phase.preview, "none");
+    assert.equal(stale.phase.items.length, 0);
+  }
   assert.equal(
     JSON.parse(storage.get(OFFLINE_FEED_SNAPSHOT_STORAGE_KEY)!).length,
     2,

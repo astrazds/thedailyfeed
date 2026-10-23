@@ -18,14 +18,53 @@ export interface FeedSetLifecycleSnapshot {
   items: FeedApiResponse['items'];
 }
 
-export interface FeedSetLifecycleStatusItem {
+export interface FeedStatus {
   feedUrl: string;
   feedName: string;
   status: 'pending' | FeedStreamStatus;
   itemCount: number;
 }
 
-export interface FeedSetLifecycleReadModel {
+export type FeedSetLifecycleStatusItem = FeedStatus;
+
+declare const phaseBrand: unique symbol;
+
+export type FeedSetPhase = { readonly [phaseBrand]: true } & (
+  | {
+      kind: 'loading';
+      items: readonly FeedItem[];
+      preview: 'snapshot' | 'none';
+      completedFeeds: number;
+      totalFeeds: number;
+      feedStatuses: readonly FeedStatus[];
+      requestId: string | null;
+    }
+  | { kind: 'no-feeds' }
+  | {
+      kind: 'ready' | 'partial' | 'interrupted';
+      items: readonly FeedItem[];
+      cached: boolean;
+      feedStatuses: readonly FeedStatus[];
+      requestId: string | null;
+    }
+  | {
+      kind: 'failed';
+      items: readonly FeedItem[];
+      message: string;
+      feedStatuses: readonly FeedStatus[];
+      requestId: string | null;
+    }
+  | {
+      kind: 'snapshot-fallback';
+      items: readonly FeedItem[];
+      feedStatuses: readonly FeedStatus[];
+      requestId: string | null;
+    }
+);
+
+const phaseBrandSymbol = Symbol('FeedSetPhase');
+
+interface Internal {
   items: FeedItem[];
   loading: boolean;
   error: string | null;
@@ -35,32 +74,14 @@ export interface FeedSetLifecycleReadModel {
   enabledFeedCount: number;
   completedFeeds: number;
   totalFeeds: number;
-  feedStatuses: FeedSetLifecycleStatusItem[];
-  requestId: string | null;
-}
-
-const feedSetLifecycleStateBrand: unique symbol = Symbol('FeedSetLifecycleState');
-
-export interface FeedSetLifecycleState {
-  readonly [feedSetLifecycleStateBrand]: true;
-}
-
-interface FeedSetLifecycleImplementationState extends FeedSetLifecycleState {
-  items: FeedItem[];
-  loading: boolean;
-  error: string | null;
-  isCached: boolean;
-  refreshNotice: 'snapshot-fallback' | null;
-  configuredFeedCount: number;
-  enabledFeedCount: number;
-  completedFeeds: number;
-  totalFeeds: number;
-  feedStatuses: FeedSetLifecycleStatusItem[];
+  feedStatuses: FeedStatus[];
   feedUrls: string[];
   timeZone: string;
   requestId: string | null;
   hasAppliedNetworkResults: boolean;
 }
+
+const internals = new WeakMap<FeedSetPhase, Internal>();
 
 export type FeedSetLifecycleEffect =
   | {
@@ -71,44 +92,70 @@ export type FeedSetLifecycleEffect =
     };
 
 export interface FeedSetLifecycleTransition {
-  state: FeedSetLifecycleState;
-  readModel: FeedSetLifecycleReadModel;
+  phase: FeedSetPhase;
   effects: FeedSetLifecycleEffect[];
 }
 
-function readModelFromState(
-  state: FeedSetLifecycleImplementationState
-): FeedSetLifecycleReadModel {
-  return {
+function branded(phase: Record<string, unknown>): FeedSetPhase {
+  return { [phaseBrandSymbol]: true, ...phase } as unknown as FeedSetPhase;
+}
+
+function toPhase(state: Internal): FeedSetPhase {
+  if (state.loading) {
+    return branded({
+      kind: 'loading',
+      items: state.items,
+      preview: state.isCached ? 'snapshot' : 'none',
+      completedFeeds: state.completedFeeds,
+      totalFeeds: state.totalFeeds,
+      feedStatuses: state.feedStatuses,
+      requestId: state.requestId,
+    });
+  }
+  if (state.error === 'no-feeds') {
+    return branded({ kind: 'no-feeds' });
+  }
+  if (state.refreshNotice === 'snapshot-fallback') {
+    return branded({
+      kind: 'snapshot-fallback',
+      items: state.items,
+      feedStatuses: state.feedStatuses,
+      requestId: state.requestId,
+    });
+  }
+  if (state.error) {
+    return branded({
+      kind: 'failed',
+      items: state.items,
+      message: state.error,
+      feedStatuses: state.feedStatuses,
+      requestId: state.requestId,
+    });
+  }
+  const pending = state.feedStatuses.some((feed) => feed.status === 'pending');
+  const failed = state.feedStatuses.some((feed) => feed.status === 'error' || feed.status === 'timeout');
+  const kind = pending ? 'interrupted' : failed ? 'partial' : 'ready';
+  return branded({
+    kind,
     items: state.items,
-    loading: state.loading,
-    error: state.error,
-    isCached: state.isCached,
-    refreshNotice: state.refreshNotice,
-    configuredFeedCount: state.configuredFeedCount,
-    enabledFeedCount: state.enabledFeedCount,
-    completedFeeds: state.completedFeeds,
-    totalFeeds: state.totalFeeds,
+    cached: state.isCached,
     feedStatuses: state.feedStatuses,
     requestId: state.requestId,
-  };
+  });
 }
 
-function transitionFromState(
-  state: FeedSetLifecycleImplementationState,
-  effects: FeedSetLifecycleEffect[]
-): FeedSetLifecycleTransition {
-  return {
-    state,
-    readModel: readModelFromState(state),
-    effects,
-  };
+function publish(state: Internal, effects: FeedSetLifecycleEffect[]): FeedSetLifecycleTransition {
+  const phase = toPhase(state);
+  internals.set(phase, state);
+  return { phase, effects };
 }
 
-function implementationStateOf(
-  state: FeedSetLifecycleState
-): FeedSetLifecycleImplementationState {
-  return state as FeedSetLifecycleImplementationState;
+function internalOf(phase: FeedSetPhase): Internal {
+  const state = internals.get(phase);
+  if (!state) {
+    throw new Error('Unknown feed set phase');
+  }
+  return state;
 }
 
 export function beginFeedSetLifecycle(input: {
@@ -124,9 +171,8 @@ export function beginFeedSetLifecycle(input: {
   const normalizedTimeZone = normalizeTimeZone(input.timeZone);
 
   if (feedUrls.length === 0) {
-    return transitionFromState(
+    return publish(
       {
-        [feedSetLifecycleStateBrand]: true,
         items: [],
         loading: false,
         error: 'no-feeds',
@@ -149,9 +195,8 @@ export function beginFeedSetLifecycle(input: {
   const snapshot = getUsableSnapshot(input.snapshot, normalizedTimeZone, input.now ?? new Date());
   const items = snapshot ? deserializeFeedItems(snapshot.items) : [];
 
-  return transitionFromState(
+  return publish(
     {
-      [feedSetLifecycleStateBrand]: true,
       items,
       loading: true,
       error: null,
@@ -171,6 +216,22 @@ export function beginFeedSetLifecycle(input: {
       timeZone: normalizedTimeZone,
       requestId: null,
       hasAppliedNetworkResults: false,
+    },
+    []
+  );
+}
+
+export function continueFeedSetLifecycle(phase: FeedSetPhase): FeedSetLifecycleTransition {
+  const current = internalOf(phase);
+  return publish(
+    {
+      ...current,
+      loading: true,
+      error: null,
+      refreshNotice: null,
+      isCached: current.isCached || current.refreshNotice === 'snapshot-fallback',
+      completedFeeds: 0,
+      totalFeeds: current.feedUrls.length,
     },
     []
   );
@@ -202,13 +263,13 @@ function formatFeedSetFailureMessage(requestId: string | null): string {
 }
 
 export function applyFeedSetStreamChunk(
-  state: FeedSetLifecycleState,
+  phase: FeedSetPhase,
   chunk: FeedStreamChunk
 ): FeedSetLifecycleTransition {
-  const currentState = implementationStateOf(state);
+  const currentState = internalOf(phase);
 
   if (chunk.type === 'meta') {
-    return transitionFromState(
+    return publish(
       {
         ...currentState,
         requestId: chunk.requestId,
@@ -228,14 +289,14 @@ export function applyFeedSetStreamChunk(
     const existingStatus = currentState.feedStatuses.find(
       (item) => item.feedUrl === chunk.feedUrl
     );
-    const nextStatus: FeedSetLifecycleStatusItem = {
+    const nextStatus: FeedStatus = {
       feedUrl: chunk.feedUrl,
       feedName: existingStatus?.feedName ?? chunk.feedUrl,
       status: chunk.status,
       itemCount: chunk.itemCount,
     };
 
-    return transitionFromState(
+    return publish(
       {
         ...currentState,
         requestId: chunk.requestId,
@@ -266,30 +327,27 @@ export function applyFeedSetStreamChunk(
       totalFeeds: 0,
     };
 
-    return transitionFromState(
-      nextState,
-      [
-        {
-          type: 'persist_offline_snapshot',
-          feedUrls: nextState.feedUrls,
-          timeZone: nextState.timeZone,
-          items: serializeFeedItems(nextState.items),
-        },
-      ]
-    );
+    return publish(nextState, [
+      {
+        type: 'persist_offline_snapshot',
+        feedUrls: nextState.feedUrls,
+        timeZone: nextState.timeZone,
+        items: serializeFeedItems(nextState.items),
+      },
+    ]);
   }
 
   throw new Error(chunk.error || 'Failed to fetch feeds');
 }
 
 export function applyFeedSetApiResponse(
-  state: FeedSetLifecycleState,
+  phase: FeedSetPhase,
   response: FeedApiResponse
 ): FeedSetLifecycleTransition {
-  const currentState = implementationStateOf(state);
+  const currentState = internalOf(phase);
   const items = deserializeFeedItems(response.items);
   const status = response.cached ? 'cached' : 'success';
-  const nextState: FeedSetLifecycleImplementationState = {
+  const nextState: Internal = {
     ...currentState,
     items,
     loading: false,
@@ -306,28 +364,25 @@ export function applyFeedSetApiResponse(
     })),
   };
 
-  return transitionFromState(
-    nextState,
-    [
-      {
-        type: 'persist_offline_snapshot',
-        feedUrls: nextState.feedUrls,
-        timeZone: nextState.timeZone,
-        items: serializeFeedItems(items),
-      },
-    ]
-  );
+  return publish(nextState, [
+    {
+      type: 'persist_offline_snapshot',
+      feedUrls: nextState.feedUrls,
+      timeZone: nextState.timeZone,
+      items: serializeFeedItems(items),
+    },
+  ]);
 }
 
 export function failFeedSetLifecycle(
-  state: FeedSetLifecycleState,
+  phase: FeedSetPhase,
   input: {
     error: Error;
     now?: Date;
     fallbackSnapshot: FeedSetLifecycleSnapshot | null;
   }
 ): FeedSetLifecycleTransition {
-  const currentState = implementationStateOf(state);
+  const currentState = internalOf(phase);
   const snapshot = getUsableSnapshot(
     input.fallbackSnapshot,
     currentState.timeZone,
@@ -335,7 +390,7 @@ export function failFeedSetLifecycle(
   );
 
   if (snapshot) {
-    return transitionFromState(
+    return publish(
       {
         ...currentState,
         items: deserializeFeedItems(snapshot.items),
@@ -350,7 +405,7 @@ export function failFeedSetLifecycle(
     );
   }
 
-  return transitionFromState(
+  return publish(
     {
       ...currentState,
       loading: false,
@@ -364,12 +419,10 @@ export function failFeedSetLifecycle(
   );
 }
 
-export function finishFeedSetLifecycle(
-  state: FeedSetLifecycleState
-): FeedSetLifecycleTransition {
-  const currentState = implementationStateOf(state);
+export function finishFeedSetLifecycle(phase: FeedSetPhase): FeedSetLifecycleTransition {
+  const currentState = internalOf(phase);
 
-  return transitionFromState(
+  return publish(
     {
       ...currentState,
       loading: false,

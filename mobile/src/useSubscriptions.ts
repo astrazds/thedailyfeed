@@ -1,10 +1,12 @@
 import { useState, useSyncExternalStore } from "react";
-import type { Feed, FeedManagerOperation } from "../../lib/feed-storage";
 import {
-  applySubscription,
-  readSubscriptions,
-  subscribeToSubscriptions,
-} from "./subscriptions";
+  feedsForReader,
+  peekFeedInventory,
+  runFeedManagerOperation,
+  type Feed,
+  type FeedManagerOperation,
+} from "../../lib/feed-storage";
+import { applySubscription, subscribeToSubscriptions } from "./subscriptions";
 
 type WithoutValidator<T> = T extends unknown
   ? Omit<T, "validateFeedUrl">
@@ -17,24 +19,30 @@ export function useSubscriptions() {
   const [store] = useState(() => {
     let snapshot: Feed[] | null = null;
     let notify: (() => void) | undefined;
-    const update = () => {
-      snapshot = readSubscriptions();
+    const publish = () => {
+      snapshot = [...feedsForReader(peekFeedInventory())];
       notify?.();
     };
     return {
       getSnapshot: () => snapshot,
       subscribe(onChange: () => void) {
         notify = onChange;
-        const unsubscribe = subscribeToSubscriptions(update);
-        update();
+        let cancelled = false;
+        const unsubscribe = subscribeToSubscriptions(() => {
+          if (!cancelled) publish();
+        });
+        void runFeedManagerOperation({ type: "hydrate" }).finally(() => {
+          if (!cancelled) publish();
+        });
         return () => {
+          cancelled = true;
           unsubscribe();
           notify = undefined;
         };
       },
       async apply(command: SubscriptionCommand) {
         const result = await applySubscription(command);
-        update();
+        publish();
         return result;
       },
     };

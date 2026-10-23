@@ -1,58 +1,9 @@
-import {
-  getFeeds,
-  runFeedManagerOperation,
-  type Feed,
-} from "../../lib/feed-storage";
-import { MAX_FEEDS_PER_REQUEST, STORAGE_KEY_FEEDS } from "../../lib/constants";
-import { validateAndNormalizeFeedUrl } from "../../lib/url-validator";
+import { feedsForReader, peekFeedInventory, runFeedManagerOperation, type Feed } from "../../lib/feed-storage";
+import { STORAGE_KEY_FEEDS } from "../../lib/constants";
 import type { SubscriptionCommand } from "./useSubscriptions";
 
-const MVP_CONFIG_KEY = "daily-feed-expo.config.v1";
-
 export function readSubscriptions(): Feed[] {
-  try {
-    if (localStorage.getItem(STORAGE_KEY_FEEDS) === null) {
-      const raw = localStorage.getItem(MVP_CONFIG_KEY);
-      if (raw) {
-        const value: unknown = JSON.parse(raw);
-        if (
-          typeof value === "object" &&
-          value !== null &&
-          "feeds" in value &&
-          Array.isArray(value.feeds) &&
-          value.feeds.length <= MAX_FEEDS_PER_REQUEST
-        ) {
-          const urls = new Set<string>();
-          const feeds: Feed[] = value.feeds.map((entry: unknown) => {
-            if (
-              typeof entry !== "object" ||
-              entry === null ||
-              !("name" in entry) ||
-              typeof entry.name !== "string" ||
-              !entry.name.trim() ||
-              !("url" in entry) ||
-              typeof entry.url !== "string"
-            )
-              throw new Error("Invalid saved feed");
-            const url = validateAndNormalizeFeedUrl(entry.url);
-            if (urls.has(url)) throw new Error("Duplicate saved feed");
-            urls.add(url);
-            return {
-              id: crypto.randomUUID(),
-              url,
-              name: entry.name.trim(),
-              enabled: true,
-              addedAt: new Date(),
-            };
-          });
-          localStorage.setItem(STORAGE_KEY_FEEDS, JSON.stringify(feeds));
-        }
-      }
-    }
-  } catch {
-    return getFeeds();
-  }
-  return getFeeds();
+  return [...feedsForReader(peekFeedInventory())];
 }
 
 export async function applySubscription(command: SubscriptionCommand) {
