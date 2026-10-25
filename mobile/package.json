@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@native-html/render": "1.0.3",
-    "dompurify": "^3.4.16",
+    "dompurify": "^3.4.17",
     "expo": "57.0.26",
     "expo-font": "~57.0.4",
     "htmlparser2": "^10.0.0",
