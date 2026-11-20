@@ -3,6 +3,12 @@
 A self-hosted Expo and React Native RSS reader for the web. Articles use the
 reader's timezone. Subscriptions and offline reading belong to the browser profile.
 
+## Rules these checks enforce
+
+| Rule | What enforces it |
+| --- | --- |
+| A pull request body does not contain the footer comment `<!-- CURSOR_AGENT_PR_BODY`. Remove the footer. | `node scripts/check-pr-body.mjs` on pull requests, with `PR_BODY` set |
+
 ## Execution environment
 
 This workspace runs directly on the deployment host. Run file edits, Git,
