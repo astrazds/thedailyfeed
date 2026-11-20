@@ -17,6 +17,9 @@
 /test-results/
 /playwright-report/
 /.playwright-mcp/
+/docs/verification/verify-thedailyfeed/.tools/
+/docs/verification/verify-thedailyfeed/run/
+/docs/verification/verify-thedailyfeed/evidence/
 
 # AI agent local configuration and prompts
 /.backpass/

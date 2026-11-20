@@ -1,30 +1,32 @@
 # Refresh feeds
 
-Refresh checks the enabled sources again and starts a new edition header for that retrieval.
+Refresh feeds checks the saved sources again from the header control. The click starts a new `POST /api/feeds` after the first edition has already settled.
 
 ## Sub-features
 
-- `refresh-start` starts a new check from the header control.
-- `refresh-progress` shows loading progress while sources are still arriving.
-- `refresh-stop` leaves the header date on that retrieval after the check ends.
+- `refresh-settled` shows both articles and `2 items` before the click.
+- `refresh-post` starts a new feed post when the header control is chosen.
+- `refresh-still-there` shows the same two articles after that post finishes.
 
 ## How to get to it (user POV)
 
-- Choose **Refresh feeds** in the edition header.
+- Choose the header button `Refresh feeds` after the edition has loaded. The control's test id is `refresh`.
 
-## Driving it with verify-thedailyfeed
+## Driving it with drive.mjs
 
-Preconditions:
+Preconditions, from an empty browser profile:
 
-- The reader is healthy at `http://127.0.0.1:3217/`.
-- `node docs/verification/verify-thedailyfeed/bin/verify-thedailyfeed.mjs doctor` reports `ok: true`.
-- The heading `The Daily Feed` is already visible.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
+- The command below writes the two fixture feeds into `rss-feeds` before navigation. The query contains `feature=refresh-feeds`. It removes `rss-offline-feed-snapshots-v1`.
 
-- **Refresh.** Choose **Refresh feeds**. There is no separate helper command yet. Use the same Playwright browser as the edition drive, click the button named `Refresh feeds`, and wait until `aria-busy` on `main` returns to `false` or the button is enabled again. The banner date stays the retrieval start for that check.
-- **Proof.** Record the click and the banner text after the button is enabled. Do not treat a screenshot taken only before the click as proof.
+- **Load the edition.** Wait until both article titles are visible, the header contains `2 items`, and no `POST /api/feeds` is in flight.
+- **Refresh.** `refresh` matches one element. Choose it. A `POST /api/feeds` starts at or after the click, and the started count is higher than it was before the click.
+- **Settled again.** Both titles remain, and the in-flight count returns to 0.
+- **Proof.** Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs run refresh-feeds`. `evidence/refresh-feeds/stream.json` records the post count before the click and the post that started after it.
 
 ## Gotchas
 
-- The control is disabled while a check is already running and when no feed is enabled.
-- Reduced motion keeps the icon still. The button name `Refresh feeds` is still the handle.
-- A failed source can show **Try again** instead of new articles. That is a completed check, not a skipped one.
+- The manager also has a button named `Refresh feeds`. Keep the manager closed and use the header test id `refresh`.
+- The server cache lasts one hour. This refresh often returns both feeds from that cache, so it does not repeat the 2.5 second gap. The new post is the proof. Titles that were already on screen, with no new post, are the previous edition.
+- A second mount in development can add posts before the click. Compare the count with the sample taken after the edition settled.
