@@ -7,7 +7,9 @@ description: Drive The Daily Feed web reader in a browser and prove a local fixt
 
 The Daily Feed is a self-hosted RSS reader. Drive the web reader. Next serves the Expo screen and the feed API on one origin. Subscriptions and same-day snapshots stay in this browser profile.
 
-Run every command from the repository root. `drive.mjs` is the only way to start the browser. Playwright lives in `.cursor/skills/verify-thedailyfeed/.tools/`. Leave it there.
+This skill stays in `docs/verification/verify-thedailyfeed/`. `/.cursor/` and `/.agents/` stay gitignored. Do not weaken those ignore rules to move the skill.
+
+Run every command from the repository root. `drive.mjs` is the only way to start the browser. Playwright, run state, and new evidence stay in `.tools/`, `run/`, and `evidence/` under this directory.
 
 Feeds come from the network. This skill serves a real RSS document over HTTP, and the reader fetches that URL the same way it fetches any other feed. The development server allows a loopback feed URL. A production process blocks loopback feeds unless `ALLOW_PRIVATE_NETWORKS=true`, so this skill starts `scripts/dev.mjs` and does not attach to a production container.
 
@@ -25,7 +27,7 @@ npm ci --prefix mobile
 Start the fixture and the development server.
 
 ```bash
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch
 ```
 
 Ready is a stdout line that starts with `ready` and includes `setup_ms`. The process prints it only after all of these are true.
@@ -45,7 +47,7 @@ The shell for the servers sets `RATE_LIMIT_MAX_REQUESTS=100` so a pass through t
 Run this before a drive whenever the page looks wrong. It does not click, type, or reload.
 
 ```bash
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor
 ```
 
 Exit 0 prints `doctor ok` with the app pid, the fixture pid, the origin, the listener pids, and HTTP status. The check passes only when the app pid is alive, its command contains `scripts/dev.mjs` and `--port 3217`, the fixture pid is alive and its command contains `serve-fixture`, every listener on port 3217 is a descendant of the app pid, and `GET /` returns HTTP 200 with an HTML document. Anything else means do not drive.
@@ -57,7 +59,7 @@ Read `features/README.md`, then one feature file. Run that file's command unchan
 The driver throws when a handle matches any count other than the one the step names. Wait for that count before clicking or typing. The header gear is `connection-settings`. The empty-state button is also named Manage feeds, so the accessible name alone matches two controls. The header progress bar is the `[aria-label="Feed loading progress"]` element inside `feed-header`. The manager draws a second bar with the same name while it is open.
 
 ```bash
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run add-feed
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs run add-feed
 ```
 
 `pass feature=add-feed evidence=... verify_ms=...` is a pass. `verify_ms` is that command only. A thrown check is a failure. Write the failure down and leave the journey as it is.
@@ -66,12 +68,12 @@ The evening fixture holds the RSS body for 2.5 seconds. Morning returns immediat
 
 ## Evidence
 
-The driver writes the directory for the feature you run.
+The driver writes the directory for the feature you run. Those directories are gitignored. `docs/verification/evidence/read-edition/` is an older committed capture. This driver does not write there.
 
-- `.cursor/skills/verify-thedailyfeed/evidence/add-feed`
-- `.cursor/skills/verify-thedailyfeed/evidence/read-edition`
-- `.cursor/skills/verify-thedailyfeed/evidence/refresh-feeds`
-- `.cursor/skills/verify-thedailyfeed/evidence/offline-snapshot`
+- `docs/verification/verify-thedailyfeed/evidence/add-feed`
+- `docs/verification/verify-thedailyfeed/evidence/read-edition`
+- `docs/verification/verify-thedailyfeed/evidence/refresh-feeds`
+- `docs/verification/verify-thedailyfeed/evidence/offline-snapshot`
 
 `stream.json` stores the sampled header, article titles, in-flight `POST /api/feeds` counts, and fixture counters. `action.txt` names the feature, the fixture URLs, and `verify_ms`. `during.png` is the page while the stream gap is on screen. `after.png` is the settled page. `storage.json` is `rss-feeds` and `rss-offline-feed-snapshots-v1` after the reader finishes. `banner.aria.txt` is the header after the articles are on screen. `failure.json` and `failure.png` appear when a run throws.
 
@@ -81,18 +83,18 @@ For `add-feed` and `read-edition`, the stream proof is the gap inside `stream.js
 
 ## Cleanup
 
-Stop the session this skill started. Cleanup reads `run/state.json`, sends `SIGTERM` to the recorded app and fixture process trees, and sends `SIGKILL` only to those same pids if they are still alive. It checks each root command before signalling. It deletes `.cursor/skills/verify-thedailyfeed/run/` and leaves the evidence directories.
+Stop the session this skill started. Cleanup reads `run/state.json`, sends `SIGTERM` to the recorded app and fixture process trees, and sends `SIGKILL` only to those same pids if they are still alive. It checks each root command before signalling. It deletes `docs/verification/verify-thedailyfeed/run/` and leaves the evidence directories.
 
 ```bash
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs cleanup
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs cleanup
 ```
 
 `cleanup ok` is followed by one `kept` line for each evidence directory.
 
-- `.cursor/skills/verify-thedailyfeed/evidence/add-feed`
-- `.cursor/skills/verify-thedailyfeed/evidence/read-edition`
-- `.cursor/skills/verify-thedailyfeed/evidence/refresh-feeds`
-- `.cursor/skills/verify-thedailyfeed/evidence/offline-snapshot`
+- `docs/verification/verify-thedailyfeed/evidence/add-feed`
+- `docs/verification/verify-thedailyfeed/evidence/read-edition`
+- `docs/verification/verify-thedailyfeed/evidence/refresh-feeds`
+- `docs/verification/verify-thedailyfeed/evidence/offline-snapshot`
 
 Confirm the evidence directory from the drive still contains `stream.json`. Run cleanup after a failed launch too, so a broken attempt does not keep the ports.
 
@@ -101,13 +103,13 @@ Confirm the evidence directory from the drive still contains `stream.json`. Run 
 `drive.mjs` is the only helper.
 
 ```bash
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run add-feed
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run read-edition
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run refresh-feeds
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run offline-snapshot
-node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs cleanup
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs run add-feed
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs run read-edition
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs run refresh-feeds
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs run offline-snapshot
+node docs/verification/verify-thedailyfeed/scripts/drive.mjs cleanup
 ```
 
 ## Keep the map current

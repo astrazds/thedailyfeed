@@ -4,9 +4,9 @@ This directory is the maintained source for verifying the web reader. Read the i
 
 ## Baseline preconditions
 
-- From the repository root, run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch`.
+- From the repository root, run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch`.
 - Ready is the `ready` line with `setup_ms`. The heading `The Daily Feed` is visible at `http://127.0.0.1:3217/` and the page says `No feeds yet`.
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
 - The fixture at `http://127.0.0.1:3218/` serves `morning.xml` and `evening.xml`. The reader fetches those documents. Nothing stubs `/api/feeds`.
 - Each `run` uses a new browser context. Do not drive a server this run did not start.
 - Launch refuses a second session on ports 3217, 8187, and 3218.

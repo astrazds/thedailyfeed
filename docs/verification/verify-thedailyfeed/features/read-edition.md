@@ -17,14 +17,14 @@ Opening the reader with two saved feeds shows today's date, both articles, and a
 
 Preconditions, from an empty browser profile:
 
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch`.
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
-- The command below writes two enabled feeds into `rss-feeds` before the first navigation and removes `rss-offline-feed-snapshots-v1`. The URLs are `http://127.0.0.1:3218/morning.xml?run=<id>&feature=read-edition` and the matching `evening.xml` URL. `<id>` is `runId` in `.cursor/skills/verify-thedailyfeed/run/state.json`. Each feed has `id`, `name`, `url`, `enabled: true`, and an ISO `addedAt`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
+- The command below writes two enabled feeds into `rss-feeds` before the first navigation and removes `rss-offline-feed-snapshots-v1`. The URLs are `http://127.0.0.1:3218/morning.xml?run=<id>&feature=read-edition` and the matching `evening.xml` URL. `<id>` is `runId` in `docs/verification/verify-thedailyfeed/run/state.json`. Each feed has `id`, `name`, `url`, `enabled: true`, and an ISO `addedAt`.
 
 - **Open the reader.** Visit the site root. One heading reads `The Daily Feed`.
 - **Stream gap.** `feed-header` contains `1 of 2 feeds checked`, `Morning dispatch` is the only article title, `POST /api/feeds` is in flight, and the evening fixture connection is open.
 - **Settled edition.** The header contains today's `Australia/Sydney` date and `2 items`. Both article titles are on the page.
-- **Proof.** Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run read-edition`. `evidence/read-edition/stream.json` has `gap.ok` true. `storage.json` keeps both URLs and the snapshot titles.
+- **Proof.** Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs run read-edition`. `evidence/read-edition/stream.json` has `gap.ok` true. `storage.json` keeps both URLs and the snapshot titles.
 
 ## Gotchas
 

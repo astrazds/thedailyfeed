@@ -19,16 +19,16 @@ Add a feed lets a person save an RSS URL and read today's articles from it. The 
 
 Preconditions, from an empty browser profile:
 
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch`.
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
 - The command below sets `rss-feeds` to `[]` and removes `rss-offline-feed-snapshots-v1` before the first navigation.
 
 - **Open the empty reader.** The page shows one heading `The Daily Feed` and the text `No feeds yet`. The gear `connection-settings` matches one element.
-- **Add Morning.** The add form is visible. Fill `Feed name` with `Morning` and `Feed URL` with `http://127.0.0.1:3218/morning.xml?run=<id>&feature=add-feed`, and choose `Add feed`. `<id>` is `runId` in `.cursor/skills/verify-thedailyfeed/run/state.json`. One article title reads `Morning dispatch`.
+- **Add Morning.** The add form is visible. Fill `Feed name` with `Morning` and `Feed URL` with `http://127.0.0.1:3218/morning.xml?run=<id>&feature=add-feed`, and choose `Add feed`. `<id>` is `runId` in `docs/verification/verify-thedailyfeed/run/state.json`. One article title reads `Morning dispatch`.
 - **Add Evening.** Fill `Feed name` with `Evening` and `Feed URL` with the matching `evening.xml` URL, then choose `Add feed` again. The evening document waits 2.5 seconds before the body.
 - **Stream gap.** While that wait is in progress, `feed-header` contains `1 of 2 feeds checked`, its progress bar matches one element, `Morning dispatch` is the only article title, one `POST /api/feeds` is in flight, and `GET /status` reports `eveningOpen` of at least 1.
 - **Settled reader.** Both titles are visible, the header contains today's date in `Australia/Sydney` and `2 items`, and the dialog is closed.
-- **Proof.** Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run add-feed`. The pass line includes `verify_ms`. `evidence/add-feed/stream.json` has `gap.ok` true. `storage.json` contains both fixture URLs and both article titles in the snapshot.
+- **Proof.** Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs run add-feed`. The pass line includes `verify_ms`. `evidence/add-feed/stream.json` has `gap.ok` true. `storage.json` contains both fixture URLs and both article titles in the snapshot.
 
 ## Gotchas
 

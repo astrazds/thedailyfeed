@@ -17,14 +17,14 @@ A failed refresh keeps today's saved articles on screen and says the reader is s
 
 Preconditions, from an empty browser profile:
 
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch`.
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
 - The command below writes the two fixture feeds into `rss-feeds` with `feature=offline-snapshot`, loads them, and waits until the snapshot contains `Morning dispatch`.
 
 - **Load online.** Both article titles are visible and the snapshot key is present.
 - **Refresh offline.** Turn the browser context offline, then choose `refresh`. One visible text node reads `Unable to refresh. Showing saved items from today.` Both article titles remain.
 - **Fixture stays put.** `morningDone` and `eveningDone` on `GET /status` are unchanged, and `eveningOpen` is 0.
-- **Proof.** Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run offline-snapshot`. `evidence/offline-snapshot/stream.json` records the notice count and the fixture counters before and after the click.
+- **Proof.** Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs run offline-snapshot`. `evidence/offline-snapshot/stream.json` records the notice count and the fixture counters before and after the click.
 
 ## Gotchas
 

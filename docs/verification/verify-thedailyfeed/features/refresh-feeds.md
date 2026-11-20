@@ -16,14 +16,14 @@ Refresh feeds checks the saved sources again from the header control. The click 
 
 Preconditions, from an empty browser profile:
 
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs launch`.
-- Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs launch`.
+- Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs doctor` and require `doctor ok`.
 - The command below writes the two fixture feeds into `rss-feeds` before navigation. The query contains `feature=refresh-feeds`. It removes `rss-offline-feed-snapshots-v1`.
 
 - **Load the edition.** Wait until both article titles are visible, the header contains `2 items`, and no `POST /api/feeds` is in flight.
 - **Refresh.** `refresh` matches one element. Choose it. A `POST /api/feeds` starts at or after the click, and the started count is higher than it was before the click.
 - **Settled again.** Both titles remain, and the in-flight count returns to 0.
-- **Proof.** Run `node .cursor/skills/verify-thedailyfeed/scripts/drive.mjs run refresh-feeds`. `evidence/refresh-feeds/stream.json` records the post count before the click and the post that started after it.
+- **Proof.** Run `node docs/verification/verify-thedailyfeed/scripts/drive.mjs run refresh-feeds`. `evidence/refresh-feeds/stream.json` records the post count before the click and the post that started after it.
 
 ## Gotchas
 
