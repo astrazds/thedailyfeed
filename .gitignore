@@ -24,7 +24,11 @@
 /.agents/
 /.codex/
 /.claude/
-/.cursor/
+/.cursor/*
+!/.cursor/skills/
+.cursor/skills/verify-thedailyfeed/.tools/
+.cursor/skills/verify-thedailyfeed/run/
+.cursor/skills/verify-thedailyfeed/evidence/
 /.windsurf/
 /.roo/
 /.aider*
